@@ -168,10 +168,27 @@
     <!-- Модальное окно -->
     <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center hidden z-50"><div class="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-sm w-full fade-in"><p id="modal-message" class="text-lg text-gray-700 mb-6"></p><button onclick="closeModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-full transition-all">OK</button></div></div>
 
+    <!-- Модальное окно с деталями пользователя -->
+    <div id="user-detail-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-end z-40 opacity-0 hidden transition-opacity duration-300">
+        <div id="user-detail-content" class="w-full h-3/4 bg-white rounded-t-2xl shadow-2xl p-4 flex flex-col transform translate-y-full transition-transform duration-300 ease-in-out">
+            <div class="w-full flex justify-center mb-2 flex-shrink-0" onclick="hideUserDetailModal()">
+                <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+            </div>
+            <div id="user-detail-header" class="flex items-center space-x-4 mb-4 flex-shrink-0">
+                <!-- Содержимое будет заполнено JS -->
+            </div>
+            <div id="detail-map" class="w-full flex-grow bg-gray-200 rounded-lg mb-4"></div>
+            <div id="user-detail-stats" class="text-center flex-shrink-0">
+                 <!-- Содержимое будет заполнено JS -->
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         // --- Глобальные переменные ---
         const tg = window.Telegram.WebApp;
         let map;
+        let detailMap = null; // Карта в модальном окне
         let supabase;
         let telegramUser = null;
         let isRunning = false;
@@ -182,7 +199,7 @@
         let userColor = '#3b82f6';
         let currentUserMarker = null;
         let allUserLayers = {};
-        let allProfilesData = []; // Хранилище для всех профилей
+        let allProfilesData = [];
 
         // --- Элементы DOM ---
         const authScreen = document.getElementById('auth-screen');
@@ -200,6 +217,7 @@
         const modal = document.getElementById('message-modal');
         const modalMessage = document.getElementById('modal-message');
         const recenterBtn = document.getElementById('recenter-btn');
+        const userDetailModal = document.getElementById('user-detail-modal');
 
         // --- Функции UI ---
         function showView(viewId) {
@@ -228,20 +246,77 @@
             return `hsl(${h}, 80%, 65%)`;
         }
         
-        function focusOnUser(userId) {
-            showView('map-view');
-            const userLayerGroup = allUserLayers[userId];
-            // FIX: Проверяем, что слой существует и содержит какие-либо слои (т.е. есть территория)
-            if (userLayerGroup && map && userLayerGroup.getLayers().length > 0) {
-                // FIX: Используем setTimeout, чтобы карта успела отрисоваться перед изменением масштаба.
-                setTimeout(() => {
-                    map.flyToBounds(userLayerGroup.getBounds(), { padding: [50, 50], duration: 1, maxZoom: 16 });
-                }, 100);
-            } else {
+        async function showUserDetailModal(userId) {
+            const profile = allProfilesData.find(p => p.id === userId);
+            if (!profile) return;
+
+            if (!profile.territory) {
                 showMessage("У этого пользователя еще нет захваченных территорий.");
+                return;
             }
+
+            tg.HapticFeedback.impactOccurred('medium');
+
+            const userDetailHeader = document.getElementById('user-detail-header');
+            const avatar = profile.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
+            userDetailHeader.innerHTML = `
+                <img src="${avatar}" class="w-16 h-16 rounded-full" alt="avatar">
+                <div>
+                    <p class="text-2xl font-bold text-gray-800">${profile.name}</p>
+                    <p class="text-sm text-gray-500">Завоеватель</p>
+                </div>
+            `;
+            
+            const userDetailStats = document.getElementById('user-detail-stats');
+            const area = profile.area || 0;
+            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
+            userDetailStats.innerHTML = `
+                <p class="text-sm text-gray-500">Общая площадь</p>
+                <p class="text-4xl font-bold text-gray-800">${formattedArea}</p>
+            `;
+
+            const content = document.getElementById('user-detail-content');
+            userDetailModal.classList.remove('hidden');
+            setTimeout(() => {
+                userDetailModal.classList.remove('opacity-0');
+                content.classList.remove('translate-y-full');
+            }, 10);
+
+            setTimeout(() => {
+                if (detailMap) {
+                    detailMap.remove();
+                    detailMap = null;
+                }
+                
+                detailMap = L.map('detail-map', { zoomControl: false, attributionControl: false });
+                const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
+                L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token={accessToken}', {
+                    maxZoom: 19,
+                    accessToken: mapboxAccessToken
+                }).addTo(detailMap);
+
+                const territoryLayer = L.geoJSON(profile.territory, { 
+                    style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.5 } 
+                }).addTo(detailMap);
+
+                detailMap.fitBounds(territoryLayer.getBounds(), { padding: [20, 20], maxZoom: 16 });
+            }, 300);
         }
 
+        function hideUserDetailModal() {
+            const content = document.getElementById('user-detail-content');
+            userDetailModal.classList.add('opacity-0');
+            content.classList.add('translate-y-full');
+            setTimeout(() => {
+                userDetailModal.classList.add('hidden');
+                if (detailMap) {
+                    detailMap.remove();
+                    detailMap = null;
+                }
+                document.getElementById('detail-map').innerHTML = '';
+            }, 300);
+        }
+        
         // --- Основная логика ---
         async function startApp() {
             tg.ready();
@@ -578,7 +653,7 @@
                     ? `${(area / 1000000).toFixed(2)} км²` 
                     : `${Math.round(area)} м²`;
 
-                return `<div class="bg-white rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="focusOnUser(${u.id})">
+                return `<div class="bg-white rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showUserDetailModal(${u.id})">
                     <span class="text-xl font-bold text-gray-400 w-8">${index + 1}</span>
                     <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
                     <div class="flex-grow">
@@ -613,11 +688,17 @@
         recenterBtn.addEventListener('click', () => {
              if (currentUserMarker) map.flyTo(currentUserMarker.getLatLng(), 16);
         });
+        userDetailModal.addEventListener('click', (e) => {
+            if (e.target.id === 'user-detail-modal') {
+                hideUserDetailModal();
+            }
+        });
         
         // --- Глобальные функции для HTML ---
         window.showView = showView;
         window.closeModal = closeModal;
-        window.focusOnUser = focusOnUser;
+        window.showUserDetailModal = showUserDetailModal;
+        window.hideUserDetailModal = hideUserDetailModal;
         window.onTelegramAuth = async (user) => {
             console.log("Logged in via external widget:", user);
             telegramUser = user;
