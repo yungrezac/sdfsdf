@@ -466,11 +466,24 @@
             if (!telegramUser) return;
             const area = userTerritory ? turf.area(userTerritory) : 0;
             
+            // FIX: Use upsert for more robust data saving
             const { error } = await supabase
                 .from('profiles')
-                .update({ territory: userTerritory, area: area, updated_at: new Date().toISOString() })
-                .eq('id', telegramUser.id);
-            if (error) console.error('Error saving user data:', error);
+                .upsert({ 
+                    id: telegramUser.id, 
+                    name: telegramUser.first_name,
+                    photo_url: telegramUser.photo_url || null,
+                    color: userColor,
+                    territory: userTerritory, 
+                    area: area, 
+                    updated_at: new Date().toISOString() 
+                });
+
+            if (error) {
+                console.error('Error saving user data (upsert):', error);
+                tg.HapticFeedback.notificationOccurred('error');
+                showMessage("Ошибка сохранения прогресса.");
+            }
         }
 
         function listenToAllProfiles() {
@@ -568,14 +581,28 @@
             const apiKey = "";
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+            
+            console.log("Calling Gemini with prompt:", prompt);
+
             try {
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                console.log("Gemini API response status:", response.status);
+
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    console.error("Gemini API error response body:", errorBody);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const result = await response.json();
+                console.log("Gemini API response JSON:", result);
+                
                 if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
                     targetElement.innerText = result.candidates[0].content.parts[0].text;
                 } else {
                     targetElement.innerText = "Не удалось получить ответ от AI. Попробуйте еще раз.";
+                    console.error("Unexpected API response structure:", result);
                 }
             } catch (error) {
                 console.error("Error calling Gemini API:", error);
