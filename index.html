@@ -188,11 +188,10 @@
         // --- Глобальные переменные ---
         const tg = window.Telegram.WebApp;
         let map;
-        let detailMap = null; // Карта в модальном окне
+        let detailMap = null;
         let supabase;
         let telegramUser = null;
         let isRunning = false;
-        let watchId = null;
         let currentRunPath = [];
         let currentPathPolyline = null;
         let userTerritory = null;
@@ -422,26 +421,44 @@
             
             setTimeout(() => map?.invalidateSize(), 100);
 
-            navigator.geolocation.getCurrentPosition(
-                pos => {
-                    const latLng = [pos.coords.latitude, pos.coords.longitude];
+            // Запрашиваем геолокацию через Telegram SDK
+            tg.requestLocation((location) => {
+                if (location) {
+                    const latLng = [location.latitude, location.longitude];
                     map.setView(latLng, 16);
-                    const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E2E8F0/4A5568?text=${telegramUser.first_name.charAt(0)}`;
-                    const icon = L.divIcon({
-                        html: `<div class="avatar-marker current-user-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${userColor};"></div>`,
-                        className: '',
-                        iconSize: [40, 40],
-                        iconAnchor: [20, 20]
-                    });
-                    
-                    if (currentUserMarker) {
-                        currentUserMarker.setLatLng(latLng);
-                    } else {
-                        currentUserMarker = L.marker(latLng, { icon: icon, zIndexOffset: 1000 }).addTo(map);
-                    }
-                },
-                () => showMessage('Не удалось определить геолокацию.'), { enableHighAccuracy: true }
-            );
+                    updateCurrentUserMarker(latLng);
+                } else {
+                    showMessage('Необходимо разрешить доступ к геолокации для работы приложения.');
+                }
+            });
+
+            // Слушаем постоянные обновления геолокации
+            tg.onEvent('locationChanged', (location) => {
+                const latLng = [location.latitude, location.longitude];
+                updateCurrentUserMarker(latLng);
+                if (isRunning) {
+                    const coords = [location.longitude, location.latitude];
+                    currentRunPath.push(coords);
+                    currentPathPolyline.addLatLng(latLng);
+                    map.panTo(latLng);
+                }
+            });
+        }
+
+        function updateCurrentUserMarker(latLng) {
+            const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E2E8F0/4A5568?text=${telegramUser.first_name.charAt(0)}`;
+            const icon = L.divIcon({
+                html: `<div class="avatar-marker current-user-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${userColor};"></div>`,
+                className: '',
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
+            });
+            
+            if (currentUserMarker) {
+                currentUserMarker.setLatLng(latLng);
+            } else {
+                currentUserMarker = L.marker(latLng, { icon: icon, zIndexOffset: 1000 }).addTo(map);
+            }
         }
         
         // --- Логика бега и территории ---
@@ -453,23 +470,9 @@
             toggleRunBtn.className = 'btn-gradient-red text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-red-300';
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
             currentPathPolyline = L.polyline([], { color: '#ef4444', weight: 5, opacity: 0.9 }).addTo(map);
-            watchId = navigator.geolocation.watchPosition(
-                pos => {
-                    const { latitude, longitude } = pos.coords;
-                    const latLng = [latitude, longitude];
-                    currentRunPath.push([longitude, latitude]);
-                    currentPathPolyline.addLatLng(latLng);
-                    map.panTo(latLng);
-                    if (currentUserMarker) currentUserMarker.setLatLng(latLng);
-                },
-                () => { showMessage('Проблема с отслеживанием геолокации.'); stopRun(); },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
         }
 
         function stopRun() {
-            if (watchId) navigator.geolocation.clearWatch(watchId);
-            watchId = null;
             const wasRunning = isRunning;
             isRunning = false;
             tg.HapticFeedback.impactOccurred('heavy');
