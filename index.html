@@ -220,39 +220,52 @@
             }
             telegramUser = tg.initDataUnsafe.user;
 
-            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
+            try {
+                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
 
-            // FIX: Moved onAuthStateChanged inside startApp to ensure 'auth' is defined.
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    firebaseUser = user;
-                    await setupUser();
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        console.log("Firebase user signed in:", user.uid);
+                        firebaseUser = user;
+                        await setupUser();
+                    } else {
+                        console.log("Firebase user signed out.");
+                        firebaseUser = null;
+                    }
+                });
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    console.log("Signing in with custom token...");
+                    await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
-                    firebaseUser = null;
-                    // Можно показать экран входа, если пользователь вышел
+                    console.log("Signing in anonymously...");
+                    await signInAnonymously(auth);
                 }
-            });
-
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Firebase Initialization or Auth Error:", error);
+                authScreen.innerHTML = `<div class="text-center bg-white p-8 rounded-2xl shadow-lg"><h1 class="text-2xl font-bold text-gray-800 mb-4">Ошибка подключения</h1><p class="text-gray-600">Не удалось подключиться к серверу. Попробуйте перезапустить приложение.</p></div>`;
             }
         }
         
         async function setupUser() {
-            await loadUserData();
-            initMap();
-            updateUI();
-            listenForAllTerritories();
-            listenForLeaderboard();
-            
-            authScreen.style.display = 'none';
-            appContainer.classList.remove('hidden');
-            bottomNavbar.classList.remove('hidden');
+            try {
+                await loadUserData();
+                initMap();
+                updateUI();
+                listenForAllTerritories();
+                listenForLeaderboard();
+                
+                authScreen.style.display = 'none';
+                appContainer.classList.remove('hidden');
+                bottomNavbar.classList.remove('hidden');
+                console.log("Setup complete. Application is running.");
+            } catch (error) {
+                console.error("Error during user setup:", error);
+                showMessage("Произошла ошибка при настройке вашего профиля.");
+            }
         }
 
         function updateUI() {
@@ -271,6 +284,7 @@
         }
 
         function initMap() {
+            if (map) return; // Prevents re-initializing the map
             map = L.map('map', { zoomControl: false, attributionControl: false }).setView([55.75, 37.61], 13);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {}).addTo(map);
             
@@ -285,6 +299,7 @@
         
         // --- Логика бега и территории ---
         function startRun() {
+            isRunning = true;
             currentRunPath = [];
             toggleRunBtn.textContent = 'Стоп';
             toggleRunBtn.className = 'btn-gradient-red text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-red-300';
@@ -305,12 +320,16 @@
         function stopRun() {
             if (watchId) navigator.geolocation.clearWatch(watchId);
             watchId = null;
+            const wasRunning = isRunning;
             isRunning = false;
             toggleRunBtn.textContent = 'Старт';
             toggleRunBtn.className = 'btn-gradient text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300';
-            if (currentRunPath.length > 3) processRunPath();
-            else if (isRunning) showMessage('Слишком короткий маршрут.');
-            if (currentPathPolyline) setTimeout(() => map.removeLayer(currentPathPolyline), 2000);
+            if (currentRunPath.length > 3 && wasRunning) {
+                processRunPath();
+            } else if (wasRunning) {
+                showMessage('Слишком короткий маршрут.');
+            }
+            if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
 
         function processRunPath() {
@@ -344,7 +363,7 @@
                     }
                 }
                 userTerritory = combinedTerritory;
-                await saveUserData(); // Сохраняем все данные в Firestore
+                await saveUserData();
                 updateAreaDisplay();
                 showMessage('Территория успешно расширена!');
             } catch (error) {
@@ -367,7 +386,6 @@
                     userTerritory = JSON.parse(data.territory);
                 }
             } else {
-                // Создаем нового пользователя
                 userColor = generateColorFromId(firebaseUser.uid);
                 await saveUserData();
             }
@@ -378,14 +396,12 @@
             const area = userTerritory ? turf.area(userTerritory) : 0;
             const territoryString = userTerritory ? JSON.stringify(userTerritory) : null;
             
-            // Сохраняем приватные данные
             const userDocRef = doc(db, `artifacts/${appId}/users/${firebaseUser.uid}/data`, "profile");
             await setDoc(userDocRef, {
                 color: userColor,
                 territory: territoryString
             }, { merge: true });
 
-            // Сохраняем публичные данные для отображения на карте и в топе
             const publicDataRef = doc(db, `artifacts/${appId}/public/data`, firebaseUser.uid);
             await setDoc(publicDataRef, {
                 name: telegramUser.first_name,
@@ -403,7 +419,6 @@
                     const data = change.doc.data();
                     const userId = change.doc.id;
 
-                    // Удаляем старый слой, если он есть
                     if (allTerritoriesLayers[userId]) {
                         map.removeLayer(allTerritoriesLayers[userId]);
                         delete allTerritoriesLayers[userId];
@@ -411,17 +426,13 @@
 
                     if (change.type !== "removed" && data.territory) {
                         const territory = JSON.parse(data.territory);
-                        const isCurrentUser = userId === firebaseUser.uid;
-                        
                         const territoryLayerGroup = L.layerGroup();
                         
-                        // Слой заливки
                         L.geoJSON(territory, { 
                             style: { color: data.color, weight: 2, opacity: 0.8, fillColor: data.color, fillOpacity: 0.4 } 
                         }).addTo(territoryLayerGroup);
 
-                        // Слой подписи
-                        if (territory.geometry.coordinates.length > 0) {
+                        if (territory.geometry.coordinates.length > 0 && territory.geometry.coordinates[0].length > 0) {
                             const perimeterCoords = territory.geometry.coordinates[0].map(p => [p[1], p[0]]);
                             const label = L.polyline(perimeterCoords, {opacity: 0});
                             label.setText(`\u25BA ${data.name} `, {
@@ -507,7 +518,7 @@
         }
 
         // --- Обработчики событий ---
-        toggleRunBtn.addEventListener('click', () => { isRunning = !isRunning; if (isRunning) startRun(); else stopRun(); });
+        toggleRunBtn.addEventListener('click', () => { if (!isRunning) startRun(); else stopRun(); });
         
         getAdviceBtn.addEventListener('click', () => {
             const area = userTerritory ? turf.area(userTerritory) : 0;
@@ -522,6 +533,10 @@
             const prompt = `Я пользователь приложения для бега TerraRun. Моя захваченная территория составляет ${formattedArea}. Придумай 3-4 крутых, эпичных названия для моих владений на русском языке. Ответ дай в виде списка с маркерами.`;
             callGemini(prompt);
         });
+        
+        // --- Глобальные функции для HTML ---
+        window.showView = showView;
+        window.closeModal = closeModal;
 
         // Запускаем приложение после загрузки DOM
         document.addEventListener('DOMContentLoaded', startApp);
