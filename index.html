@@ -230,8 +230,10 @@
         function focusOnUser(userId) {
             showView('map-view');
             const userLayerGroup = allUserLayers[userId];
-            if (userLayerGroup && map) {
+            if (userLayerGroup && map && userLayerGroup.getLayers().length > 0) {
                 map.flyToBounds(userLayerGroup.getBounds(), { padding: [50, 50], duration: 1 });
+            } else {
+                showMessage("У этого пользователя еще нет захваченных территорий.");
             }
         }
 
@@ -241,11 +243,9 @@
             tg.expand();
             
             if (tg.initDataUnsafe?.user) {
-                console.log("Running inside Telegram Mini App.");
                 telegramUser = tg.initDataUnsafe.user;
                 await initializeWithUser();
             } else {
-                console.log("Running outside Telegram. Displaying login widget.");
                 authContent.innerHTML = `
                     <h1 class="text-2xl font-bold text-gray-800 mb-4">Вход в TerraRun</h1>
                     <p class="text-gray-600 mb-6">Чтобы начать, войдите через Telegram.</p>
