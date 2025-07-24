@@ -378,6 +378,7 @@
         
         async function setupUser() {
             try {
+                console.log("Setting up user...");
                 await upsertUserProfile();
                 initMap();
                 updateUI();
@@ -386,9 +387,14 @@
                 authScreen.style.display = 'none';
                 appContainer.classList.remove('hidden');
                 bottomNavbar.classList.remove('hidden');
+                console.log("Setup complete. Application is running.");
             } catch (error) {
                 console.error("Error during user setup:", error);
-                showMessage("Произошла ошибка при настройке вашего профиля.");
+                authContent.innerHTML = `
+                    <h1 class="text-2xl font-bold text-red-600 mb-4">Ошибка</h1>
+                    <p class="text-gray-600">Произошла ошибка при настройке вашего профиля. Пожалуйста, попробуйте перезапустить приложение.</p>
+                    <p class="text-xs text-gray-400 mt-4">${error.message}</p>
+                `;
             }
         }
 
@@ -421,7 +427,6 @@
             
             setTimeout(() => map?.invalidateSize(), 100);
 
-            // Запрашиваем геолокацию через Telegram SDK
             tg.requestLocation((location) => {
                 if (location) {
                     const latLng = [location.latitude, location.longitude];
@@ -432,7 +437,6 @@
                 }
             });
 
-            // Слушаем постоянные обновления геолокации
             tg.onEvent('locationChanged', (location) => {
                 const latLng = [location.latitude, location.longitude];
                 updateCurrentUserMarker(latLng);
