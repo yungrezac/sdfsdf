@@ -518,20 +518,24 @@
                 const isCurrentUser = u.id === telegramUser.id;
                 const name = isCurrentUser ? `${u.name} (Вы)` : u.name;
                 const avatar = u.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${u.name.charAt(0)}`;
-                const areaKm = ((u.area || 0) / 1000000).toFixed(3);
+                
+                // FIX: Применяем ту же логику форматирования, что и в других местах
+                const area = u.area || 0;
+                const formattedArea = area > 10000 
+                    ? `${(area / 1000000).toFixed(2)} км²` 
+                    : `${Math.round(area)} м²`;
 
                 return `<div class="bg-white rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="focusOnUser(${u.id})">
                     <span class="text-xl font-bold text-gray-400 w-8">${index + 1}</span>
                     <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
                     <div class="flex-grow">
                         <p class="font-bold text-gray-800">${name}</p>
-                        <p class="text-sm text-gray-500">${areaKm} км²</p>
+                        <p class="text-sm text-gray-500">${formattedArea}</p>
                     </div>
                 </div>`
             }).join('');
         }
 
-        // FIX: Единая функция для обновления всех статов
         function refreshAllStats() {
             let area = 0;
             if (userTerritory) {
@@ -568,4 +572,3 @@
 
 </body>
 </html>
-
