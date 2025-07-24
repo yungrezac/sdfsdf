@@ -269,9 +269,7 @@
             if (map) return;
             map = L.map('map', { zoomControl: false, attributionControl: false }).setView([55.75, 37.61], 13);
             
-            // Замена на светлую карту Mapbox
             const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-            // FIX: Исправлен URL для получения тайлов высокого разрешения (512px)
             L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}', {
                 maxZoom: 19,
                 tileSize: 512,
@@ -279,7 +277,6 @@
                 accessToken: mapboxAccessToken
             }).addTo(map);
             
-            // FIX: Вызываем invalidateSize для корректной прорисовки карты после инициализации
             setTimeout(() => {
                 if (map) {
                     map.invalidateSize();
@@ -289,7 +286,6 @@
             navigator.geolocation.getCurrentPosition(
                 pos => {
                     map.setView([pos.coords.latitude, pos.coords.longitude], 16);
-                    // Яркий маркер для светлой карты
                     L.circleMarker([pos.coords.latitude, pos.coords.longitude], {radius: 8, color: '#d946ef', fillColor: '#fff', fillOpacity: 1, weight: 3}).addTo(map);
                 },
                 () => showMessage('Не удалось определить геолокацию.'), { enableHighAccuracy: true }
@@ -340,12 +336,25 @@
                 return;
             }
             currentRunPath.push(startPoint);
-            const newPolygon = turf.polygon([currentRunPath]);
-            if (turf.kinks(newPolygon).features.length > 0) {
-                showMessage('Маршрут пересекает сам себя. Попробуйте нарисовать простую фигуру.');
+
+            // FIX: Новая логика для обработки самопересекающихся полигонов
+            const line = turf.lineString(currentRunPath);
+            const polygonized = turf.polygonize(line);
+
+            if (polygonized.features.length === 0) {
+                showMessage('Не удалось сформировать замкнутую территорию из вашего маршрута. Попробуйте нарисовать более простую фигуру.');
                 return;
             }
-            updateTerritory(newPolygon);
+
+            // Объединяем все найденные полигоны в один
+            let newCapture = polygonized.features[0];
+            if (polygonized.features.length > 1) {
+                for (let i = 1; i < polygonized.features.length; i++) {
+                    newCapture = turf.union(newCapture, polygonized.features[i]);
+                }
+            }
+            
+            updateTerritory(newCapture);
         }
         
         async function updateTerritory(newCapture) {
@@ -354,12 +363,8 @@
                 if (!userTerritory) {
                     combinedTerritory = newCapture;
                 } else {
-                    if (turf.intersect(userTerritory, newCapture) || turf.booleanTouches(userTerritory, newCapture)) {
-                        combinedTerritory = turf.union(userTerritory, newCapture);
-                    } else {
-                        showMessage('Новая территория должна соприкасаться с уже захваченной.');
-                        return;
-                    }
+                    // Используем turf.union, который хорошо справляется со сложными полигонами
+                    combinedTerritory = turf.union(userTerritory, newCapture);
                 }
                 userTerritory = combinedTerritory;
                 await saveUserData();
