@@ -36,7 +36,7 @@
             right: 0;
             bottom: 80px; /* Оставляем место для навбара */
             z-index: 10;
-            background-color: #111827; /* Темный фон для карты на время загрузки */
+            background-color: #f3f4f6; /* Светлый фон для карты на время загрузки */
         }
         .view {
             display: none;
@@ -269,9 +269,9 @@
             if (map) return;
             map = L.map('map', { zoomControl: false, attributionControl: false }).setView([55.75, 37.61], 13);
             
-            // Замена на Mapbox
+            // Замена на светлую карту Mapbox
             const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-            L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/{z}/{x}/{y}?access_token={accessToken}', {
+            L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token={accessToken}', {
                 maxZoom: 19,
                 tileSize: 512,
                 zoomOffset: -1,
@@ -281,8 +281,8 @@
             navigator.geolocation.getCurrentPosition(
                 pos => {
                     map.setView([pos.coords.latitude, pos.coords.longitude], 16);
-                    // Яркий маркер для темной карты
-                    L.circleMarker([pos.coords.latitude, pos.coords.longitude], {radius: 8, color: '#f59e0b', fillColor: '#fff', fillOpacity: 1, weight: 3}).addTo(map);
+                    // Яркий маркер для светлой карты
+                    L.circleMarker([pos.coords.latitude, pos.coords.longitude], {radius: 8, color: '#d946ef', fillColor: '#fff', fillOpacity: 1, weight: 3}).addTo(map);
                 },
                 () => showMessage('Не удалось определить геолокацию.'), { enableHighAccuracy: true }
             );
@@ -461,8 +461,8 @@
                             attributes: { 
                                 'font-weight': 'bold', 
                                 'font-size': '14', 
-                                'fill': '#fff', // Белый текст для темной карты
-                                'text-shadow': '1px 1px 1px #000, -1px -1px 1px #000, 1px -1px 1px #000, -1px 1px 1px #000' // Черная тень
+                                'fill': '#000', // Черный текст для светлой карты
+                                'text-shadow': '1px 1px 1px #fff, -1px -1px 1px #fff, 1px -1px 1px #fff, -1px 1px 1px #fff' // Белая тень
                             }
                         });
                         label.addTo(territoryLayerGroup);
