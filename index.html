@@ -66,8 +66,8 @@
     <!-- Экран-заглушка, если открыто не в Telegram -->
     <div id="auth-screen" class="fixed inset-0 bg-gray-100 flex items-center justify-center p-4 z-50">
         <div class="text-center bg-white p-8 rounded-2xl shadow-lg">
-            <h1 class="text-2xl font-bold text-gray-800 mb-4">Добро пожаловать в TerraRun!</h1>
-            <p class="text-gray-600">Для начала игры, пожалуйста, откройте это приложение внутри Telegram.</p>
+            <h1 class="text-2xl font-bold text-gray-800 mb-4">Загрузка TerraRun...</h1>
+            <p class="text-gray-600">Подключаемся к серверам и вашему профилю Telegram.</p>
         </div>
     </div>
 
@@ -94,7 +94,7 @@
         <div id="top-view" class="view bg-gray-50 p-4 fade-in">
             <h1 class="text-3xl font-bold text-gray-800 mb-6 px-2">Топ Бегунов</h1>
             <div id="leaderboard" class="space-y-3">
-                <!-- Содержимое будет сгенерировано JS -->
+                <!-- Содержимое будет сгенерировано JS из Firestore -->
             </div>
         </div>
 
@@ -143,295 +143,389 @@
     <!-- Модальное окно -->
     <div id="message-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden z-50"><div class="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-sm w-full fade-in"><p id="modal-message" class="text-lg text-gray-700 mb-6"></p><button onclick="closeModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-full transition-all">OK</button></div></div>
 
-<script>
-    // --- Глобальные переменные ---
-    const tg = window.Telegram.WebApp;
-    let user = null; // Данные пользователя будут из Telegram
-    let map;
-    let isRunning = false;
-    let watchId = null;
-    let currentRunPath = [];
-    let currentPathPolyline = null;
-    let userTerritory = null;
-    let territoryLayer = null;
-    let territoryLabelLayer = null;
-    let userColor = '#3b82f6';
+    <script type="module">
+        // --- Firebase SDK ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // --- Элементы DOM ---
-    const authScreen = document.getElementById('auth-screen');
-    const appContainer = document.getElementById('app-container');
-    const bottomNavbar = document.getElementById('bottom-navbar');
-    const toggleRunBtn = document.getElementById('toggle-run-btn');
-    const areaDisplay = document.getElementById('area-display');
-    const usernameDisplay = document.getElementById('username-display');
-    const profileAreaDisplay = document.getElementById('profile-area');
-    const profileName = document.getElementById('profile-name');
-    const profileAvatarImg = document.getElementById('profile-avatar-img');
-    const profileAvatarWrapper = document.getElementById('profile-avatar-wrapper');
-    const leaderboardDiv = document.getElementById('leaderboard');
-    const modal = document.getElementById('message-modal');
-    const modalMessage = document.getElementById('modal-message');
-    const getAdviceBtn = document.getElementById('get-advice-btn');
-    const getNameBtn = document.getElementById('get-name-btn');
-    const geminiOutput = document.getElementById('gemini-output');
-    const geminiLoader = document.getElementById('gemini-loader');
+        // --- Глобальные переменные ---
+        const tg = window.Telegram.WebApp;
+        let map;
+        let db, auth;
+        let firebaseUser = null; // Пользователь Firebase
+        let telegramUser = null; // Пользователь Telegram
+        let isRunning = false;
+        let watchId = null;
+        let currentRunPath = [];
+        let currentPathPolyline = null;
+        let userTerritory = null; // GeoJSON
+        let userColor = '#3b82f6';
+        
+        let allTerritoriesLayers = {}; // Хранилище для слоев других игроков {userId: layer}
 
-    // --- Функции UI ---
-    function showView(viewId) {
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        document.getElementById(viewId).classList.add('active');
-        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        document.querySelector(`button[onclick="showView('${viewId}')"]`).classList.add('active');
-        if (viewId === 'top-view') generateLeaderboard();
-        if (viewId === 'profile-view') updateProfileStats();
-    }
+        // --- Элементы DOM ---
+        const authScreen = document.getElementById('auth-screen');
+        const appContainer = document.getElementById('app-container');
+        const bottomNavbar = document.getElementById('bottom-navbar');
+        const toggleRunBtn = document.getElementById('toggle-run-btn');
+        const areaDisplay = document.getElementById('area-display');
+        const usernameDisplay = document.getElementById('username-display');
+        const profileAreaDisplay = document.getElementById('profile-area');
+        const profileName = document.getElementById('profile-name');
+        const profileAvatarImg = document.getElementById('profile-avatar-img');
+        const profileAvatarWrapper = document.getElementById('profile-avatar-wrapper');
+        const leaderboardDiv = document.getElementById('leaderboard');
+        const modal = document.getElementById('message-modal');
+        const modalMessage = document.getElementById('modal-message');
+        const getAdviceBtn = document.getElementById('get-advice-btn');
+        const getNameBtn = document.getElementById('get-name-btn');
+        const geminiOutput = document.getElementById('gemini-output');
+        const geminiLoader = document.getElementById('gemini-loader');
 
-    function showMessage(message) {
-        modalMessage.textContent = message;
-        modal.classList.remove('hidden');
-    }
-    function closeModal() {
-        modal.classList.add('hidden');
-    }
-
-    function generateColorFromId(id) {
-        const strId = String(id);
-        let hash = 0;
-        for (let i = 0; i < strId.length; i++) {
-            hash = strId.charCodeAt(i) + ((hash << 5) - hash);
+        // --- Функции UI ---
+        function showView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`button[onclick="showView('${viewId}')"]`).classList.add('active');
         }
-        const h = hash % 360;
-        return `hsl(${h}, 70%, 60%)`;
-    }
 
-    // --- Основная логика ---
-    function initializeApp() {
-        tg.ready(); // Сообщаем Telegram, что приложение готово
-        tg.expand(); // Раскрываем приложение на весь экран
+        function showMessage(message) {
+            modalMessage.textContent = message;
+            modal.classList.remove('hidden');
+        }
+        function closeModal() {
+            modal.classList.add('hidden');
+        }
 
-        // Проверяем, есть ли данные пользователя
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            user = tg.initDataUnsafe.user;
-            // Делаем "безопасными" для HTML
-            user.first_name = user.first_name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        function generateColorFromId(id) {
+            const strId = String(id);
+            let hash = 0;
+            for (let i = 0; i < strId.length; i++) {
+                hash = strId.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const h = hash % 360;
+            return `hsl(${h}, 70%, 60%)`;
+        }
+
+        // --- Основная логика ---
+        async function startApp() {
+            tg.ready();
+            tg.expand();
+            
+            if (!tg.initDataUnsafe?.user) {
+                authScreen.innerHTML = `<div class="text-center bg-white p-8 rounded-2xl shadow-lg"><h1 class="text-2xl font-bold text-gray-800 mb-4">Ошибка</h1><p class="text-gray-600">Пожалуйста, откройте это приложение внутри Telegram.</p></div>`;
+                return;
+            }
+            telegramUser = tg.initDataUnsafe.user;
+
+            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            // FIX: Moved onAuthStateChanged inside startApp to ensure 'auth' is defined.
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    firebaseUser = user;
+                    await setupUser();
+                } else {
+                    firebaseUser = null;
+                    // Можно показать экран входа, если пользователь вышел
+                }
+            });
+
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        }
+        
+        async function setupUser() {
+            await loadUserData();
+            initMap();
+            updateUI();
+            listenForAllTerritories();
+            listenForLeaderboard();
             
             authScreen.style.display = 'none';
             appContainer.classList.remove('hidden');
             bottomNavbar.classList.remove('hidden');
-
-            loadSettings();
-            loadTerritory();
-            initMap();
-            updateAreaDisplay();
-            updateProfileView();
-        } else {
-            // Если данных нет, оставляем экран-заглушку
-            authScreen.style.display = 'flex';
         }
-    }
 
-    function updateProfileView() {
-        profileName.textContent = user.first_name;
-        usernameDisplay.textContent = user.first_name;
-        if (user.photo_url) {
-            profileAvatarImg.src = user.photo_url;
-        } else {
-            const initial = user.first_name.charAt(0).toUpperCase();
-            profileAvatarImg.src = `https://placehold.co/80x80/E2E8F0/4A5568?text=${initial}`;
-        }
-        profileAvatarWrapper.style.borderColor = userColor;
-    }
-
-    function initMap() {
-        map = L.map('map', { zoomControl: false, attributionControl: false }).setView([55.75, 37.61], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {}).addTo(map);
-        
-        navigator.geolocation.getCurrentPosition(
-            pos => {
-                map.setView([pos.coords.latitude, pos.coords.longitude], 16);
-                L.circleMarker([pos.coords.latitude, pos.coords.longitude], {radius: 8, color: '#3b82f6', fillColor: '#fff', fillOpacity: 1, weight: 3}).addTo(map);
-            },
-            () => showMessage('Не удалось определить геолокацию.'), { enableHighAccuracy: true }
-        );
-    }
-    
-    // --- Логика территории и бега ---
-    function startRun() {
-        currentRunPath = [];
-        toggleRunBtn.textContent = 'Стоп';
-        toggleRunBtn.className = 'btn-gradient-red text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-red-300';
-        if (currentPathPolyline) map.removeLayer(currentPathPolyline);
-        currentPathPolyline = L.polyline([], { color: '#ef4444', weight: 5, opacity: 0.9 }).addTo(map);
-        watchId = navigator.geolocation.watchPosition(
-            pos => {
-                const { latitude, longitude } = pos.coords;
-                currentRunPath.push([longitude, latitude]);
-                currentPathPolyline.addLatLng([latitude, longitude]);
-                map.panTo([latitude, longitude]);
-            },
-            () => { showMessage('Проблема с отслеживанием геолокации.'); stopRun(); },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
-    }
-
-    function stopRun() {
-        if (watchId) navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-        toggleRunBtn.textContent = 'Старт';
-        toggleRunBtn.className = 'btn-gradient text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300';
-        if (currentRunPath.length > 3) processRunPath();
-        else if (isRunning) showMessage('Слишком короткий маршрут.');
-        if (currentPathPolyline) setTimeout(() => map.removeLayer(currentPathPolyline), 2000);
-    }
-
-    function processRunPath() {
-        const startPoint = currentRunPath[0];
-        const endPoint = currentRunPath[currentRunPath.length - 1];
-        const distance = turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' });
-        if (distance > 50) {
-            showMessage('Маршрут не замкнут. Вернитесь к точке старта для захвата.');
-            return;
-        }
-        currentRunPath.push(startPoint);
-        const newPolygon = turf.polygon([currentRunPath]);
-        if (turf.kinks(newPolygon).features.length > 0) {
-            showMessage('Маршрут пересекает сам себя. Попробуйте нарисовать простую фигуру.');
-            return;
-        }
-        updateTerritory(newPolygon);
-    }
-    
-    function updateTerritory(newCapture) {
-        try {
-            let combinedTerritory;
-            if (!userTerritory) {
-                combinedTerritory = newCapture;
+        function updateUI() {
+            const name = telegramUser.first_name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            profileName.textContent = name;
+            usernameDisplay.textContent = name;
+            
+            if (telegramUser.photo_url) {
+                profileAvatarImg.src = telegramUser.photo_url;
             } else {
-                if (turf.intersect(userTerritory, newCapture) || turf.booleanTouches(userTerritory, newCapture)) {
-                    combinedTerritory = turf.union(userTerritory, newCapture);
-                } else {
-                    showMessage('Новая территория должна соприкасаться с уже захваченной.');
-                    return;
-                }
+                const initial = name.charAt(0).toUpperCase();
+                profileAvatarImg.src = `https://placehold.co/80x80/E2E8F0/4A5568?text=${initial}`;
             }
-            userTerritory = combinedTerritory;
-            drawTerritory();
-            saveTerritory();
+            profileAvatarWrapper.style.borderColor = userColor;
             updateAreaDisplay();
-            showMessage('Территория успешно расширена!');
-        } catch (error) {
-            console.error("Ошибка объединения:", error);
-            showMessage("Ошибка обработки территории. Форма слишком сложная.");
         }
-    }
 
-    function drawTerritory() {
-        if (territoryLayer) map.removeLayer(territoryLayer);
-        if (territoryLabelLayer) map.removeLayer(territoryLabelLayer);
+        function initMap() {
+            map = L.map('map', { zoomControl: false, attributionControl: false }).setView([55.75, 37.61], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {}).addTo(map);
+            
+            navigator.geolocation.getCurrentPosition(
+                pos => {
+                    map.setView([pos.coords.latitude, pos.coords.longitude], 16);
+                    L.circleMarker([pos.coords.latitude, pos.coords.longitude], {radius: 8, color: '#3b82f6', fillColor: '#fff', fillOpacity: 1, weight: 3}).addTo(map);
+                },
+                () => showMessage('Не удалось определить геолокацию.'), { enableHighAccuracy: true }
+            );
+        }
+        
+        // --- Логика бега и территории ---
+        function startRun() {
+            currentRunPath = [];
+            toggleRunBtn.textContent = 'Стоп';
+            toggleRunBtn.className = 'btn-gradient-red text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-red-300';
+            if (currentPathPolyline) map.removeLayer(currentPathPolyline);
+            currentPathPolyline = L.polyline([], { color: '#ef4444', weight: 5, opacity: 0.9 }).addTo(map);
+            watchId = navigator.geolocation.watchPosition(
+                pos => {
+                    const { latitude, longitude } = pos.coords;
+                    currentRunPath.push([longitude, latitude]);
+                    currentPathPolyline.addLatLng([latitude, longitude]);
+                    map.panTo([latitude, longitude]);
+                },
+                () => { showMessage('Проблема с отслеживанием геолокации.'); stopRun(); },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
 
-        if (userTerritory) {
-            territoryLayer = L.geoJSON(userTerritory, { 
-                style: { color: userColor, weight: 2, opacity: 0.8, fillColor: userColor, fillOpacity: 0.4 } 
-            }).addTo(map);
+        function stopRun() {
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+            isRunning = false;
+            toggleRunBtn.textContent = 'Старт';
+            toggleRunBtn.className = 'btn-gradient text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300';
+            if (currentRunPath.length > 3) processRunPath();
+            else if (isRunning) showMessage('Слишком короткий маршрут.');
+            if (currentPathPolyline) setTimeout(() => map.removeLayer(currentPathPolyline), 2000);
+        }
 
-            const perimeterCoords = userTerritory.geometry.coordinates[0].map(p => [p[1], p[0]]);
-            territoryLabelLayer = L.polyline(perimeterCoords, {opacity: 0}).addTo(map);
-            territoryLabelLayer.setText(`\u25BA Владения: ${user.first_name} `, {
-                repeat: true, center: true,
-                attributes: { 'font-weight': 'bold', 'font-size': '14', 'fill': '#000', 'text-shadow': '1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff' }
+        function processRunPath() {
+            const startPoint = currentRunPath[0];
+            const endPoint = currentRunPath[currentRunPath.length - 1];
+            const distance = turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' });
+            if (distance > 50) {
+                showMessage('Маршрут не замкнут. Вернитесь к точке старта для захвата.');
+                return;
+            }
+            currentRunPath.push(startPoint);
+            const newPolygon = turf.polygon([currentRunPath]);
+            if (turf.kinks(newPolygon).features.length > 0) {
+                showMessage('Маршрут пересекает сам себя. Попробуйте нарисовать простую фигуру.');
+                return;
+            }
+            updateTerritory(newPolygon);
+        }
+        
+        async function updateTerritory(newCapture) {
+            try {
+                let combinedTerritory;
+                if (!userTerritory) {
+                    combinedTerritory = newCapture;
+                } else {
+                    if (turf.intersect(userTerritory, newCapture) || turf.booleanTouches(userTerritory, newCapture)) {
+                        combinedTerritory = turf.union(userTerritory, newCapture);
+                    } else {
+                        showMessage('Новая территория должна соприкасаться с уже захваченной.');
+                        return;
+                    }
+                }
+                userTerritory = combinedTerritory;
+                await saveUserData(); // Сохраняем все данные в Firestore
+                updateAreaDisplay();
+                showMessage('Территория успешно расширена!');
+            } catch (error) {
+                console.error("Ошибка объединения:", error);
+                showMessage("Ошибка обработки территории. Форма слишком сложная.");
+            }
+        }
+        
+        // --- Firestore ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        async function loadUserData() {
+            const userDocRef = doc(db, `artifacts/${appId}/users/${firebaseUser.uid}/data`, "profile");
+            const docSnap = await getDoc(userDocRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                userColor = data.color;
+                if (data.territory) {
+                    userTerritory = JSON.parse(data.territory);
+                }
+            } else {
+                // Создаем нового пользователя
+                userColor = generateColorFromId(firebaseUser.uid);
+                await saveUserData();
+            }
+        }
+
+        async function saveUserData() {
+            if (!firebaseUser) return;
+            const area = userTerritory ? turf.area(userTerritory) : 0;
+            const territoryString = userTerritory ? JSON.stringify(userTerritory) : null;
+            
+            // Сохраняем приватные данные
+            const userDocRef = doc(db, `artifacts/${appId}/users/${firebaseUser.uid}/data`, "profile");
+            await setDoc(userDocRef, {
+                color: userColor,
+                territory: territoryString
+            }, { merge: true });
+
+            // Сохраняем публичные данные для отображения на карте и в топе
+            const publicDataRef = doc(db, `artifacts/${appId}/public/data`, firebaseUser.uid);
+            await setDoc(publicDataRef, {
+                name: telegramUser.first_name,
+                color: userColor,
+                territory: territoryString,
+                area: area,
+                photo_url: telegramUser.photo_url || null
+            }, { merge: true });
+        }
+
+        function listenForAllTerritories() {
+            const q = query(collection(db, `artifacts/${appId}/public/data`));
+            onSnapshot(q, (querySnapshot) => {
+                querySnapshot.docChanges().forEach((change) => {
+                    const data = change.doc.data();
+                    const userId = change.doc.id;
+
+                    // Удаляем старый слой, если он есть
+                    if (allTerritoriesLayers[userId]) {
+                        map.removeLayer(allTerritoriesLayers[userId]);
+                        delete allTerritoriesLayers[userId];
+                    }
+
+                    if (change.type !== "removed" && data.territory) {
+                        const territory = JSON.parse(data.territory);
+                        const isCurrentUser = userId === firebaseUser.uid;
+                        
+                        const territoryLayerGroup = L.layerGroup();
+                        
+                        // Слой заливки
+                        L.geoJSON(territory, { 
+                            style: { color: data.color, weight: 2, opacity: 0.8, fillColor: data.color, fillOpacity: 0.4 } 
+                        }).addTo(territoryLayerGroup);
+
+                        // Слой подписи
+                        if (territory.geometry.coordinates.length > 0) {
+                            const perimeterCoords = territory.geometry.coordinates[0].map(p => [p[1], p[0]]);
+                            const label = L.polyline(perimeterCoords, {opacity: 0});
+                            label.setText(`\u25BA ${data.name} `, {
+                                repeat: true, center: true,
+                                attributes: { 'font-weight': 'bold', 'font-size': '14', 'fill': '#000', 'text-shadow': '1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff' }
+                            });
+                            label.addTo(territoryLayerGroup);
+                        }
+                        
+                        territoryLayerGroup.addTo(map);
+                        allTerritoriesLayers[userId] = territoryLayerGroup;
+                    }
+                });
             });
         }
-    }
-    
-    function saveTerritory() {
-        if (userTerritory) localStorage.setItem(`territory_${user.id}`, JSON.stringify(userTerritory));
-    }
+        
+        function listenForLeaderboard() {
+            const q = query(collection(db, `artifacts/${appId}/public/data`));
+            onSnapshot(q, (querySnapshot) => {
+                const users = [];
+                querySnapshot.forEach((doc) => {
+                    users.push({ id: doc.id, ...doc.data() });
+                });
+                
+                users.sort((a, b) => (b.area || 0) - (a.area || 0));
 
-    function loadTerritory() {
-        const savedData = localStorage.getItem(`territory_${user.id}`);
-        if (savedData) {
-            userTerritory = JSON.parse(savedData);
+                leaderboardDiv.innerHTML = users.map((u, index) => {
+                    const isCurrentUser = u.id === firebaseUser.uid;
+                    const name = isCurrentUser ? `${u.name} (Вы)` : u.name;
+                    const avatar = u.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${u.name.charAt(0)}`;
+                    const areaKm = ((u.area || 0) / 1000000).toFixed(3);
+
+                    return `<div class="bg-white rounded-xl shadow-md p-4 flex items-center space-x-4 ${isCurrentUser ? 'ring-2 ring-blue-500' : ''}">
+                        <span class="text-xl font-bold text-gray-400 w-8">${index + 1}</span>
+                        <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
+                        <div class="flex-grow">
+                            <p class="font-bold text-gray-800">${name}</p>
+                            <p class="text-sm text-gray-500">${areaKm} км²</p>
+                        </div>
+                    </div>`
+                }).join('');
+            });
         }
-    }
-    
-    function saveSettings() {
-        localStorage.setItem(`settings_${user.id}`, JSON.stringify({color: userColor}));
-    }
 
-    function loadSettings() {
-        const savedData = localStorage.getItem(`settings_${user.id}`);
-        if (savedData) {
-            const settings = JSON.parse(savedData);
-            userColor = settings.color;
-        } else {
-            userColor = generateColorFromId(user.id);
-            saveSettings();
-        }
-    }
-
-    function updateAreaDisplay() {
-        let area = userTerritory ? turf.area(userTerritory) : 0;
-        const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${area.toFixed(0)} м²`;
-        areaDisplay.textContent = `Площадь: ${formattedArea}`;
-    }
-    
-    function updateProfileStats() {
-        let area = userTerritory ? turf.area(userTerritory) : 0;
-        const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${area.toFixed(0)} м²`;
-        profileAreaDisplay.textContent = formattedArea;
-    }
-
-    function generateLeaderboard() {
-        const topUsers = [{ id: 1, name: 'Марафонец', area: 78450.5 }, { id: 2, name: 'Спринтер', area: 54123.1 }, { id: user.id, name: `${user.first_name} (Вы)`, area: userTerritory ? turf.area(userTerritory) : 0 }, { id: 4, name: 'Исследователь', area: 22890.7 }, { id: 5, name: 'Новичок', area: 9750.2 }].sort((a, b) => b.area - a.area);
-        leaderboardDiv.innerHTML = topUsers.map((u, index) => `<div class="bg-white rounded-xl shadow-md p-4 flex items-center space-x-4 ${u.id === user.id ? 'ring-2 ring-blue-500' : ''}"><span class="text-xl font-bold text-gray-400 w-8">${index + 1}</span><img src="https://placehold.co/50x50/${u.id === user.id ? '93C5FD/1E40AF' : 'E5E7EB/4B5563'}?text=${u.name.charAt(0)}" class="w-12 h-12 rounded-full" alt="avatar"><div class="flex-grow"><p class="font-bold text-gray-800">${u.name}</p><p class="text-sm text-gray-500">${(u.area / 1000000).toFixed(3)} км²</p></div></div>`).join('');
-    }
-
-    // --- Gemini API ---
-    async function callGemini(prompt) {
-        geminiOutput.classList.add('hidden');
-        geminiLoader.style.display = 'flex';
-        const apiKey = "";
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-        const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-        try {
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const result = await response.json();
-            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
-                geminiOutput.innerText = result.candidates[0].content.parts[0].text;
-            } else {
-                geminiOutput.innerText = "Не удалось получить ответ от AI. Попробуйте еще раз.";
-                console.error("Unexpected API response structure:", result);
+        function updateAreaDisplay() {
+            let area = userTerritory ? turf.area(userTerritory) : 0;
+            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${area.toFixed(0)} м²`;
+            areaDisplay.textContent = `Площадь: ${formattedArea}`;
+            if (document.getElementById('profile-view').classList.contains('active')) {
+                updateProfileStats();
             }
-        } catch (error) {
-            console.error("Error calling Gemini API:", error);
-            geminiOutput.innerText = "Произошла ошибка при обращении к AI. Проверьте консоль.";
-        } finally {
-            geminiLoader.style.display = 'none';
-            geminiOutput.classList.remove('hidden');
         }
-    }
+        
+        function updateProfileStats() {
+            let area = userTerritory ? turf.area(userTerritory) : 0;
+            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${area.toFixed(0)} м²`;
+            profileAreaDisplay.textContent = formattedArea;
+        }
 
-    // --- Обработчики событий ---
-    toggleRunBtn.addEventListener('click', () => { isRunning = !isRunning; if (isRunning) startRun(); else stopRun(); });
-    
-    getAdviceBtn.addEventListener('click', () => {
-        const area = userTerritory ? turf.area(userTerritory) : 0;
-        const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${area.toFixed(0)} м²`;
-        const prompt = `Я пользователь приложения для бега TerraRun, где я захватываю территорию. Моя текущая площадь владений: ${formattedArea}. Дай мне короткий (2-3 предложения) мотивирующий совет на русском языке, чтобы я бегал больше и расширял свою территорию.`;
-        callGemini(prompt);
-    });
+        // --- Gemini API ---
+        async function callGemini(prompt) {
+            geminiOutput.classList.add('hidden');
+            geminiLoader.style.display = 'flex';
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+            try {
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const result = await response.json();
+                if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    geminiOutput.innerText = result.candidates[0].content.parts[0].text;
+                } else {
+                    geminiOutput.innerText = "Не удалось получить ответ от AI. Попробуйте еще раз.";
+                }
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                geminiOutput.innerText = "Произошла ошибка при обращении к AI.";
+            } finally {
+                geminiLoader.style.display = 'none';
+                geminiOutput.classList.remove('hidden');
+            }
+        }
 
-    getNameBtn.addEventListener('click', () => {
-        const area = userTerritory ? turf.area(userTerritory) : 0;
-        const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${area.toFixed(0)} м²`;
-        const prompt = `Я пользователь приложения для бега TerraRun. Моя захваченная территория составляет ${formattedArea}. Придумай 3-4 крутых, эпичных названия для моих владений на русском языке. Ответ дай в виде списка с маркерами.`;
-        callGemini(prompt);
-    });
+        // --- Обработчики событий ---
+        toggleRunBtn.addEventListener('click', () => { isRunning = !isRunning; if (isRunning) startRun(); else stopRun(); });
+        
+        getAdviceBtn.addEventListener('click', () => {
+            const area = userTerritory ? turf.area(userTerritory) : 0;
+            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${area.toFixed(0)} м²`;
+            const prompt = `Я пользователь приложения для бега TerraRun, где я захватываю территорию. Моя текущая площадь владений: ${formattedArea}. Дай мне короткий (2-3 предложения) мотивирующий совет на русском языке, чтобы я бегал больше и расширял свою территорию.`;
+            callGemini(prompt);
+        });
 
-    // Запускаем приложение после загрузки DOM
-    document.addEventListener('DOMContentLoaded', initializeApp);
-</script>
+        getNameBtn.addEventListener('click', () => {
+            const area = userTerritory ? turf.area(userTerritory) : 0;
+            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${area.toFixed(0)} м²`;
+            const prompt = `Я пользователь приложения для бега TerraRun. Моя захваченная территория составляет ${formattedArea}. Придумай 3-4 крутых, эпичных названия для моих владений на русском языке. Ответ дай в виде списка с маркерами.`;
+            callGemini(prompt);
+        });
+
+        // Запускаем приложение после загрузки DOM
+        document.addEventListener('DOMContentLoaded', startApp);
+    </script>
 
 </body>
 </html>
