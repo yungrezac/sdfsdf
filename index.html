@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Захват Территории | Бег</title>
+
+    <!-- Подключение Tailwind CSS для стилизации -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Подключение Leaflet JS и CSS для карты -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Подключение Turf.js для гео-анализа (определение кругов, слияние полигонов) -->
+    <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></script>
+
+    <style>
+        /* Стили для карты, чтобы она занимала весь экран */
+        #map {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+        }
+        /* Стили для элементов управления поверх карты */
+        .control-panel {
+            z-index: 20;
+        }
+        /* Плавное появление элементов */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 font-sans antialiased overflow-hidden">
+
+    <!-- Карта -->
+    <div id="map"></div>
+
+    <!-- Панель управления во время бега -->
+    <div id="run-controls" class="control-panel fixed bottom-0 left-0 right-0 p-4">
+        <div class="max-w-md mx-auto bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4 flex items-center justify-between fade-in">
+            <div id="user-info" class="flex items-center">
+                <!-- Аватарка и имя пользователя будут вставлены здесь -->
+            </div>
+            <button id="toggle-run-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300">
+                Начать пробежку
+            </button>
+        </div>
+    </div>
+    
+    <!-- Модальное окно для сообщений -->
+    <div id="message-modal" class="control-panel fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-sm w-full fade-in">
+            <p id="modal-message" class="text-lg text-gray-700 mb-6"></p>
+            <button onclick="closeModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-full transition-all">
+                Понятно
+            </button>
+        </div>
+    </div>
+
+
+<script>
+    // --- Глобальные переменные ---
+    let map;
+    // Создаем локального пользователя, так как авторизация убрана
+    const user = { 
+        id: 'local_user_01', 
+        first_name: 'Бегун', 
+        photo_url: 'https://placehold.co/40x40/93C5FD/1E40AF?text=R' 
+    };
+    let isRunning = false;
+    let watchId = null; // ID для отслеживания геолокации
+    
+    let currentRunPath = []; // Массив координат текущей пробежки [[lng, lat], ...]
+    let currentPathPolyline = null; // Линия текущего маршрута на карте
+    
+    let userTerritory = null; // GeoJSON полигон с территорией пользователя
+    let territoryLayer = null; // Слой с территорией на карте
+
+    // --- Элементы DOM ---
+    const runControls = document.getElementById('run-controls');
+    const toggleRunBtn = document.getElementById('toggle-run-btn');
+    const userInfoDiv = document.getElementById('user-info');
+    const modal = document.getElementById('message-modal');
+    const modalMessage = document.getElementById('modal-message');
+
+    // --- Функции ---
+
+    /**
+     * Показывает модальное окно с сообщением
+     * @param {string} message - Текст сообщения
+     */
+    function showMessage(message) {
+        modalMessage.textContent = message;
+        modal.classList.remove('hidden');
+    }
+
+    /**
+     * Закрывает модальное окно
+     */
+    function closeModal() {
+        modal.classList.add('hidden');
+    }
+
+    /**
+     * Инициализация приложения
+     */
+    function initializeApp() {
+        // Отображаем информацию о локальном пользователе
+        userInfoDiv.innerHTML = `
+            <img src="${user.photo_url}" class="w-10 h-10 rounded-full mr-3 border-2 border-blue-300" alt="avatar">
+            <span class="font-semibold text-gray-700">${user.first_name}</span>
+        `;
+        
+        // Инициализируем карту
+        initMap();
+    }
+
+    /**
+     * Инициализация карты Leaflet
+     */
+    function initMap() {
+        map = L.map('map').setView([55.751244, 37.618423], 13); // Начальные координаты (Москва)
+
+        // Добавляем слой с картой
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Пытаемся получить геолокацию пользователя и центрировать карту
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                map.setView([latitude, longitude], 16);
+                L.marker([latitude, longitude]).addTo(map)
+                    .bindPopup('Вы здесь').openPopup();
+            },
+            () => {
+                showMessage('Не удалось определить вашу геолокацию. Убедитесь, что вы разрешили доступ.');
+            },
+            { enableHighAccuracy: true }
+        );
+        
+        // Загружаем сохраненную территорию пользователя
+        loadTerritory();
+    }
+
+    /**
+     * Обработчик нажатия на кнопку "Начать/Закончить пробежку"
+     */
+    toggleRunBtn.addEventListener('click', () => {
+        isRunning = !isRunning;
+        if (isRunning) {
+            startRun();
+        } else {
+            stopRun();
+        }
+    });
+
+    /**
+     * Начать отслеживание пробежки
+     */
+    function startRun() {
+        currentRunPath = [];
+        toggleRunBtn.textContent = 'Завершить';
+        toggleRunBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        toggleRunBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+        
+        // Создаем новую линию для маршрута
+        if (currentPathPolyline) {
+            map.removeLayer(currentPathPolyline);
+        }
+        currentPathPolyline = L.polyline([], { color: 'blue', weight: 5, opacity: 0.8 }).addTo(map);
+
+        // Начинаем следить за геолокацией
+        watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                const newPoint = [longitude, latitude]; // Turf.js использует [lng, lat]
+                
+                currentRunPath.push(newPoint);
+                currentPathPolyline.addLatLng([latitude, longitude]);
+                map.panTo([latitude, longitude]); // Плавно перемещаем карту за пользователем
+            },
+            () => {
+                showMessage('Проблема с отслеживанием геолокации.');
+                stopRun();
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    }
+
+    /**
+     * Закончить отслеживание пробежки и обработать результат
+     */
+    function stopRun() {
+        if (watchId) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+
+        toggleRunBtn.textContent = 'Начать пробежку';
+        toggleRunBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+        toggleRunBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        
+        // Обрабатываем маршрут, только если точек достаточно для создания фигуры
+        if (currentRunPath.length > 3) {
+            processRunPath();
+        } else {
+            showMessage('Слишком короткий маршрут для захвата территории.');
+        }
+
+        // Очищаем линию маршрута
+        if (currentPathPolyline) {
+            setTimeout(() => map.removeLayer(currentPathPolyline), 2000);
+        }
+    }
+
+    /**
+     * Анализ маршрута с помощью Turf.js
+     */
+    function processRunPath() {
+        const startPoint = currentRunPath[0];
+        const endPoint = currentRunPath[currentRunPath.length - 1];
+        
+        // Проверяем, является ли маршрут замкнутым (старт и финиш рядом)
+        const distance = turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' });
+        
+        if (distance > 40) { // Порог расстояния в метрах
+            showMessage('Маршрут не замкнут. Чтобы захватить территорию, вернитесь к точке старта.');
+            return;
+        }
+
+        // Замыкаем путь, добавляя первую точку в конец
+        currentRunPath.push(startPoint);
+        
+        // Создаем полигон из маршрута
+        const newPolygon = turf.polygon([currentRunPath]);
+        
+        // Проверяем, не пересекает ли полигон сам себя (сложная фигура)
+        const kinks = turf.kinks(newPolygon);
+        if (kinks.features.length > 0) {
+            showMessage('Маршрут слишком сложный (пересекает сам себя). Попробуйте нарисовать простую фигуру.');
+            return;
+        }
+
+        // Если все хорошо, обновляем территорию
+        updateTerritory(newPolygon);
+    }
+    
+    /**
+     * Обновление территории пользователя
+     * @param {object} newCapture - GeoJSON полигон новой захваченной территории
+     */
+    function updateTerritory(newCapture) {
+        try {
+            if (!userTerritory) {
+                // Если это первый захват
+                userTerritory = newCapture;
+            } else {
+                // Проверяем, пересекается ли новый захват со старой территорией
+                const intersection = turf.intersect(userTerritory, newCapture);
+                if (intersection) {
+                    // Если да, объединяем их
+                    userTerritory = turf.union(userTerritory, newCapture);
+                } else {
+                    showMessage('Новая территория должна соприкасаться с уже захваченной, чтобы расширить ее.');
+                    return; // Не добавляем, если не соприкасается
+                }
+            }
+            
+            // Перерисовываем территорию на карте
+            drawTerritory();
+            // Сохраняем результат
+            saveTerritory();
+            showMessage('Территория успешно захвачена и расширена!');
+
+        } catch (error) {
+            console.error("Ошибка при объединении полигонов:", error);
+            showMessage("Произошла ошибка при обработке территории. Возможно, форма была слишком сложной.");
+        }
+    }
+
+    /**
+     * Отрисовка территории пользователя на карте
+     */
+    function drawTerritory() {
+        if (territoryLayer) {
+            map.removeLayer(territoryLayer);
+        }
+        if (userTerritory) {
+            territoryLayer = L.geoJSON(userTerritory, {
+                style: {
+                    color: "#2563eb", // Синий
+                    weight: 2,
+                    opacity: 0.8,
+                    fillColor: "#60a5fa", // Голубой
+                    fillOpacity: 0.5
+                }
+            }).addTo(map);
+        }
+    }
+    
+    /**
+     * Сохранение территории в localStorage.
+     */
+    function saveTerritory() {
+        if (user && userTerritory) {
+            localStorage.setItem(`territory_${user.id}`, JSON.stringify(userTerritory));
+        }
+    }
+
+    /**
+     * Загрузка территории из localStorage.
+     */
+    function loadTerritory() {
+        if (user) {
+            const savedData = localStorage.getItem(`territory_${user.id}`);
+            if (savedData) {
+                userTerritory = JSON.parse(savedData);
+                drawTerritory();
+                console.log("Территория загружена из локального хранилища.");
+            }
+        }
+    }
+
+    // Запускаем приложение сразу после загрузки страницы
+    window.onload = initializeApp;
+
+</script>
+
+</body>
+</html>
