@@ -182,6 +182,7 @@
         let userColor = '#3b82f6';
         let currentUserMarker = null;
         let allUserLayers = {};
+        let allProfilesData = []; // Хранилище для всех профилей
 
         // --- Элементы DOM ---
         const authScreen = document.getElementById('auth-screen');
@@ -416,13 +417,43 @@
                 } else {
                     combinedTerritory = turf.union(userTerritory, newCapture);
                 }
-                userTerritory = turf.cleanCoords(combinedTerritory);
+                const newTotalTerritory = turf.cleanCoords(combinedTerritory);
+
+                const affectedUsersUpdates = [];
+                for (const profile of allProfilesData) {
+                    if (profile.id !== telegramUser.id && profile.territory) {
+                        const intersection = turf.intersect(profile.territory, newTotalTerritory);
+                        if (intersection) {
+                            const remainingTerritory = turf.difference(profile.territory, newTotalTerritory);
+                            let finalTerritory = null;
+                            let finalArea = 0;
+                            if (remainingTerritory) {
+                                try {
+                                    const area = turf.area(remainingTerritory);
+                                    if (area > 1) {
+                                        finalTerritory = remainingTerritory;
+                                        finalArea = area;
+                                    }
+                                } catch (e) { /* Ignore invalid geometry */ }
+                            }
+                            affectedUsersUpdates.push({ id: profile.id, territory: finalTerritory, area: finalArea });
+                        }
+                    }
+                }
+
+                userTerritory = newTotalTerritory;
                 await saveUserData();
+
+                if (affectedUsersUpdates.length > 0) {
+                    const { error } = await supabase.from('profiles').upsert(affectedUsersUpdates);
+                    if (error) console.error("Error updating territories of other users:", error);
+                }
+
                 refreshAllStats();
                 tg.HapticFeedback.notificationOccurred('success');
                 showMessage('Территория успешно расширена!');
             } catch (error) {
-                console.error("Ошибка объединения:", error);
+                console.error("Ошибка в updateTerritory:", error);
                 showMessage("Ошибка обработки территории. Форма слишком сложная.");
                 tg.HapticFeedback.notificationOccurred('error');
             }
@@ -486,6 +517,8 @@
             let { data: profiles, error } = await supabase.from('profiles').select('*');
             if (error) { console.error("Error fetching profiles:", error); return; }
             
+            allProfilesData = profiles; // Сохраняем свежие данные для логики отвоевывания
+
             for (const userId in allUserLayers) {
                 if (allUserLayers[userId]) map.removeLayer(allUserLayers[userId]);
             }
