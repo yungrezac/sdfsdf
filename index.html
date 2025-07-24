@@ -399,7 +399,7 @@
                 } else {
                     combinedTerritory = turf.union(userTerritory, newCapture);
                 }
-                userTerritory = combinedTerritory;
+                userTerritory = turf.cleanCoords(combinedTerritory); // Очистка геометрии
                 await saveUserData();
                 updateAreaDisplay();
                 tg.HapticFeedback.notificationOccurred('success');
@@ -439,6 +439,7 @@
             if (!telegramUser) return;
             const area = userTerritory ? turf.area(userTerritory) : 0;
             
+            // FIX: Использование upsert для надежного сохранения/обновления
             const { error } = await supabase
                 .from('profiles')
                 .upsert({ 
