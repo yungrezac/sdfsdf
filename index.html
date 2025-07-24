@@ -20,6 +20,9 @@
     
     <!-- Подключение Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Подключение Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         body {
@@ -94,7 +97,7 @@
         <div id="top-view" class="view bg-gray-50 p-4 fade-in">
             <h1 class="text-3xl font-bold text-gray-800 mb-6 px-2">Топ Бегунов</h1>
             <div id="leaderboard" class="space-y-3">
-                <!-- Содержимое будет сгенерировано JS из Firestore -->
+                <!-- Содержимое будет сгенерировано JS из Supabase -->
             </div>
         </div>
 
@@ -144,16 +147,10 @@
     <div id="message-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden z-50"><div class="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-sm w-full fade-in"><p id="modal-message" class="text-lg text-gray-700 mb-6"></p><button onclick="closeModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-full transition-all">OK</button></div></div>
 
     <script type="module">
-        // --- Firebase SDK ---
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
         // --- Глобальные переменные ---
         const tg = window.Telegram.WebApp;
         let map;
-        let db, auth;
-        let firebaseUser = null; // Пользователь Firebase
+        let supabase;
         let telegramUser = null; // Пользователь Telegram
         let isRunning = false;
         let watchId = null;
@@ -221,42 +218,26 @@
             telegramUser = tg.initDataUnsafe.user;
 
             try {
-                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
+                // Инициализация Supabase
+                const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
+                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                
+                console.log("Supabase client initialized.");
+                await setupUser();
 
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        console.log("Firebase user signed in:", user.uid);
-                        firebaseUser = user;
-                        await setupUser();
-                    } else {
-                        console.log("Firebase user signed out.");
-                        firebaseUser = null;
-                    }
-                });
-
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    console.log("Signing in with custom token...");
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    console.log("Signing in anonymously...");
-                    await signInAnonymously(auth);
-                }
             } catch (error) {
-                console.error("Firebase Initialization or Auth Error:", error);
+                console.error("Supabase Initialization Error:", error);
                 authScreen.innerHTML = `<div class="text-center bg-white p-8 rounded-2xl shadow-lg"><h1 class="text-2xl font-bold text-gray-800 mb-4">Ошибка подключения</h1><p class="text-gray-600">Не удалось подключиться к серверу. Попробуйте перезапустить приложение.</p></div>`;
             }
         }
         
         async function setupUser() {
             try {
-                await loadUserData();
+                await upsertUserProfile();
                 initMap();
                 updateUI();
-                listenForAllTerritories();
-                listenForLeaderboard();
+                listenToAllProfiles();
                 
                 authScreen.style.display = 'none';
                 appContainer.classList.remove('hidden');
@@ -284,7 +265,7 @@
         }
 
         function initMap() {
-            if (map) return; // Prevents re-initializing the map
+            if (map) return;
             map = L.map('map', { zoomControl: false, attributionControl: false }).setView([55.75, 37.61], 13);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {}).addTo(map);
             
@@ -372,109 +353,138 @@
             }
         }
         
-        // --- Firestore ---
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // --- Supabase ---
+        async function upsertUserProfile() {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', telegramUser.id)
+                .single();
 
-        async function loadUserData() {
-            const userDocRef = doc(db, `artifacts/${appId}/users/${firebaseUser.uid}/data`, "profile");
-            const docSnap = await getDoc(userDocRef);
-
-            if (docSnap.exists()) {
-                const data = docSnap.data();
+            if (error && error.code !== 'PGRST116') { // PGRST116: "The result contains 0 rows"
+                console.error('Error fetching profile:', error);
+                throw error;
+            } 
+            
+            if (data) {
+                console.log("User found:", data);
                 userColor = data.color;
-                if (data.territory) {
-                    userTerritory = JSON.parse(data.territory);
-                }
+                userTerritory = data.territory;
             } else {
-                userColor = generateColorFromId(firebaseUser.uid);
-                await saveUserData();
+                console.log("User not found, creating new profile...");
+                userColor = generateColorFromId(telegramUser.id);
+                const { error: insertError } = await supabase
+                    .from('profiles')
+                    .insert({
+                        id: telegramUser.id,
+                        name: telegramUser.first_name,
+                        color: userColor,
+                        area: 0,
+                        photo_url: telegramUser.photo_url || null,
+                        territory: null
+                    });
+                if (insertError) {
+                    console.error('Error creating profile:', insertError);
+                    throw insertError;
+                }
             }
         }
 
         async function saveUserData() {
-            if (!firebaseUser) return;
+            if (!telegramUser) return;
             const area = userTerritory ? turf.area(userTerritory) : 0;
-            const territoryString = userTerritory ? JSON.stringify(userTerritory) : null;
             
-            const userDocRef = doc(db, `artifacts/${appId}/users/${firebaseUser.uid}/data`, "profile");
-            await setDoc(userDocRef, {
-                color: userColor,
-                territory: territoryString
-            }, { merge: true });
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    territory: userTerritory,
+                    area: area,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', telegramUser.id);
 
-            const publicDataRef = doc(db, `artifacts/${appId}/public/data`, firebaseUser.uid);
-            await setDoc(publicDataRef, {
-                name: telegramUser.first_name,
-                color: userColor,
-                territory: territoryString,
-                area: area,
-                photo_url: telegramUser.photo_url || null
-            }, { merge: true });
+            if (error) {
+                console.error('Error saving user data:', error);
+            }
         }
 
-        function listenForAllTerritories() {
-            const q = query(collection(db, `artifacts/${appId}/public/data`));
-            onSnapshot(q, (querySnapshot) => {
-                querySnapshot.docChanges().forEach((change) => {
-                    const data = change.doc.data();
-                    const userId = change.doc.id;
+        function listenToAllProfiles() {
+            // Начальная загрузка всех данных
+            fetchAllProfilesAndDraw();
 
-                    if (allTerritoriesLayers[userId]) {
-                        map.removeLayer(allTerritoriesLayers[userId]);
-                        delete allTerritoriesLayers[userId];
+            // Подписка на изменения
+            supabase.channel('public:profiles')
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, payload => {
+                console.log('Change received!', payload);
+                fetchAllProfilesAndDraw();
+              })
+              .subscribe();
+        }
+
+        async function fetchAllProfilesAndDraw() {
+            let { data: profiles, error } = await supabase
+                .from('profiles')
+                .select('*');
+
+            if (error) {
+                console.error("Error fetching profiles:", error);
+                return;
+            }
+            
+            // Очистка старых слоев
+            for (const userId in allTerritoriesLayers) {
+                if (allTerritoriesLayers[userId]) {
+                    map.removeLayer(allTerritoriesLayers[userId]);
+                }
+            }
+            allTerritoriesLayers = {};
+
+            // Отрисовка новых слоев
+            profiles.forEach(profile => {
+                if (profile.territory) {
+                    const territoryLayerGroup = L.layerGroup();
+                    
+                    L.geoJSON(profile.territory, { 
+                        style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } 
+                    }).addTo(territoryLayerGroup);
+
+                    if (profile.territory.geometry.coordinates.length > 0 && profile.territory.geometry.coordinates[0].length > 0) {
+                        const perimeterCoords = profile.territory.geometry.coordinates[0].map(p => [p[1], p[0]]);
+                        const label = L.polyline(perimeterCoords, {opacity: 0});
+                        label.setText(`\u25BA ${profile.name} `, {
+                            repeat: true, center: true,
+                            attributes: { 'font-weight': 'bold', 'font-size': '14', 'fill': '#000', 'text-shadow': '1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff' }
+                        });
+                        label.addTo(territoryLayerGroup);
                     }
-
-                    if (change.type !== "removed" && data.territory) {
-                        const territory = JSON.parse(data.territory);
-                        const territoryLayerGroup = L.layerGroup();
-                        
-                        L.geoJSON(territory, { 
-                            style: { color: data.color, weight: 2, opacity: 0.8, fillColor: data.color, fillOpacity: 0.4 } 
-                        }).addTo(territoryLayerGroup);
-
-                        if (territory.geometry.coordinates.length > 0 && territory.geometry.coordinates[0].length > 0) {
-                            const perimeterCoords = territory.geometry.coordinates[0].map(p => [p[1], p[0]]);
-                            const label = L.polyline(perimeterCoords, {opacity: 0});
-                            label.setText(`\u25BA ${data.name} `, {
-                                repeat: true, center: true,
-                                attributes: { 'font-weight': 'bold', 'font-size': '14', 'fill': '#000', 'text-shadow': '1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff' }
-                            });
-                            label.addTo(territoryLayerGroup);
-                        }
-                        
-                        territoryLayerGroup.addTo(map);
-                        allTerritoriesLayers[userId] = territoryLayerGroup;
-                    }
-                });
+                    
+                    territoryLayerGroup.addTo(map);
+                    allTerritoriesLayers[profile.id] = territoryLayerGroup;
+                }
             });
+            
+            // Обновление лидерборда
+            updateLeaderboard(profiles);
         }
         
-        function listenForLeaderboard() {
-            const q = query(collection(db, `artifacts/${appId}/public/data`));
-            onSnapshot(q, (querySnapshot) => {
-                const users = [];
-                querySnapshot.forEach((doc) => {
-                    users.push({ id: doc.id, ...doc.data() });
-                });
-                
-                users.sort((a, b) => (b.area || 0) - (a.area || 0));
+        function updateLeaderboard(profiles) {
+            profiles.sort((a, b) => (b.area || 0) - (a.area || 0));
 
-                leaderboardDiv.innerHTML = users.map((u, index) => {
-                    const isCurrentUser = u.id === firebaseUser.uid;
-                    const name = isCurrentUser ? `${u.name} (Вы)` : u.name;
-                    const avatar = u.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${u.name.charAt(0)}`;
-                    const areaKm = ((u.area || 0) / 1000000).toFixed(3);
+            leaderboardDiv.innerHTML = profiles.map((u, index) => {
+                const isCurrentUser = u.id === telegramUser.id;
+                const name = isCurrentUser ? `${u.name} (Вы)` : u.name;
+                const avatar = u.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${u.name.charAt(0)}`;
+                const areaKm = ((u.area || 0) / 1000000).toFixed(3);
 
-                    return `<div class="bg-white rounded-xl shadow-md p-4 flex items-center space-x-4 ${isCurrentUser ? 'ring-2 ring-blue-500' : ''}">
-                        <span class="text-xl font-bold text-gray-400 w-8">${index + 1}</span>
-                        <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
-                        <div class="flex-grow">
-                            <p class="font-bold text-gray-800">${name}</p>
-                            <p class="text-sm text-gray-500">${areaKm} км²</p>
-                        </div>
-                    </div>`
-                }).join('');
-            });
+                return `<div class="bg-white rounded-xl shadow-md p-4 flex items-center space-x-4 ${isCurrentUser ? 'ring-2 ring-blue-500' : ''}">
+                    <span class="text-xl font-bold text-gray-400 w-8">${index + 1}</span>
+                    <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
+                    <div class="flex-grow">
+                        <p class="font-bold text-gray-800">${name}</p>
+                        <p class="text-sm text-gray-500">${areaKm} км²</p>
+                    </div>
+                </div>`
+            }).join('');
         }
 
         function updateAreaDisplay() {
