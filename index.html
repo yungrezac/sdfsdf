@@ -231,8 +231,12 @@
         function focusOnUser(userId) {
             showView('map-view');
             const userLayerGroup = allUserLayers[userId];
+            // FIX: Проверяем, что слой существует и содержит какие-либо слои (т.е. есть территория)
             if (userLayerGroup && map && userLayerGroup.getLayers().length > 0) {
-                map.flyToBounds(userLayerGroup.getBounds(), { padding: [50, 50], duration: 1 });
+                // FIX: Используем setTimeout, чтобы карта успела отрисоваться перед изменением масштаба.
+                setTimeout(() => {
+                    map.flyToBounds(userLayerGroup.getBounds(), { padding: [50, 50], duration: 1, maxZoom: 16 });
+                }, 100);
             } else {
                 showMessage("У этого пользователя еще нет захваченных территорий.");
             }
@@ -517,7 +521,7 @@
             let { data: profiles, error } = await supabase.from('profiles').select('*');
             if (error) { console.error("Error fetching profiles:", error); return; }
             
-            allProfilesData = profiles; // Сохраняем свежие данные для логики отвоевывания
+            allProfilesData = profiles; 
 
             for (const userId in allUserLayers) {
                 if (allUserLayers[userId]) map.removeLayer(allUserLayers[userId]);
