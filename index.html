@@ -171,7 +171,7 @@
     <!-- Модальное окно с деталями пользователя -->
     <div id="user-detail-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-end z-40 opacity-0 hidden transition-opacity duration-300">
         <div id="user-detail-content" class="w-full h-3/4 bg-white rounded-t-2xl shadow-2xl p-4 flex flex-col transform translate-y-full transition-transform duration-300 ease-in-out">
-            <div class="w-full flex justify-center mb-2 flex-shrink-0" onclick="hideUserDetailModal()">
+            <div class="w-full flex justify-center mb-2 flex-shrink-0" ontouchstart="handleTouchStart(event)" ontouchmove="handleTouchMove(event)" ontouchend="handleTouchEnd()">
                 <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
             </div>
             <div id="user-detail-header" class="flex items-center space-x-4 mb-4 flex-shrink-0">
@@ -218,6 +218,7 @@
         const modalMessage = document.getElementById('modal-message');
         const recenterBtn = document.getElementById('recenter-btn');
         const userDetailModal = document.getElementById('user-detail-modal');
+        const userDetailContent = document.getElementById('user-detail-content');
 
         // --- Функции UI ---
         function showView(viewId) {
@@ -246,11 +247,53 @@
             return `hsl(${h}, 80%, 65%)`;
         }
         
+        function focusOnUser(userId) {
+            showView('map-view');
+            const userLayerGroup = allUserLayers[userId];
+            if (userLayerGroup && map && userLayerGroup.getLayers().length > 0) {
+                setTimeout(() => {
+                    map.flyToBounds(userLayerGroup.getBounds(), { padding: [50, 50], duration: 1, maxZoom: 16 });
+                }, 100);
+            } else {
+                showMessage("У этого пользователя еще нет захваченных территорий.");
+            }
+        }
+        
+        let touchStartY = 0;
+        let currentY = 0;
+        let isDragging = false;
+
+        function handleTouchStart(e) {
+            isDragging = true;
+            touchStartY = e.touches[0].clientY;
+            userDetailContent.style.transition = 'none';
+        }
+
+        function handleTouchMove(e) {
+            if (!isDragging) return;
+            currentY = e.touches[0].clientY;
+            const deltaY = currentY - touchStartY;
+            if (deltaY > 0) {
+                userDetailContent.style.transform = `translateY(${deltaY}px)`;
+            }
+        }
+
+        function handleTouchEnd() {
+            if (!isDragging) return;
+            isDragging = false;
+            userDetailContent.style.transition = 'transform 0.3s ease-in-out';
+            const deltaY = currentY - touchStartY;
+
+            if (deltaY > userDetailContent.clientHeight * 0.3) {
+                hideUserDetailModal();
+            } else {
+                userDetailContent.style.transform = '';
+            }
+        }
+
         async function showUserDetailModal(userId) {
             const profile = allProfilesData.find(p => p.id === userId);
-            if (!profile) return;
-
-            if (!profile.territory) {
+            if (!profile || !profile.territory) {
                 showMessage("У этого пользователя еще нет захваченных территорий.");
                 return;
             }
@@ -259,54 +302,34 @@
 
             const userDetailHeader = document.getElementById('user-detail-header');
             const avatar = profile.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
-            userDetailHeader.innerHTML = `
-                <img src="${avatar}" class="w-16 h-16 rounded-full" alt="avatar">
-                <div>
-                    <p class="text-2xl font-bold text-gray-800">${profile.name}</p>
-                    <p class="text-sm text-gray-500">Завоеватель</p>
-                </div>
-            `;
+            userDetailHeader.innerHTML = `<img src="${avatar}" class="w-16 h-16 rounded-full" alt="avatar"><div><p class="text-2xl font-bold text-gray-800">${profile.name}</p><p class="text-sm text-gray-500">Завоеватель</p></div>`;
             
             const userDetailStats = document.getElementById('user-detail-stats');
             const area = profile.area || 0;
             const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
-            userDetailStats.innerHTML = `
-                <p class="text-sm text-gray-500">Общая площадь</p>
-                <p class="text-4xl font-bold text-gray-800">${formattedArea}</p>
-            `;
+            userDetailStats.innerHTML = `<p class="text-sm text-gray-500">Общая площадь</p><p class="text-4xl font-bold text-gray-800">${formattedArea}</p>`;
 
-            const content = document.getElementById('user-detail-content');
+            userDetailContent.style.transform = '';
             userDetailModal.classList.remove('hidden');
             setTimeout(() => {
                 userDetailModal.classList.remove('opacity-0');
-                content.classList.remove('translate-y-full');
+                userDetailContent.classList.remove('translate-y-full');
             }, 10);
 
             setTimeout(() => {
-                if (detailMap) {
-                    detailMap.remove();
-                    detailMap = null;
-                }
-                
+                if (detailMap) detailMap.remove();
                 detailMap = L.map('detail-map', { zoomControl: false, attributionControl: false });
                 const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-                L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token={accessToken}', {
-                    maxZoom: 19,
-                    accessToken: mapboxAccessToken
-                }).addTo(detailMap);
+                L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token={accessToken}', { maxZoom: 19, accessToken: mapboxAccessToken }).addTo(detailMap);
 
-                const territoryLayer = L.geoJSON(profile.territory, { 
-                    style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.5 } 
-                }).addTo(detailMap);
-
+                const territoryLayer = L.geoJSON(profile.territory, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.5 } }).addTo(detailMap);
                 detailMap.fitBounds(territoryLayer.getBounds(), { padding: [20, 20], maxZoom: 16 });
             }, 300);
         }
 
         function hideUserDetailModal() {
-            const content = document.getElementById('user-detail-content');
             userDetailModal.classList.add('opacity-0');
-            content.classList.add('translate-y-full');
+            userDetailContent.classList.add('translate-y-full');
             setTimeout(() => {
                 userDetailModal.classList.add('hidden');
                 if (detailMap) {
@@ -704,6 +727,9 @@
             telegramUser = user;
             await initializeWithUser();
         };
+        window.handleTouchStart = handleTouchStart;
+        window.handleTouchMove = handleTouchMove;
+        window.handleTouchEnd = handleTouchEnd;
 
         // Запускаем приложение
         document.addEventListener('DOMContentLoaded', startApp);
