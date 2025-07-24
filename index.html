@@ -285,7 +285,7 @@
                 profileAvatarImg.src = `https://placehold.co/80x80/E2E8F0/4A5568?text=${initial}`;
             }
             profileAvatarWrapper.style.borderColor = userColor;
-            updateAreaDisplay();
+            refreshAllStats();
         }
 
         function initMap() {
@@ -399,9 +399,9 @@
                 } else {
                     combinedTerritory = turf.union(userTerritory, newCapture);
                 }
-                userTerritory = turf.cleanCoords(combinedTerritory); // Очистка геометрии
+                userTerritory = turf.cleanCoords(combinedTerritory);
                 await saveUserData();
-                updateAreaDisplay();
+                refreshAllStats();
                 tg.HapticFeedback.notificationOccurred('success');
                 showMessage('Территория успешно расширена!');
             } catch (error) {
@@ -439,7 +439,6 @@
             if (!telegramUser) return;
             const area = userTerritory ? turf.area(userTerritory) : 0;
             
-            // FIX: Использование upsert для надежного сохранения/обновления
             const { error } = await supabase
                 .from('profiles')
                 .upsert({ 
@@ -532,18 +531,23 @@
             }).join('');
         }
 
-        function updateAreaDisplay() {
-            let area = userTerritory ? turf.area(userTerritory) : 0;
-            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${area.toFixed(0)} м²`;
-            areaDisplay.textContent = `Площадь: ${formattedArea}`;
-            if (document.getElementById('profile-view').classList.contains('active')) {
-                updateProfileStats();
+        // FIX: Единая функция для обновления всех статов
+        function refreshAllStats() {
+            let area = 0;
+            if (userTerritory) {
+                try {
+                    area = turf.area(userTerritory);
+                    if (isNaN(area)) area = 0;
+                } catch (e) {
+                    area = 0;
+                }
             }
-        }
-        
-        function updateProfileStats() {
-            let area = userTerritory ? turf.area(userTerritory) : 0;
-            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${area.toFixed(0)} м²`;
+            
+            const formattedArea = area > 10000 
+                ? `${(area / 1000000).toFixed(2)} км²` 
+                : `${Math.round(area)} м²`;
+            
+            areaDisplay.textContent = `Площадь: ${formattedArea}`;
             profileAreaDisplay.textContent = formattedArea;
         }
 
