@@ -36,6 +36,7 @@
             right: 0;
             bottom: 80px; /* Оставляем место для навбара */
             z-index: 10;
+            background-color: #111827; /* Темный фон для карты на время загрузки */
         }
         .view {
             display: none;
@@ -267,12 +268,21 @@
         function initMap() {
             if (map) return;
             map = L.map('map', { zoomControl: false, attributionControl: false }).setView([55.75, 37.61], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {}).addTo(map);
             
+            // Замена на Mapbox
+            const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
+            L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/{z}/{x}/{y}?access_token={accessToken}', {
+                maxZoom: 19,
+                tileSize: 512,
+                zoomOffset: -1,
+                accessToken: mapboxAccessToken
+            }).addTo(map);
+
             navigator.geolocation.getCurrentPosition(
                 pos => {
                     map.setView([pos.coords.latitude, pos.coords.longitude], 16);
-                    L.circleMarker([pos.coords.latitude, pos.coords.longitude], {radius: 8, color: '#3b82f6', fillColor: '#fff', fillOpacity: 1, weight: 3}).addTo(map);
+                    // Яркий маркер для темной карты
+                    L.circleMarker([pos.coords.latitude, pos.coords.longitude], {radius: 8, color: '#f59e0b', fillColor: '#fff', fillOpacity: 1, weight: 3}).addTo(map);
                 },
                 () => showMessage('Не удалось определить геолокацию.'), { enableHighAccuracy: true }
             );
@@ -409,10 +419,7 @@
         }
 
         function listenToAllProfiles() {
-            // Начальная загрузка всех данных
             fetchAllProfilesAndDraw();
-
-            // Подписка на изменения
             supabase.channel('public:profiles')
               .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, payload => {
                 console.log('Change received!', payload);
@@ -431,7 +438,6 @@
                 return;
             }
             
-            // Очистка старых слоев
             for (const userId in allTerritoriesLayers) {
                 if (allTerritoriesLayers[userId]) {
                     map.removeLayer(allTerritoriesLayers[userId]);
@@ -439,7 +445,6 @@
             }
             allTerritoriesLayers = {};
 
-            // Отрисовка новых слоев
             profiles.forEach(profile => {
                 if (profile.territory) {
                     const territoryLayerGroup = L.layerGroup();
@@ -453,7 +458,12 @@
                         const label = L.polyline(perimeterCoords, {opacity: 0});
                         label.setText(`\u25BA ${profile.name} `, {
                             repeat: true, center: true,
-                            attributes: { 'font-weight': 'bold', 'font-size': '14', 'fill': '#000', 'text-shadow': '1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff' }
+                            attributes: { 
+                                'font-weight': 'bold', 
+                                'font-size': '14', 
+                                'fill': '#fff', // Белый текст для темной карты
+                                'text-shadow': '1px 1px 1px #000, -1px -1px 1px #000, 1px -1px 1px #000, -1px 1px 1px #000' // Черная тень
+                            }
                         });
                         label.addTo(territoryLayerGroup);
                     }
@@ -463,7 +473,6 @@
                 }
             });
             
-            // Обновление лидерборда
             updateLeaderboard(profiles);
         }
         
