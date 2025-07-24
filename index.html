@@ -96,9 +96,9 @@
 </head>
 <body class="font-sans antialiased overflow-hidden">
 
-    <!-- Экран-заглушка -->
+    <!-- Экран-заглушка / Вход -->
     <div id="auth-screen" class="fixed inset-0 bg-gray-100 flex items-center justify-center p-4 z-50">
-        <div class="text-center bg-white p-8 rounded-2xl shadow-lg">
+        <div id="auth-content" class="text-center bg-white p-8 rounded-2xl shadow-lg">
             <h1 class="text-2xl font-bold text-gray-800 mb-4">Загрузка TerraRun...</h1>
             <p class="text-gray-600">Подключаемся к серверам и вашему профилю Telegram.</p>
         </div>
@@ -185,6 +185,7 @@
 
         // --- Элементы DOM ---
         const authScreen = document.getElementById('auth-screen');
+        const authContent = document.getElementById('auth-content');
         const appContainer = document.getElementById('app-container');
         const bottomNavbar = document.getElementById('bottom-navbar');
         const toggleRunBtn = document.getElementById('toggle-run-btn');
@@ -239,13 +240,29 @@
             tg.ready();
             tg.expand();
             
-            if (!tg.initDataUnsafe?.user) {
-                authScreen.innerHTML = `<div class="text-center bg-white p-8 rounded-2xl shadow-lg"><h1 class="text-2xl font-bold text-gray-800 mb-4">Ошибка</h1><p class="text-gray-600">Пожалуйста, откройте это приложение внутри Telegram.</p></div>`;
-                return;
+            if (tg.initDataUnsafe?.user) {
+                console.log("Running inside Telegram Mini App.");
+                telegramUser = tg.initDataUnsafe.user;
+                await initializeWithUser();
+            } else {
+                console.log("Running outside Telegram. Displaying login widget.");
+                authContent.innerHTML = `
+                    <h1 class="text-2xl font-bold text-gray-800 mb-4">Вход в TerraRun</h1>
+                    <p class="text-gray-600 mb-6">Чтобы начать, войдите через Telegram.</p>
+                `;
+                const script = document.createElement('script');
+                script.async = true;
+                script.src = 'https://telegram.org/js/telegram-widget.js?22';
+                script.setAttribute('data-telegram-login', 'TerraRunbot');
+                script.setAttribute('data-size', 'large');
+                script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+                script.setAttribute('data-request-access', 'write');
+                authContent.appendChild(script);
             }
-            telegramUser = tg.initDataUnsafe.user;
+        }
 
-            try {
+        async function initializeWithUser() {
+             try {
                 const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
                 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -519,7 +536,6 @@
                 const name = isCurrentUser ? `${u.name} (Вы)` : u.name;
                 const avatar = u.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${u.name.charAt(0)}`;
                 
-                // FIX: Применяем ту же логику форматирования, что и в других местах
                 const area = u.area || 0;
                 const formattedArea = area > 10000 
                     ? `${(area / 1000000).toFixed(2)} км²` 
@@ -565,6 +581,11 @@
         window.showView = showView;
         window.closeModal = closeModal;
         window.focusOnUser = focusOnUser;
+        window.onTelegramAuth = async (user) => {
+            console.log("Logged in via external widget:", user);
+            telegramUser = user;
+            await initializeWithUser();
+        };
 
         // Запускаем приложение
         document.addEventListener('DOMContentLoaded', startApp);
