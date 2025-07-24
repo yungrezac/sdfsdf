@@ -271,12 +271,20 @@
             
             // Замена на светлую карту Mapbox
             const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-            L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token={accessToken}', {
+            // FIX: Исправлен URL для получения тайлов высокого разрешения (512px)
+            L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}', {
                 maxZoom: 19,
                 tileSize: 512,
                 zoomOffset: -1,
                 accessToken: mapboxAccessToken
             }).addTo(map);
+            
+            // FIX: Вызываем invalidateSize для корректной прорисовки карты после инициализации
+            setTimeout(() => {
+                if (map) {
+                    map.invalidateSize();
+                }
+            }, 100);
 
             navigator.geolocation.getCurrentPosition(
                 pos => {
