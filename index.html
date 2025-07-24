@@ -63,6 +63,14 @@
         .btn-gradient-red {
              background-image: linear-gradient(to right, #ef4444, #f87171);
         }
+        /* Стили для аватаров-маркеров */
+        .avatar-marker {
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            background-size: cover;
+            background-position: center;
+        }
     </style>
 </head>
 <body class="font-sans antialiased overflow-hidden">
@@ -159,8 +167,9 @@
         let currentPathPolyline = null;
         let userTerritory = null; // GeoJSON
         let userColor = '#3b82f6';
+        let currentUserMarker = null; // Маркер текущего пользователя
         
-        let allTerritoriesLayers = {}; // Хранилище для слоев других игроков {userId: layer}
+        let allUserLayers = {}; // Хранилище для слоев других игроков {userId: layerGroup}
 
         // --- Элементы DOM ---
         const authScreen = document.getElementById('auth-screen');
@@ -205,6 +214,14 @@
             }
             const h = hash % 360;
             return `hsl(${h}, 70%, 60%)`;
+        }
+        
+        function focusOnUser(userId) {
+            showView('map-view');
+            const userLayerGroup = allUserLayers[userId];
+            if (userLayerGroup) {
+                map.flyToBounds(userLayerGroup.getBounds(), { padding: [50, 50] });
+            }
         }
 
         // --- Основная логика ---
@@ -286,7 +303,19 @@
             navigator.geolocation.getCurrentPosition(
                 pos => {
                     map.setView([pos.coords.latitude, pos.coords.longitude], 16);
-                    L.circleMarker([pos.coords.latitude, pos.coords.longitude], {radius: 8, color: '#d946ef', fillColor: '#fff', fillOpacity: 1, weight: 3}).addTo(map);
+                    const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E2E8F0/4A5568?text=${telegramUser.first_name.charAt(0)}`;
+                    const icon = L.divIcon({
+                        html: `<div class="avatar-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${userColor};"></div>`,
+                        className: '',
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20]
+                    });
+                    
+                    if (currentUserMarker) {
+                        currentUserMarker.setLatLng([pos.coords.latitude, pos.coords.longitude]);
+                    } else {
+                        currentUserMarker = L.marker([pos.coords.latitude, pos.coords.longitude], { icon: icon }).addTo(map);
+                    }
                 },
                 () => showMessage('Не удалось определить геолокацию.'), { enableHighAccuracy: true }
             );
@@ -306,6 +335,9 @@
                     currentRunPath.push([longitude, latitude]);
                     currentPathPolyline.addLatLng([latitude, longitude]);
                     map.panTo([latitude, longitude]);
+                    if (currentUserMarker) {
+                        currentUserMarker.setLatLng([latitude, longitude]);
+                    }
                 },
                 () => { showMessage('Проблема с отслеживанием геолокации.'); stopRun(); },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -448,38 +480,38 @@
                 return;
             }
             
-            for (const userId in allTerritoriesLayers) {
-                if (allTerritoriesLayers[userId]) {
-                    map.removeLayer(allTerritoriesLayers[userId]);
+            for (const userId in allUserLayers) {
+                if (allUserLayers[userId]) {
+                    map.removeLayer(allUserLayers[userId]);
                 }
             }
-            allTerritoriesLayers = {};
+            allUserLayers = {};
 
             profiles.forEach(profile => {
+                // Не рисуем маркер для текущего пользователя, так как у него есть свой, обновляемый по геолокации
+                if (profile.id === telegramUser.id) return;
+
                 if (profile.territory) {
-                    const territoryLayerGroup = L.layerGroup();
+                    const userLayerGroup = L.layerGroup();
                     
+                    // Рисуем территорию
                     L.geoJSON(profile.territory, { 
                         style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } 
-                    }).addTo(territoryLayerGroup);
+                    }).addTo(userLayerGroup);
 
-                    if (profile.territory.geometry.coordinates.length > 0 && profile.territory.geometry.coordinates[0].length > 0) {
-                        const perimeterCoords = profile.territory.geometry.coordinates[0].map(p => [p[1], p[0]]);
-                        const label = L.polyline(perimeterCoords, {opacity: 0});
-                        label.setText(`\u25BA ${profile.name} `, {
-                            repeat: true, center: true,
-                            attributes: { 
-                                'font-weight': 'bold', 
-                                'font-size': '14', 
-                                'fill': '#000', // Черный текст для светлой карты
-                                'text-shadow': '1px 1px 1px #fff, -1px -1px 1px #fff, 1px -1px 1px #fff, -1px 1px 1px #fff' // Белая тень
-                            }
-                        });
-                        label.addTo(territoryLayerGroup);
-                    }
-                    
-                    territoryLayerGroup.addTo(map);
-                    allTerritoriesLayers[profile.id] = territoryLayerGroup;
+                    // Рисуем маркер-аватар в центре территории
+                    const center = turf.centerOfMass(profile.territory);
+                    const avatarUrl = profile.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
+                    const icon = L.divIcon({
+                        html: `<div class="avatar-marker" style="background-image: url(${avatarUrl}); width: 40px; height: 40px; border-color: ${profile.color};"></div>`,
+                        className: '',
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20]
+                    });
+                    L.marker([center.geometry.coordinates[1], center.geometry.coordinates[0]], { icon: icon }).addTo(userLayerGroup);
+
+                    userLayerGroup.addTo(map);
+                    allUserLayers[profile.id] = userLayerGroup;
                 }
             });
             
@@ -495,7 +527,7 @@
                 const avatar = u.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${u.name.charAt(0)}`;
                 const areaKm = ((u.area || 0) / 1000000).toFixed(3);
 
-                return `<div class="bg-white rounded-xl shadow-md p-4 flex items-center space-x-4 ${isCurrentUser ? 'ring-2 ring-blue-500' : ''}">
+                return `<div class="bg-white rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="focusOnUser(${u.id})">
                     <span class="text-xl font-bold text-gray-400 w-8">${index + 1}</span>
                     <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
                     <div class="flex-grow">
@@ -566,10 +598,11 @@
         // --- Глобальные функции для HTML ---
         window.showView = showView;
         window.closeModal = closeModal;
+        window.focusOnUser = focusOnUser;
 
         // Запускаем приложение после загрузки DOM
         document.addEventListener('DOMContentLoaded', startApp);
     </script>
 
 </body>
-</ht
+</html>
