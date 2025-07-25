@@ -121,17 +121,13 @@
         <!-- Вид 2: Лента -->
         <div id="feed-view" class="view bg-gray-50 p-4 fade-in">
             <h1 class="text-3xl font-bold text-gray-800 mb-6 px-2">Лента</h1>
-            <div id="feed-container" class="space-y-4">
-                <!-- Посты будут загружены сюда -->
-            </div>
+            <div id="feed-container" class="space-y-4"></div>
         </div>
 
         <!-- Вид 3: Топ пользователей -->
         <div id="top-view" class="view bg-gray-50 p-4 fade-in">
             <h1 class="text-3xl font-bold text-gray-800 mb-6 px-2">Топ Бегунов</h1>
-            <div id="leaderboard" class="space-y-3">
-                <!-- Содержимое будет сгенерировано JS -->
-            </div>
+            <div id="leaderboard" class="space-y-3"></div>
         </div>
 
         <!-- Вид 4: Профиль -->
@@ -153,9 +149,7 @@
                 </div>
             </div>
             <h2 class="text-2xl font-bold text-gray-800 my-6 px-2">Мои посты</h2>
-            <div id="profile-feed-container" class="space-y-4">
-                <!-- Посты пользователя будут загружены сюда -->
-            </div>
+            <div id="profile-feed-container" class="space-y-4"></div>
         </div>
     </div>
 
@@ -180,17 +174,28 @@
                 <input type="text" id="post-title" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Например, 'Утренний захват парка'">
             </div>
             <div>
-                 <label class="block text-sm font-medium text-gray-700">Фото (скоро)</label>
+                 <label for="post-photo-input" class="block text-sm font-medium text-gray-700">Фото</label>
                  <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                     <div class="space-y-1 text-center">
-                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                        <p class="text-xs text-gray-500">Загрузка фото будет доступна скоро</p>
+                        <img id="post-photo-preview" src="" alt="Предпросмотр фото" class="hidden mx-auto h-24 w-auto mb-4 rounded">
+                        <svg id="post-photo-icon" class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                        <div class="flex text-sm text-gray-600">
+                            <label for="post-photo-input" class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                                <span>Загрузите файл</span>
+                                <input id="post-photo-input" name="post-photo-input" type="file" class="sr-only" accept="image/*">
+                            </label>
+                            <p class="pl-1">или перетащите</p>
+                        </div>
+                        <p class="text-xs text-gray-500">PNG, JPG, GIF до 10MB</p>
                     </div>
                 </div>
             </div>
             <div class="flex justify-end space-x-3">
                 <button id="cancel-post-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full transition-all">Пропустить</button>
-                <button id="save-post-btn" class="btn-gradient text-white font-bold py-2 px-4 rounded-full transition-all">Опубликовать</button>
+                <button id="save-post-btn" class="btn-gradient text-white font-bold py-2 px-4 rounded-full transition-all flex items-center justify-center">
+                    <span id="save-post-text">Опубликовать</span>
+                    <svg id="save-post-loader" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                </button>
             </div>
         </div>
     </div>
@@ -224,7 +229,7 @@
         let allUserLayers = {};
         let allProfilesData = [];
         let loginAnimationInterval = null;
-        let lastCaptureData = null; // Для создания поста
+        let lastCaptureData = null;
 
         // --- Элементы DOM ---
         const authScreen = document.getElementById('auth-screen');
@@ -248,6 +253,11 @@
         const savePostBtn = document.getElementById('save-post-btn');
         const cancelPostBtn = document.getElementById('cancel-post-btn');
         const postTitleInput = document.getElementById('post-title');
+        const postPhotoInput = document.getElementById('post-photo-input');
+        const postPhotoPreview = document.getElementById('post-photo-preview');
+        const postPhotoIcon = document.getElementById('post-photo-icon');
+        const savePostText = document.getElementById('save-post-text');
+        const savePostLoader = document.getElementById('save-post-loader');
         const feedContainer = document.getElementById('feed-container');
         const profileFeedContainer = document.getElementById('profile-feed-container');
 
@@ -375,6 +385,9 @@
         function showCreatePostModal(newCapture) {
             lastCaptureData = newCapture;
             postTitleInput.value = '';
+            postPhotoInput.value = '';
+            postPhotoPreview.classList.add('hidden');
+            postPhotoIcon.classList.remove('hidden');
             createPostModal.classList.remove('hidden');
         }
 
@@ -429,7 +442,7 @@
                 for (let i = 0; i < points; i++) {
                     const angle = (i / points) * 360;
                     const distance = radius * (0.8 + Math.random() * 0.4);
-                    const destination = turf.destination(centerPoint, distance, angle, {units: 'degrees'});
+                    const destination = turf.destination(centerPoint, distance, {units: 'degrees'});
                     path.push(destination.geometry.coordinates);
                 }
                 path.push(path[0]);
@@ -721,7 +734,7 @@
 
                 refreshAllStats();
                 tg.HapticFeedback.notificationOccurred('success');
-                showCreatePostModal(newCapture); // Показываем модалку для создания поста
+                showCreatePostModal(newCapture);
             } catch (error) {
                 console.error("Ошибка в updateTerritory:", error);
                 showMessage("Ошибка обработки территории. Форма слишком сложная.");
@@ -776,7 +789,7 @@
             }
         }
 
-        async function savePost() {
+        async function handlePostSubmission() {
             const title = postTitleInput.value.trim();
             if (!title) {
                 showMessage("Пожалуйста, введите название.");
@@ -784,21 +797,46 @@
             }
             if (!lastCaptureData) return;
 
+            savePostBtn.disabled = true;
+            savePostText.classList.add('hidden');
+            savePostLoader.classList.remove('hidden');
+
+            let photoUrl = null;
+            const file = postPhotoInput.files[0];
+            if (file) {
+                const filePath = `${telegramUser.id}/${Date.now()}_${file.name}`;
+                const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
+                if (error) {
+                    console.error("Error uploading photo:", error);
+                    showMessage("Не удалось загрузить фото.");
+                    savePostBtn.disabled = false;
+                    savePostText.classList.remove('hidden');
+                    savePostLoader.classList.add('hidden');
+                    return;
+                }
+                const { data: urlData } = supabase.storage.from('photo').getPublicUrl(data.path);
+                photoUrl = urlData.publicUrl;
+            }
+
             const areaCaptured = turf.area(lastCaptureData);
             
-            const { error } = await supabase.from('posts').insert({
+            const { error: postError } = await supabase.from('posts').insert({
                 user_id: telegramUser.id,
                 title: title,
-                photo_url: 'https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=800&auto=format&fit=crop', // Placeholder
+                photo_url: photoUrl,
                 territory_captured: lastCaptureData,
                 area_captured: areaCaptured,
                 user_name: telegramUser.first_name,
                 user_avatar_url: telegramUser.photo_url,
                 user_color: userColor
             });
+            
+            savePostBtn.disabled = false;
+            savePostText.classList.remove('hidden');
+            savePostLoader.classList.add('hidden');
 
-            if (error) {
-                console.error("Error saving post:", error);
+            if (postError) {
+                console.error("Error saving post:", postError);
                 showMessage("Не удалось сохранить пост.");
             } else {
                 showMessage("Пост успешно опубликован!");
@@ -906,9 +944,7 @@
 
         function listenToPosts() {
             supabase.channel('public:posts')
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, payload => {
-                renderFeed();
-              })
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => renderFeed())
               .subscribe();
             renderFeed();
         }
@@ -919,15 +955,12 @@
                 .select('*')
                 .order('created_at', { ascending: false });
             
-            if (error) {
-                console.error("Error fetching posts:", error);
-                return;
-            }
+            if (error) { console.error("Error fetching posts:", error); return; }
 
-            const feedHTML = posts.map(post => generatePostHTML(post)).join('');
-            feedContainer.innerHTML = feedHTML;
+            const feedHTML = posts.map(generatePostHTML).join('');
+            feedContainer.innerHTML = feedHTML || '<p class="text-center text-gray-500">В ленте пока нет постов.</p>';
             
-            const userPostsHTML = posts.filter(p => p.user_id === telegramUser.id).map(post => generatePostHTML(post)).join('');
+            const userPostsHTML = posts.filter(p => p.user_id === telegramUser.id).map(generatePostHTML).join('');
             profileFeedContainer.innerHTML = userPostsHTML || '<p class="text-center text-gray-500">У вас еще нет постов.</p>';
 
             posts.forEach(post => {
@@ -956,6 +989,7 @@
                         </div>
                         <p class="mt-4 text-gray-700">${post.title}</p>
                     </div>
+                    ${post.photo_url ? `<img src="${post.photo_url}" class="w-full h-64 object-cover" alt="Post photo">` : ''}
                     <div id="mini-map-${post.id}" class="h-48 w-full mini-map"></div>
                     <div class="p-4 bg-gray-50">
                         <p class="font-semibold text-gray-700">Захвачено: <span class="font-bold text-blue-600">${formattedArea}</span></p>
@@ -974,8 +1008,20 @@
                 hideUserDetailModal();
             }
         });
-        savePostBtn.addEventListener('click', savePost);
+        savePostBtn.addEventListener('click', handlePostSubmission);
         cancelPostBtn.addEventListener('click', hideCreatePostModal);
+        postPhotoInput.addEventListener('change', () => {
+            const file = postPhotoInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    postPhotoPreview.src = e.target.result;
+                    postPhotoPreview.classList.remove('hidden');
+                    postPhotoIcon.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
         
         // --- Глобальные функции для HTML ---
         window.showView = showView;
