@@ -215,6 +215,21 @@
             <div id="user-detail-stats" class="text-center flex-shrink-0"></div>
         </div>
     </div>
+    
+    <!-- Модальное окно с комментариями -->
+    <div id="comments-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-end z-40 opacity-0 hidden transition-opacity duration-300">
+        <div id="comments-modal-content" class="w-full h-3/4 bg-white rounded-t-2xl shadow-2xl flex flex-col transform translate-y-full transition-transform duration-300 ease-in-out">
+            <!-- Ручка для свайпа вниз -->
+            <div class="w-full flex justify-center py-3 flex-shrink-0 cursor-grab" onclick="hideCommentsModal()">
+                <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+            </div>
+            <!-- Контейнер для комментариев -->
+            <div id="comments-modal-body" class="flex-grow overflow-y-auto p-4">
+                <!-- Комментарии будут отрендерены здесь -->
+            </div>
+        </div>
+    </div>
+
 
     <script type="module">
         // --- Глобальные переменные ---
@@ -339,7 +354,7 @@
 
         async function showUserDetailModal(userId) {
             const profile = allProfilesData.find(p => p.id === userId);
-            if (!profile) { // Убрал проверку на territory, чтобы можно было открыть профиль без территории
+            if (!profile) {
                 showMessage("Профиль пользователя не найден.");
                 return;
             }
@@ -372,7 +387,7 @@
                     const territoryLayer = L.geoJSON(profile.territory, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.5 } }).addTo(detailMap);
                     detailMap.fitBounds(territoryLayer.getBounds(), { padding: [20, 20], maxZoom: 16 });
                 } else {
-                    detailMap.setView([55.75, 37.61], 5); // Fallback view
+                    detailMap.setView([55.75, 37.61], 5);
                 }
             }, 300);
         }
@@ -954,32 +969,40 @@
         // --- Лента, Лайки, Комментарии ---
 
         function listenToPosts() {
-            // Начальная загрузка
             renderFeed();
-
-            // Подписки на изменения
             supabase.channel('public:posts_activity')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => renderFeed())
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, () => renderFeed())
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => renderFeed())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload) => {
+                    renderFeed();
+                    const postId = payload.new?.post_id || payload.old?.post_id;
+                    const modal = document.getElementById('comments-modal');
+                    const modalCommentsList = document.getElementById(`modal-comments-list-${postId}`);
+                    if (!modal.classList.contains('hidden') && modalCommentsList) {
+                       showCommentsModal(postId);
+                    }
+                })
                 .subscribe();
         }
 
         async function renderFeed() {
-            // 1. Получаем все посты
             const { data: posts, error: postsError } = await supabase
                 .from('posts')
                 .select('*')
                 .order('created_at', { ascending: false });
             if (postsError) { console.error("Error fetching posts:", postsError); return; }
 
-            // 2. Получаем все лайки и комментарии
             const postIds = posts.map(p => p.id);
+            if (postIds.length === 0) {
+                 feedContainer.innerHTML = '<p class="text-center text-gray-500">В ленте пока нет постов.</p>';
+                 profileFeedContainer.innerHTML = '<p class="text-center text-gray-500">У вас еще нет постов.</p>';
+                 return;
+            }
+
             const { data: likes, error: likesError } = await supabase.from('likes').select('*').in('post_id', postIds);
             const { data: comments, error: commentsError } = await supabase.from('comments').select('*, profiles(name, photo_url)').in('post_id', postIds).order('created_at', { ascending: true });
             if (likesError || commentsError) { console.error("Error fetching activity:", likesError, commentsError); return; }
 
-            // 3. Группируем данные для удобства
             const likesByPost = likes.reduce((acc, like) => {
                 if (!acc[like.post_id]) acc[like.post_id] = [];
                 acc[like.post_id].push(like);
@@ -992,7 +1015,6 @@
                 return acc;
             }, {});
 
-            // 4. Генерируем HTML
             const feedHTML = posts.map(post => {
                 const postLikes = likesByPost[post.id] || [];
                 const postComments = commentsByPost[post.id] || [];
@@ -1007,10 +1029,8 @@
             }).join('');
             profileFeedContainer.innerHTML = userPostsHTML || '<p class="text-center text-gray-500">У вас еще нет постов.</p>';
 
-            // 5. Инициализируем мини-карты
             posts.forEach(post => {
                  const mapContainer = document.getElementById(`mini-map-${post.id}`);
-                 // Проверяем, не была ли карта уже инициализирована
                  if (mapContainer && !mapContainer._leaflet_id) {
                     const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
                     const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
@@ -1048,14 +1068,11 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>
                                 <span>${likes.length}</span>
                             </button>
-                            <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="toggleComments(${post.id})">
+                            <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="showCommentsModal(${post.id})">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                                 <span>${comments.length}</span>
                             </button>
                         </div>
-                    </div>
-                    <div id="comments-section-${post.id}" class="hidden bg-gray-50 p-4 border-t border-gray-200">
-                        ${generateCommentsSectionHTML(post.id, comments)}
                     </div>
                 </div>
             `;
@@ -1073,7 +1090,6 @@
 
             let html = rootComments.map(comment => generateCommentHTML(comment, commentsByParent)).join('');
 
-            // Форма для нового комментария
             html += `
                 <div class="mt-4 flex items-start space-x-3">
                     <img src="${telegramUser.photo_url || `https://placehold.co/32x32/E5E7EB/4B5563?text=${telegramUser.first_name.charAt(0)}`}" class="w-8 h-8 rounded-full" alt="avatar">
@@ -1096,17 +1112,17 @@
                     <div class="flex-1">
                         <div class="bg-gray-100 rounded-lg p-2">
                             <p class="font-bold text-sm text-gray-800">${comment.profiles.name}</p>
-                            <p class="text-sm text-gray-600">${comment.content}</p>
+                            <p class="text-sm text-gray-600">${comment.content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
                         </div>
                         <div class="text-xs text-gray-500 mt-1">
                             <button class="hover:underline" onclick="toggleReplyForm(${comment.id})">Ответить</button>
                         </div>
-                        <div class="pl-4 border-l-2 border-gray-200">
-                            ${replies.map(reply => generateCommentHTML(reply, commentsByParent)).join('')}
-                        </div>
-                        <div id="reply-form-${comment.id}" class="hidden mt-2">
+                        <div id="reply-form-${comment.id}" class="hidden mt-2 pl-4">
                              <textarea id="new-reply-input-${comment.id}" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500" rows="1" placeholder="Написать ответ..."></textarea>
                              <button onclick="postComment(${comment.post_id}, ${comment.id})" class="mt-2 px-3 py-1 bg-blue-500 text-white text-xs font-semibold rounded-full hover:bg-blue-600">Отправить</button>
+                        </div>
+                        <div class="pl-4 border-l-2 border-gray-200">
+                            ${replies.map(reply => generateCommentHTML(reply, commentsByParent)).join('')}
                         </div>
                     </div>
                 </div>
@@ -1129,20 +1145,12 @@
             }
 
             if (existingLike) {
-                // Unlike
                 const { error } = await supabase.from('likes').delete().match({ id: existingLike.id });
                 if (error) console.error("Error unliking:", error);
             } else {
-                // Like
                 const { error } = await supabase.from('likes').insert({ post_id: postId, user_id: telegramUser.id });
                 if (error) console.error("Error liking:", error);
             }
-        }
-
-        function toggleComments(postId) {
-            tg.HapticFeedback.impactOccurred('light');
-            const commentsSection = document.getElementById(`comments-section-${postId}`);
-            commentsSection.classList.toggle('hidden');
         }
         
         function toggleReplyForm(commentId) {
@@ -1153,8 +1161,14 @@
 
         async function postComment(postId, parentCommentId) {
             const inputId = parentCommentId ? `new-reply-input-${parentCommentId}` : `new-comment-input-${postId}`;
-            const content = document.getElementById(inputId).value.trim();
+            const inputElement = document.getElementById(inputId);
+            if (!inputElement) return;
+            
+            const content = inputElement.value.trim();
             if (!content) return;
+
+            const button = inputElement.nextElementSibling;
+            button.disabled = true;
 
             const { error } = await supabase.from('comments').insert({
                 post_id: postId,
@@ -1166,12 +1180,43 @@
             if (error) {
                 console.error('Error posting comment:', error);
                 showMessage('Не удалось отправить комментарий.');
-            } else {
-                document.getElementById(inputId).value = '';
-                if (parentCommentId) {
-                    toggleReplyForm(parentCommentId);
-                }
+                button.disabled = false;
             }
+        }
+        
+        async function showCommentsModal(postId) {
+            tg.HapticFeedback.impactOccurred('medium');
+
+            const modal = document.getElementById('comments-modal');
+            const modalContent = document.getElementById('comments-modal-content');
+            const modalBody = document.getElementById('comments-modal-body');
+
+            modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>';
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('translate-y-full');
+            }, 10);
+
+            const { data: post, error: postError } = await supabase.from('posts').select('*').eq('id', postId).single();
+            if (postError) { console.error(postError); modalBody.innerHTML = '<p>Ошибка загрузки поста.</p>'; return; }
+
+            const { data: comments, error: commentsError } = await supabase.from('comments').select('*, profiles(name, photo_url)').eq('post_id', postId).order('created_at', { ascending: true });
+            if (commentsError) { console.error(commentsError); modalBody.innerHTML = '<p>Ошибка загрузки комментариев.</p>'; return; }
+            
+            modalBody.innerHTML = `<div id="modal-comments-list-${postId}">${generateCommentsSectionHTML(postId, comments)}</div>`;
+        }
+
+        function hideCommentsModal() {
+            const modal = document.getElementById('comments-modal');
+            const modalContent = document.getElementById('comments-modal-content');
+            modal.classList.add('opacity-0');
+            modalContent.classList.add('translate-y-full');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.getElementById('comments-modal-body').innerHTML = '';
+            }, 300);
         }
 
 
@@ -1183,6 +1228,11 @@
         userDetailModal.addEventListener('click', (e) => {
             if (e.target.id === 'user-detail-modal') {
                 hideUserDetailModal();
+            }
+        });
+        document.getElementById('comments-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'comments-modal') {
+                hideCommentsModal();
             }
         });
         savePostBtn.addEventListener('click', handlePostSubmission);
@@ -1206,9 +1256,10 @@
         window.showUserDetailModal = showUserDetailModal;
         window.hideUserDetailModal = hideUserDetailModal;
         window.toggleLike = toggleLike;
-        window.toggleComments = toggleComments;
         window.toggleReplyForm = toggleReplyForm;
         window.postComment = postComment;
+        window.showCommentsModal = showCommentsModal;
+        window.hideCommentsModal = hideCommentsModal;
         window.onTelegramAuth = async (user) => {
             console.log("Logged in via external widget:", user);
             telegramUser = user;
