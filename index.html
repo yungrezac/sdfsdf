@@ -971,16 +971,15 @@
         function listenToPosts() {
             renderFeed();
             supabase.channel('public:posts_activity')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => renderFeed())
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, () => renderFeed())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, renderFeed)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, renderFeed)
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload) => {
-                    renderFeed();
-                    const postId = payload.new?.post_id || payload.old?.post_id;
                     const modal = document.getElementById('comments-modal');
-                    const modalCommentsList = document.getElementById(`modal-comments-list-${postId}`);
-                    if (!modal.classList.contains('hidden') && modalCommentsList) {
-                       showCommentsModal(postId);
+                    if (!modal.classList.contains('hidden')) {
+                       const postId = payload.new?.post_id || payload.old?.post_id;
+                       if(postId) showCommentsModal(postId);
                     }
+                    renderFeed();
                 })
                 .subscribe();
         }
@@ -1000,7 +999,7 @@
             }
 
             const { data: likes, error: likesError } = await supabase.from('likes').select('*').in('post_id', postIds);
-            const { data: comments, error: commentsError } = await supabase.from('comments').select('*, profiles(name, photo_url)').in('post_id', postIds).order('created_at', { ascending: true });
+            const { data: comments, error: commentsError } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
             if (likesError || commentsError) { console.error("Error fetching activity:", likesError, commentsError); return; }
 
             const likesByPost = likes.reduce((acc, like) => {
@@ -1064,7 +1063,7 @@
                     <div class="p-4">
                         <p class="font-semibold text-gray-700">Захвачено: <span class="font-bold text-blue-600">${formattedArea}</span></p>
                          <div class="flex items-center space-x-4 mt-3 text-gray-500">
-                            <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" onclick="toggleLike(${post.id})">
+                            <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" onclick="toggleLike(this, ${post.id})">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>
                                 <span>${likes.length}</span>
                             </button>
@@ -1095,7 +1094,7 @@
                     <img src="${telegramUser.photo_url || `https://placehold.co/32x32/E5E7EB/4B5563?text=${telegramUser.first_name.charAt(0)}`}" class="w-8 h-8 rounded-full" alt="avatar">
                     <div class="flex-1">
                         <textarea id="new-comment-input-${postId}" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500" rows="1" placeholder="Написать комментарий..."></textarea>
-                        <button onclick="postComment(${postId}, null)" class="mt-2 px-4 py-1 bg-blue-500 text-white text-sm font-semibold rounded-full hover:bg-blue-600">Отправить</button>
+                        <button id="post-comment-btn-${postId}" onclick="postComment(${postId}, null)" class="mt-2 px-4 py-1 bg-blue-500 text-white text-sm font-semibold rounded-full hover:bg-blue-600">Отправить</button>
                     </div>
                 </div>
             `;
@@ -1119,7 +1118,7 @@
                         </div>
                         <div id="reply-form-${comment.id}" class="hidden mt-2 pl-4">
                              <textarea id="new-reply-input-${comment.id}" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500" rows="1" placeholder="Написать ответ..."></textarea>
-                             <button onclick="postComment(${comment.post_id}, ${comment.id})" class="mt-2 px-3 py-1 bg-blue-500 text-white text-xs font-semibold rounded-full hover:bg-blue-600">Отправить</button>
+                             <button id="post-reply-btn-${comment.id}" onclick="postComment(${comment.post_id}, ${comment.id})" class="mt-2 px-3 py-1 bg-blue-500 text-white text-xs font-semibold rounded-full hover:bg-blue-600">Отправить</button>
                         </div>
                         <div class="pl-4 border-l-2 border-gray-200">
                             ${replies.map(reply => generateCommentHTML(reply, commentsByParent)).join('')}
@@ -1129,27 +1128,31 @@
             `;
         }
 
-        async function toggleLike(postId) {
+        async function toggleLike(buttonElement, postId) {
             tg.HapticFeedback.impactOccurred('light');
             
-            const { data: existingLike, error: findError } = await supabase
-                .from('likes')
-                .select('id')
-                .eq('post_id', postId)
-                .eq('user_id', telegramUser.id)
-                .single();
+            const hasLiked = buttonElement.classList.contains('liked');
+            const countSpan = buttonElement.querySelector('span');
+            const currentCount = parseInt(countSpan.textContent);
 
-            if (findError && findError.code !== 'PGRST116') {
-                console.error("Error finding like:", findError);
-                return;
-            }
+            // Optimistic UI update
+            buttonElement.classList.toggle('liked');
+            countSpan.textContent = hasLiked ? currentCount - 1 : currentCount + 1;
 
-            if (existingLike) {
-                const { error } = await supabase.from('likes').delete().match({ id: existingLike.id });
-                if (error) console.error("Error unliking:", error);
-            } else {
-                const { error } = await supabase.from('likes').insert({ post_id: postId, user_id: telegramUser.id });
-                if (error) console.error("Error liking:", error);
+            try {
+                if (hasLiked) {
+                    const { error } = await supabase.from('likes').delete().match({ post_id: postId, user_id: telegramUser.id });
+                    if (error) throw error;
+                } else {
+                    const { error } = await supabase.from('likes').insert({ post_id: postId, user_id: telegramUser.id });
+                    if (error) throw error;
+                }
+            } catch (error) {
+                console.error("Ошибка лайка:", error);
+                // Revert UI on error
+                buttonElement.classList.toggle('liked');
+                countSpan.textContent = currentCount;
+                showMessage("Не удалось обработать лайк. Проверьте RLS политики в Supabase.");
             }
         }
         
@@ -1161,26 +1164,37 @@
 
         async function postComment(postId, parentCommentId) {
             const inputId = parentCommentId ? `new-reply-input-${parentCommentId}` : `new-comment-input-${postId}`;
+            const buttonId = parentCommentId ? `post-reply-btn-${parentCommentId}` : `post-comment-btn-${postId}`;
+            
             const inputElement = document.getElementById(inputId);
-            if (!inputElement) return;
+            const buttonElement = document.getElementById(buttonId);
+            
+            if (!inputElement || !buttonElement) return;
             
             const content = inputElement.value.trim();
             if (!content) return;
 
-            const button = inputElement.nextElementSibling;
-            button.disabled = true;
+            buttonElement.disabled = true;
 
-            const { error } = await supabase.from('comments').insert({
-                post_id: postId,
-                user_id: telegramUser.id,
-                parent_comment_id: parentCommentId,
-                content: content
-            });
+            try {
+                const { error } = await supabase.from('comments').insert({
+                    post_id: postId,
+                    user_id: telegramUser.id,
+                    parent_comment_id: parentCommentId,
+                    content: content
+                });
 
-            if (error) {
-                console.error('Error posting comment:', error);
-                showMessage('Не удалось отправить комментарий.');
-                button.disabled = false;
+                if (error) throw error;
+                
+                // Clear input on success
+                inputElement.value = '';
+
+            } catch (error) {
+                console.error('Ошибка отправки комментария:', error);
+                showMessage('Не удалось отправить комментарий. Проверьте RLS политики в Supabase.');
+            } finally {
+                // Re-enable button
+                buttonElement.disabled = false;
             }
         }
         
@@ -1199,13 +1213,20 @@
                 modalContent.classList.remove('translate-y-full');
             }, 10);
 
-            const { data: post, error: postError } = await supabase.from('posts').select('*').eq('id', postId).single();
-            if (postError) { console.error(postError); modalBody.innerHTML = '<p>Ошибка загрузки поста.</p>'; return; }
+            try {
+                const { data: comments, error: commentsError } = await supabase
+                    .from('comments')
+                    .select('*, profiles(name, photo_url)')
+                    .eq('post_id', postId)
+                    .order('created_at', { ascending: true });
 
-            const { data: comments, error: commentsError } = await supabase.from('comments').select('*, profiles(name, photo_url)').eq('post_id', postId).order('created_at', { ascending: true });
-            if (commentsError) { console.error(commentsError); modalBody.innerHTML = '<p>Ошибка загрузки комментариев.</p>'; return; }
-            
-            modalBody.innerHTML = `<div id="modal-comments-list-${postId}">${generateCommentsSectionHTML(postId, comments)}</div>`;
+                if (commentsError) throw commentsError;
+                
+                modalBody.innerHTML = `<div id="modal-comments-list-${postId}">${generateCommentsSectionHTML(postId, comments)}</div>`;
+            } catch(error) {
+                 console.error("Ошибка загрузки комментариев:", error); 
+                 modalBody.innerHTML = '<p class="text-center text-red-500 p-4">Ошибка загрузки комментариев.</p>';
+            }
         }
 
         function hideCommentsModal() {
