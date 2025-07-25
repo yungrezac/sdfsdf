@@ -38,6 +38,13 @@
             z-index: 10;
             background-color: #f3f4f6;
         }
+        #login-map-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            filter: blur(2px) brightness(0.9);
+            transition: filter 0.5s;
+        }
         .view {
             display: none;
             height: calc(100vh - 80px);
@@ -98,9 +105,9 @@
 
     <!-- Экран-заглушка / Вход -->
     <div id="auth-screen" class="fixed inset-0 bg-gray-100 flex items-center justify-center p-4 z-50">
-        <div id="auth-content" class="text-center bg-white p-8 rounded-2xl shadow-lg">
-            <h1 class="text-2xl font-bold text-gray-800 mb-4">Загрузка TerraRun...</h1>
-            <p class="text-gray-600">Подключаемся к серверам и вашему профилю Telegram.</p>
+        <div id="login-map-bg"></div>
+        <div id="auth-content" class="z-10">
+            <!-- Содержимое будет сгенерировано JS -->
         </div>
     </div>
 
@@ -200,6 +207,7 @@
         let currentUserMarker = null;
         let allUserLayers = {};
         let allProfilesData = [];
+        let loginAnimationInterval = null;
 
         // --- Элементы DOM ---
         const authScreen = document.getElementById('auth-screen');
@@ -340,6 +348,63 @@
             }, 300);
         }
         
+        // --- Логика анимации входа ---
+        function startLoginAnimation() {
+            const loginMap = L.map('login-map-bg', {
+                zoomControl: false, attributionControl: false, dragging: false,
+                scrollWheelZoom: false, doubleClickZoom: false,
+            }).setView([55.75, 37.61], 10);
+
+            const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
+            L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}', {
+                maxZoom: 19, tileSize: 512, zoomOffset: -1, accessToken: mapboxAccessToken
+            }).addTo(loginMap);
+            
+            const animationLayers = L.layerGroup().addTo(loginMap);
+
+            loginAnimationInterval = setInterval(() => {
+                const bounds = loginMap.getBounds();
+                const centerPoint = [
+                    bounds.getWest() + Math.random() * (bounds.getEast() - bounds.getWest()),
+                    bounds.getSouth() + Math.random() * (bounds.getNorth() - bounds.getSouth())
+                ];
+
+                const radius = (Math.random() * 0.05) + 0.02;
+                const points = 10 + Math.floor(Math.random() * 10);
+                const path = [];
+                for (let i = 0; i < points; i++) {
+                    const angle = (i / points) * 360;
+                    const distance = radius * (0.8 + Math.random() * 0.4);
+                    const destination = turf.destination(centerPoint, distance, angle, {units: 'degrees'});
+                    path.push(destination.geometry.coordinates);
+                }
+                path.push(path[0]);
+
+                const color = `hsl(${Math.random() * 360}, 80%, 65%)`;
+                const polyline = L.polyline([], { color: color, weight: 4 }).addTo(animationLayers);
+                
+                let i = 0;
+                function draw() {
+                    if (i < path.length) {
+                        polyline.addLatLng([path[i][1], path[i][0]]);
+                        i++;
+                        setTimeout(draw, 150); // Замедленная отрисовка
+                    } else {
+                        const polygon = L.polygon(polyline.getLatLngs(), { color: color, fillOpacity: 0.4 }).addTo(animationLayers);
+                        const center = turf.centerOfMass(polygon.toGeoJSON());
+                        const randomInitial = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+                        const avatarUrl = `https://placehold.co/32x32/E5E7EB/4B5563?text=${randomInitial}`;
+                        const icon = L.divIcon({
+                            html: `<div class="avatar-marker" style="background-image: url(${avatarUrl}); width: 32px; height: 32px; border-color: ${color};"></div>`,
+                            className: '', iconSize: [32, 32], iconAnchor: [16, 16]
+                        });
+                        L.marker([center.geometry.coordinates[1], center.geometry.coordinates[0]], { icon: icon }).addTo(animationLayers);
+                    }
+                }
+                draw();
+            }, 4000); // Увеличенный интервал
+        }
+        
         // --- Основная логика ---
         async function startApp() {
             tg.ready();
@@ -349,10 +414,10 @@
                 telegramUser = tg.initDataUnsafe.user;
                 await initializeWithUser();
             } else {
-                authContent.innerHTML = `
-                    <h1 class="text-2xl font-bold text-gray-800 mb-4">Вход в TerraRun</h1>
-                    <p class="text-gray-600 mb-6">Чтобы начать, войдите через Telegram.</p>
-                `;
+                startLoginAnimation();
+                authContent.innerHTML = ``;
+                authContent.className = 'z-10';
+
                 const script = document.createElement('script');
                 script.async = true;
                 script.src = 'https://telegram.org/js/telegram-widget.js?22';
@@ -366,6 +431,7 @@
 
         async function initializeWithUser() {
              try {
+                if (loginAnimationInterval) clearInterval(loginAnimationInterval);
                 const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
                 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -379,7 +445,6 @@
         
         async function setupUser() {
             try {
-                console.log("Setting up user...");
                 await upsertUserProfile();
                 initMap();
                 updateUI();
@@ -388,7 +453,6 @@
                 authScreen.style.display = 'none';
                 appContainer.classList.remove('hidden');
                 bottomNavbar.classList.remove('hidden');
-                console.log("Setup complete. Application is running.");
             } catch (error) {
                 console.error("Error during user setup:", error);
                 authContent.innerHTML = `
@@ -428,7 +492,6 @@
             
             setTimeout(() => map?.invalidateSize(), 100);
 
-            // FIX: Reverted to navigator.geolocation for broader compatibility
             navigator.geolocation.getCurrentPosition(
                 pos => {
                     const latLng = [pos.coords.latitude, pos.coords.longitude];
@@ -468,7 +531,6 @@
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
             currentPathPolyline = L.polyline([], { color: '#ef4444', weight: 5, opacity: 0.9 }).addTo(map);
             
-            // FIX: Using navigator.geolocation.watchPosition for tracking
             watchId = navigator.geolocation.watchPosition(
                 pos => {
                     const { latitude, longitude } = pos.coords;
@@ -484,7 +546,6 @@
         }
 
         function stopRun() {
-            // FIX: Clearing the watch from navigator.geolocation
             if (watchId) navigator.geolocation.clearWatch(watchId);
             watchId = null;
             const wasRunning = isRunning;
