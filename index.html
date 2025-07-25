@@ -1191,26 +1191,23 @@
                 content: content
             };
 
-            // Log the data being sent to Supabase for debugging
             console.log("Attempting to insert comment:", commentData);
 
             try {
-                const { data, error } = await supabase.from('comments').insert(commentData).select();
+                // Убираем .select() чтобы избежать ошибки PGRST204
+                const { error } = await supabase.from('comments').insert(commentData);
 
                 if (error) {
-                    // Throw the error to be caught by the catch block
                     throw error;
                 }
                 
-                console.log("Successfully inserted comment:", data);
-                // Clear input on success
+                console.log("Successfully sent insert request for comment.");
                 inputElement.value = '';
 
             } catch (error) {
                 console.error('Ошибка отправки комментария:', error);
                 showMessage(`Не удалось отправить комментарий. Код ошибки: ${error.code}. Подробности в консоли.`);
             } finally {
-                // Re-enable button
                 buttonElement.disabled = false;
             }
         }
