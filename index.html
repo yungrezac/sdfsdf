@@ -42,7 +42,6 @@
             position: absolute;
             inset: 0;
             z-index: 1;
-            filter: blur(2px) brightness(0.9);
             transition: filter 0.5s;
         }
         .view {
@@ -361,6 +360,7 @@
             }).addTo(loginMap);
             
             const animationLayers = L.layerGroup().addTo(loginMap);
+            let animationTerritories = [];
 
             loginAnimationInterval = setInterval(() => {
                 const bounds = loginMap.getBounds();
@@ -388,10 +388,28 @@
                     if (i < path.length) {
                         polyline.addLatLng([path[i][1], path[i][0]]);
                         i++;
-                        setTimeout(draw, 150); // Замедленная отрисовка
+                        setTimeout(draw, 150);
                     } else {
-                        const polygon = L.polygon(polyline.getLatLngs(), { color: color, fillOpacity: 0.4 }).addTo(animationLayers);
-                        const center = turf.centerOfMass(polygon.toGeoJSON());
+                        const newPolygonGeoJSON = turf.polygon(polyline.toGeoJSON().geometry.coordinates);
+                        
+                        // Логика отвоевывания
+                        animationTerritories.forEach(existing => {
+                            const intersection = turf.intersect(existing.geojson, newPolygonGeoJSON);
+                            if (intersection) {
+                                const remaining = turf.difference(existing.geojson, newPolygonGeoJSON);
+                                loginMap.removeLayer(existing.layer);
+                                if (remaining) {
+                                    existing.geojson = remaining;
+                                    existing.layer = L.geoJSON(remaining, { style: { color: existing.color, weight: 2, opacity: 0.8, fillColor: existing.color, fillOpacity: 0.4 } }).addTo(animationLayers);
+                                }
+                            }
+                        });
+                        
+                        const polygonLayer = L.geoJSON(newPolygonGeoJSON, { style: { color: color, weight: 2, opacity: 0.8, fillColor: color, fillOpacity: 0.4 } }).addTo(animationLayers);
+                        
+                        animationTerritories.push({ geojson: newPolygonGeoJSON, layer: polygonLayer, color: color });
+
+                        const center = turf.centerOfMass(newPolygonGeoJSON);
                         const randomInitial = String.fromCharCode(65 + Math.floor(Math.random() * 26));
                         const avatarUrl = `https://placehold.co/32x32/E5E7EB/4B5563?text=${randomInitial}`;
                         const icon = L.divIcon({
@@ -399,10 +417,12 @@
                             className: '', iconSize: [32, 32], iconAnchor: [16, 16]
                         });
                         L.marker([center.geometry.coordinates[1], center.geometry.coordinates[0]], { icon: icon }).addTo(animationLayers);
+
+                        setTimeout(() => loginMap.removeLayer(polyline), 500);
                     }
                 }
                 draw();
-            }, 4000); // Увеличенный интервал
+            }, 4000);
         }
         
         // --- Основная логика ---
