@@ -192,6 +192,7 @@
         let supabase;
         let telegramUser = null;
         let isRunning = false;
+        let watchId = null;
         let currentRunPath = [];
         let currentPathPolyline = null;
         let userTerritory = null;
@@ -427,26 +428,18 @@
             
             setTimeout(() => map?.invalidateSize(), 100);
 
-            tg.requestLocation((location) => {
-                if (location) {
-                    const latLng = [location.latitude, location.longitude];
+            // FIX: Reverted to navigator.geolocation for broader compatibility
+            navigator.geolocation.getCurrentPosition(
+                pos => {
+                    const latLng = [pos.coords.latitude, pos.coords.longitude];
                     map.setView(latLng, 16);
                     updateCurrentUserMarker(latLng);
-                } else {
+                },
+                () => {
                     showMessage('Необходимо разрешить доступ к геолокации для работы приложения.');
-                }
-            });
-
-            tg.onEvent('locationChanged', (location) => {
-                const latLng = [location.latitude, location.longitude];
-                updateCurrentUserMarker(latLng);
-                if (isRunning) {
-                    const coords = [location.longitude, location.latitude];
-                    currentRunPath.push(coords);
-                    currentPathPolyline.addLatLng(latLng);
-                    map.panTo(latLng);
-                }
-            });
+                }, 
+                { enableHighAccuracy: true }
+            );
         }
 
         function updateCurrentUserMarker(latLng) {
@@ -474,9 +467,26 @@
             toggleRunBtn.className = 'btn-gradient-red text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-red-300';
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
             currentPathPolyline = L.polyline([], { color: '#ef4444', weight: 5, opacity: 0.9 }).addTo(map);
+            
+            // FIX: Using navigator.geolocation.watchPosition for tracking
+            watchId = navigator.geolocation.watchPosition(
+                pos => {
+                    const { latitude, longitude } = pos.coords;
+                    const latLng = [latitude, longitude];
+                    currentRunPath.push([longitude, latitude]);
+                    currentPathPolyline.addLatLng(latLng);
+                    map.panTo(latLng);
+                    if (currentUserMarker) currentUserMarker.setLatLng(latLng);
+                },
+                () => { showMessage('Проблема с отслеживанием геолокации.'); stopRun(); },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
         }
 
         function stopRun() {
+            // FIX: Clearing the watch from navigator.geolocation
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+            watchId = null;
             const wasRunning = isRunning;
             isRunning = false;
             tg.HapticFeedback.impactOccurred('heavy');
