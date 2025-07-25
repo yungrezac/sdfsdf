@@ -368,6 +368,15 @@
                 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=100&auto=format&fit=crop',
                 'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=100&auto=format&fit=crop'
             ];
+            let availableAvatars = [...randomAvatars];
+
+            function getUniqueAvatar() {
+                if(availableAvatars.length === 0) {
+                    availableAvatars = [...randomAvatars];
+                }
+                const index = Math.floor(Math.random() * availableAvatars.length);
+                return availableAvatars.splice(index, 1)[0];
+            }
 
             loginAnimationInterval = setInterval(() => {
                 const bounds = loginMap.getBounds();
@@ -413,9 +422,13 @@
                                     if (intersection) {
                                         const remaining = turf.difference(existing.geojson, newPolygonGeoJSON);
                                         loginMap.removeLayer(existing.layer);
+                                        if (existing.avatar) loginMap.removeLayer(existing.avatar);
+
                                         if (remaining) {
                                             existing.geojson = remaining;
                                             existing.layer = L.geoJSON(remaining, { style: { color: existing.color, weight: 2, opacity: 0.8, fillColor: existing.color, fillOpacity: 0.4 } }).addTo(animationLayers);
+                                            const newCenter = turf.centerOfMass(remaining);
+                                            existing.avatar = L.marker([newCenter.geometry.coordinates[1], newCenter.geometry.coordinates[0]], { icon: existing.icon }).addTo(animationLayers);
                                         } else {
                                             existing.geojson = null;
                                         }
@@ -428,15 +441,15 @@
                         
                         const polygonLayer = L.geoJSON(newPolygonGeoJSON, { style: { color: color, weight: 2, opacity: 0.8, fillColor: color, fillOpacity: 0.4 } }).addTo(animationLayers);
                         
-                        animationTerritories.push({ geojson: newPolygonGeoJSON, layer: polygonLayer, color: color });
-
                         const center = turf.centerOfMass(newPolygonGeoJSON);
-                        const avatarUrl = randomAvatars[Math.floor(Math.random() * randomAvatars.length)];
+                        const avatarUrl = getUniqueAvatar();
                         const icon = L.divIcon({
                             html: `<div class="avatar-marker" style="background-image: url(${avatarUrl}); width: 32px; height: 32px; border-color: ${color};"></div>`,
                             className: '', iconSize: [32, 32], iconAnchor: [16, 16]
                         });
-                        L.marker([center.geometry.coordinates[1], center.geometry.coordinates[0]], { icon: icon }).addTo(animationLayers);
+                        const avatarMarker = L.marker([center.geometry.coordinates[1], center.geometry.coordinates[0]], { icon: icon }).addTo(animationLayers);
+
+                        animationTerritories.push({ geojson: newPolygonGeoJSON, layer: polygonLayer, color: color, avatar: avatarMarker, icon: icon });
 
                         setTimeout(() => loginMap.removeLayer(polyline), 500);
                     }
