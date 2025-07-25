@@ -1141,18 +1141,23 @@
 
             try {
                 if (hasLiked) {
+                    console.log(`Attempting to delete like for post ${postId} by user ${telegramUser.id}`);
                     const { error } = await supabase.from('likes').delete().match({ post_id: postId, user_id: telegramUser.id });
                     if (error) throw error;
+                    console.log("Successfully deleted like.");
                 } else {
-                    const { error } = await supabase.from('likes').insert({ post_id: postId, user_id: telegramUser.id });
+                    const likeData = { post_id: postId, user_id: telegramUser.id };
+                    console.log("Attempting to insert like:", likeData);
+                    const { error } = await supabase.from('likes').insert(likeData);
                     if (error) throw error;
+                    console.log("Successfully inserted like.");
                 }
             } catch (error) {
                 console.error("Ошибка лайка:", error);
                 // Revert UI on error
                 buttonElement.classList.toggle('liked');
                 countSpan.textContent = currentCount;
-                showMessage("Не удалось обработать лайк. Проверьте RLS политики в Supabase.");
+                showMessage(`Не удалось обработать лайк. Код ошибки: ${error.code}. Подробности в консоли.`);
             }
         }
         
@@ -1169,29 +1174,41 @@
             const inputElement = document.getElementById(inputId);
             const buttonElement = document.getElementById(buttonId);
             
-            if (!inputElement || !buttonElement) return;
+            if (!inputElement || !buttonElement) {
+                console.error("Could not find input or button element for comment submission.");
+                return;
+            }
             
             const content = inputElement.value.trim();
             if (!content) return;
 
             buttonElement.disabled = true;
 
-            try {
-                const { error } = await supabase.from('comments').insert({
-                    post_id: postId,
-                    user_id: telegramUser.id,
-                    parent_comment_id: parentCommentId,
-                    content: content
-                });
+            const commentData = {
+                post_id: postId,
+                user_id: telegramUser.id,
+                parent_comment_id: parentCommentId,
+                content: content
+            };
 
-                if (error) throw error;
+            // Log the data being sent to Supabase for debugging
+            console.log("Attempting to insert comment:", commentData);
+
+            try {
+                const { data, error } = await supabase.from('comments').insert(commentData).select();
+
+                if (error) {
+                    // Throw the error to be caught by the catch block
+                    throw error;
+                }
                 
+                console.log("Successfully inserted comment:", data);
                 // Clear input on success
                 inputElement.value = '';
 
             } catch (error) {
                 console.error('Ошибка отправки комментария:', error);
-                showMessage('Не удалось отправить комментарий. Проверьте RLS политики в Supabase.');
+                showMessage(`Не удалось отправить комментарий. Код ошибки: ${error.code}. Подробности в консоли.`);
             } finally {
                 // Re-enable button
                 buttonElement.disabled = false;
