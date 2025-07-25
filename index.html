@@ -266,7 +266,6 @@
         let supabase;
         let telegramUser = null;
         let isRunning = false;
-        let geoWatchId = null;
         let currentRunPath = [];
         let currentPathPolyline = null;
         let userTerritory = null;
@@ -278,6 +277,7 @@
         let lastCaptureData = null;
         let currentReplyTarget = { postId: null, parentCommentId: null };
         let initialLocationSet = false;
+        let lastKnownLocation = null;
 
         // --- Элементы DOM ---
         const authScreen = document.getElementById('auth-screen');
@@ -691,37 +691,44 @@
         
         // --- Логика бега и территории ---
         function initGeolocation() {
-            if (geoWatchId) return;
+             tg.onEvent('locationChanged', (locationData) => {
+                const latLng = [locationData.latitude, locationData.longitude];
+                lastKnownLocation = latLng;
 
-            geoWatchId = navigator.geolocation.watchPosition(
-                pos => {
-                    const { latitude, longitude } = pos.coords;
-                    const latLng = [latitude, longitude];
+                if (!initialLocationSet) {
+                    map.flyTo(latLng, 16);
+                    initialLocationSet = true;
+                }
 
-                    if (!initialLocationSet) {
-                        map.flyTo(latLng, 16);
-                        initialLocationSet = true;
+                updateCurrentUserMarker(latLng);
+
+                if (isRunning) {
+                    currentRunPath.push([locationData.longitude, locationData.latitude]);
+                    if (currentPathPolyline) {
+                        currentPathPolyline.addLatLng(latLng);
                     }
+                }
+            });
 
-                    updateCurrentUserMarker(latLng);
-
-                    if (isRunning) {
-                        currentRunPath.push([longitude, latitude]);
-                        if (currentPathPolyline) {
-                            currentPathPolyline.addLatLng(latLng);
-                        }
+            if (!tg.LocationManager.isAccessGranted) {
+                tg.LocationManager.requestAccess({
+                    type: 'live_location',
+                    request_write_access: false
+                }, (granted) => {
+                    if (granted) {
+                        tg.LocationManager.start();
+                    } else {
+                         tg.showAlert("Доступ к геолокации необходим для работы приложения. Вы можете предоставить его, нажав на кнопку 'Найти меня'.");
                     }
-                },
-                () => {
-                    showMessage('Не удалось получить геолокацию. Нажмите кнопку "Найти меня", чтобы попробовать снова.');
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
+                });
+            } else {
+                tg.LocationManager.start();
+            }
         }
 
         function startRun() {
             if (!initialLocationSet) {
-                 tg.showAlert("Сначала определите свое местоположение, нажав на кнопку 'Найти меня' на карте.");
+                 tg.showAlert("Сначала определите свое местоположение. Если вы отказали в доступе, нажмите на кнопку 'Найти меня', чтобы запросить его снова.");
                  return;
             }
 
@@ -1379,12 +1386,10 @@
         // --- Обработчики событий ---
         recenterBtn.addEventListener('click', () => {
              tg.HapticFeedback.impactOccurred('medium');
-            if (currentUserMarker) {
-                map.flyTo(currentUserMarker.getLatLng(), 16);
+            if (lastKnownLocation) {
+                map.flyTo(lastKnownLocation, 16);
             } else {
-                if (!geoWatchId) {
-                    initGeolocation();
-                }
+                initGeolocation(); // Повторный запрос, если геолокация еще не определена
                 tg.showAlert("Определяем ваше местоположение...");
             }
         });
