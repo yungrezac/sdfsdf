@@ -266,7 +266,7 @@
         let supabase;
         let telegramUser = null;
         let isRunning = false;
-        let watchId = null;
+        let geoWatchId = null;
         let currentRunPath = [];
         let currentPathPolyline = null;
         let userTerritory = null;
@@ -277,7 +277,7 @@
         let loginAnimationInterval = null;
         let lastCaptureData = null;
         let currentReplyTarget = { postId: null, parentCommentId: null };
-        let initialLocationSet = false; // Флаг для первой геолокации
+        let initialLocationSet = false;
 
         // --- Элементы DOM ---
         const authScreen = document.getElementById('auth-screen');
@@ -614,11 +614,11 @@
             try {
                 await upsertUserProfile();
                 initMap();
+                initGeolocation(); // Запускаем отслеживание геолокации
                 updateUI();
                 listenToAllProfiles();
                 listenToPosts();
                 
-                // Предложение добавить в меню вложений
                 setTimeout(() => {
                     if (!localStorage.getItem('attachmentPromptSeen')) {
                         tg.showConfirm("Для удобного доступа, хотите добавить это приложение в меню вложений?", (ok) => {
@@ -671,7 +671,6 @@
             }).addTo(map);
             
             setTimeout(() => map?.invalidateSize(), 100);
-            // Убираем автоматический запрос геолокации при инициализации
         }
 
         function updateCurrentUserMarker(latLng) {
@@ -691,37 +690,49 @@
         }
         
         // --- Логика бега и территории ---
+        function initGeolocation() {
+            if (geoWatchId) return;
+
+            geoWatchId = navigator.geolocation.watchPosition(
+                pos => {
+                    const { latitude, longitude } = pos.coords;
+                    const latLng = [latitude, longitude];
+
+                    if (!initialLocationSet) {
+                        map.flyTo(latLng, 16);
+                        initialLocationSet = true;
+                    }
+
+                    updateCurrentUserMarker(latLng);
+
+                    if (isRunning) {
+                        currentRunPath.push([longitude, latitude]);
+                        if (currentPathPolyline) {
+                            currentPathPolyline.addLatLng(latLng);
+                        }
+                    }
+                },
+                () => {
+                    showMessage('Не удалось получить геолокацию. Нажмите кнопку "Найти меня", чтобы попробовать снова.');
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+
         function startRun() {
+            if (!initialLocationSet) {
+                 tg.showAlert("Сначала определите свое местоположение, нажав на кнопку 'Найти меня' на карте.");
+                 return;
+            }
+
             isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
             tg.isClosingConfirmationEnabled = true;
             updateMainButton();
             
             currentRunPath = [];
-            initialLocationSet = false;
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
             currentPathPolyline = L.polyline([], { color: '#ef4444', weight: 5, opacity: 0.9 }).addTo(map);
-            
-            watchId = navigator.geolocation.watchPosition(
-                pos => {
-                    const { latitude, longitude } = pos.coords;
-                    const latLng = [latitude, longitude];
-                    
-                    if (!initialLocationSet) {
-                        map.flyTo(latLng, 16);
-                        initialLocationSet = true;
-                    }
-
-                    currentRunPath.push([longitude, latitude]);
-                    currentPathPolyline.addLatLng(latLng);
-                    updateCurrentUserMarker(latLng);
-                },
-                () => { 
-                    showMessage('Проблема с отслеживанием геолокации. Пожалуйста, проверьте разрешения.'); 
-                    stopRun(false); 
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
         }
 
         function stopRun(confirm = true) {
@@ -739,8 +750,6 @@
         }
         
         function processStop() {
-            if (watchId) navigator.geolocation.clearWatch(watchId);
-            watchId = null;
             isRunning = false;
             tg.HapticFeedback.notificationOccurred('success');
             tg.isClosingConfirmationEnabled = false;
@@ -1373,20 +1382,10 @@
             if (currentUserMarker) {
                 map.flyTo(currentUserMarker.getLatLng(), 16);
             } else {
-                tg.MainButton.showProgress();
-                navigator.geolocation.getCurrentPosition(
-                    pos => {
-                        const latLng = [pos.coords.latitude, pos.coords.longitude];
-                        map.flyTo(latLng, 16);
-                        updateCurrentUserMarker(latLng);
-                        tg.MainButton.hideProgress();
-                    },
-                    () => {
-                        tg.MainButton.hideProgress();
-                        showMessage('Не удалось получить геолокацию. Проверьте разрешения.');
-                    },
-                    { enableHighAccuracy: true }
-                );
+                if (!geoWatchId) {
+                    initGeolocation();
+                }
+                tg.showAlert("Определяем ваше местоположение...");
             }
         });
         userDetailModal.addEventListener('click', (e) => {
