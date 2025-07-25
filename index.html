@@ -1078,7 +1078,8 @@
         }
 
         function generateCommentsSectionHTML(postId, comments) {
-            const commentsByParent = comments.reduce((acc, comment) => {
+            const validComments = Array.isArray(comments) ? comments : [];
+            const commentsByParent = validComments.reduce((acc, comment) => {
                 const parentId = comment.parent_comment_id || 'root';
                 if (!acc[parentId]) acc[parentId] = [];
                 acc[parentId].push(comment);
@@ -1086,8 +1087,13 @@
             }, {});
 
             const rootComments = commentsByParent['root'] || [];
+            let html = '';
 
-            let html = rootComments.map(comment => generateCommentHTML(comment, commentsByParent)).join('');
+            if (rootComments.length === 0) {
+                html += '<p class="text-center text-gray-500 py-4">Пока нет комментариев. Будьте первым!</p>';
+            } else {
+                html += rootComments.map(comment => generateCommentHTML(comment, commentsByParent)).join('');
+            }
 
             html += `
                 <div class="mt-4 flex items-start space-x-3">
@@ -1103,14 +1109,15 @@
 
         function generateCommentHTML(comment, commentsByParent) {
             const replies = commentsByParent[comment.id] || [];
-            const avatar = comment.profiles.photo_url || `https://placehold.co/32x32/E5E7EB/4B5563?text=${comment.profiles.name.charAt(0)}`;
+            const profileName = comment.profiles ? comment.profiles.name : 'Аноним';
+            const avatar = comment.profiles ? (comment.profiles.photo_url || `https://placehold.co/32x32/E5E7EB/4B5563?text=${profileName.charAt(0)}`) : 'https://placehold.co/32x32/E5E7EB/4B5563?text=?';
             
             return `
                 <div class="flex items-start space-x-3 mt-4">
                     <img src="${avatar}" class="w-8 h-8 rounded-full" alt="avatar">
                     <div class="flex-1">
                         <div class="bg-gray-100 rounded-lg p-2">
-                            <p class="font-bold text-sm text-gray-800">${comment.profiles.name}</p>
+                            <p class="font-bold text-sm text-gray-800">${profileName}</p>
                             <p class="text-sm text-gray-600">${comment.content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
                         </div>
                         <div class="text-xs text-gray-500 mt-1">
@@ -1135,26 +1142,19 @@
             const countSpan = buttonElement.querySelector('span');
             const currentCount = parseInt(countSpan.textContent);
 
-            // Optimistic UI update
             buttonElement.classList.toggle('liked');
             countSpan.textContent = hasLiked ? currentCount - 1 : currentCount + 1;
 
             try {
                 if (hasLiked) {
-                    console.log(`Attempting to delete like for post ${postId} by user ${telegramUser.id}`);
                     const { error } = await supabase.from('likes').delete().match({ post_id: postId, user_id: telegramUser.id });
                     if (error) throw error;
-                    console.log("Successfully deleted like.");
                 } else {
-                    const likeData = { post_id: postId, user_id: telegramUser.id };
-                    console.log("Attempting to insert like:", likeData);
-                    const { error } = await supabase.from('likes').insert(likeData);
+                    const { error } = await supabase.from('likes').insert({ post_id: postId, user_id: telegramUser.id });
                     if (error) throw error;
-                    console.log("Successfully inserted like.");
                 }
             } catch (error) {
                 console.error("Ошибка лайка:", error);
-                // Revert UI on error
                 buttonElement.classList.toggle('liked');
                 countSpan.textContent = currentCount;
                 showMessage(`Не удалось обработать лайк. Код ошибки: ${error.code}. Подробности в консоли.`);
@@ -1191,17 +1191,10 @@
                 content: content
             };
 
-            console.log("Attempting to insert comment:", commentData);
-
             try {
-                // Убираем .select() чтобы избежать ошибки PGRST204
                 const { error } = await supabase.from('comments').insert(commentData);
-
-                if (error) {
-                    throw error;
-                }
+                if (error) throw error;
                 
-                console.log("Successfully sent insert request for comment.");
                 inputElement.value = '';
 
             } catch (error) {
@@ -1234,12 +1227,15 @@
                     .eq('post_id', postId)
                     .order('created_at', { ascending: true });
 
-                if (commentsError) throw commentsError;
+                if (commentsError) {
+                    console.error("Supabase error fetching comments:", commentsError);
+                    throw commentsError;
+                }
                 
-                modalBody.innerHTML = `<div id="modal-comments-list-${postId}">${generateCommentsSectionHTML(postId, comments)}</div>`;
+                modalBody.innerHTML = `<div id="modal-comments-list-${postId}">${generateCommentsSectionHTML(postId, comments || [])}</div>`;
             } catch(error) {
                  console.error("Ошибка загрузки комментариев:", error); 
-                 modalBody.innerHTML = '<p class="text-center text-red-500 p-4">Ошибка загрузки комментариев.</p>';
+                 modalBody.innerHTML = '<p class="text-center text-red-500 p-4">Ошибка загрузки комментариев. Проверьте RLS-политики для таблиц `comments` и `profiles`.</p>';
             }
         }
 
