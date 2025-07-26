@@ -114,7 +114,7 @@
     <!-- Экран-заглушка / Вход -->
     <div id="auth-screen" class="fixed inset-0 flex items-center justify-center p-4 z-50">
         <div id="login-map-bg" class="absolute inset-0 z-10 filter blur-sm brightness-90"></div>
-        <div id="auth-content" class="z-20">
+        <div id="auth-content" class="z-20 text-center card-bg p-8 rounded-2xl shadow-lg">
             <!-- Содержимое будет сгенерировано JS -->
         </div>
     </div>
@@ -583,39 +583,52 @@
                 await initializeWithUser();
             } else {
                 startLoginAnimation();
-                authContent.innerHTML = ``;
-                authContent.className = 'z-10';
-
-                const script = document.createElement('script');
-                script.async = true;
-                script.src = 'https://telegram.org/js/telegram-widget.js?22';
-                script.setAttribute('data-telegram-login', 'TerraRunbot');
-                script.setAttribute('data-size', 'large');
-                script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-                script.setAttribute('data-request-access', 'write');
-                authContent.appendChild(script);
+                showAuthWidget();
             }
+        }
+        
+        function showAuthWidget() {
+            authContent.innerHTML = `
+                <h1 class="text-2xl font-bold mb-4">Добро пожаловать в TerraRun!</h1>
+                <p class="mb-6" style="color: var(--hint-color);">Войдите через Telegram, чтобы начать.</p>
+            `;
+            const script = document.createElement('script');
+            script.async = true;
+            script.src = 'https://telegram.org/js/telegram-widget.js?22';
+            script.setAttribute('data-telegram-login', 'TerraRunbot');
+            script.setAttribute('data-size', 'large');
+            script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+            script.setAttribute('data-request-access', 'write');
+            authContent.appendChild(script);
         }
 
         async function initializeWithUser() {
+             if (loginAnimationInterval) clearInterval(loginAnimationInterval);
+             
+             // Запрашиваем геолокацию ПЕРЕД инициализацией остального
              try {
-                if (loginAnimationInterval) clearInterval(loginAnimationInterval);
+                await requestAndWatchGeo();
+                
                 const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
                 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 
                 await setupUser();
-            } catch (error) {
-                console.error("Initialization Error:", error);
-                authScreen.innerHTML = `<div class="text-center bg-white p-8 rounded-2xl shadow-lg"><h1 class="text-2xl font-bold text-gray-800 mb-4">Ошибка подключения</h1><p class="text-gray-600">Не удалось подключиться к серверу. Попробуйте перезапустить приложение.</p></div>`;
-            }
+
+             } catch (error) {
+                console.error("Geolocation permission denied:", error);
+                authContent.innerHTML = `
+                    <h1 class="text-2xl font-bold mb-4 text-red-500">Доступ к геолокации необходим</h1>
+                    <p class="mb-6" style="color: var(--hint-color);">Для работы приложения TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение.</p>
+                    <button onclick="requestAndWatchGeo().then(initializeWithUser).catch(() => {})" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Предоставить доступ</button>
+                `;
+             }
         }
         
         async function setupUser() {
             try {
                 await upsertUserProfile();
                 initMap();
-                initGeolocation(); // Запускаем отслеживание геолокации
                 updateUI();
                 listenToAllProfiles();
                 listenToPosts();
@@ -691,45 +704,54 @@
         }
         
         // --- Логика бега и территории ---
-        function initGeolocation() {
-             tg.onEvent('locationChanged', (locationData) => {
-                const latLng = [locationData.latitude, locationData.longitude];
-                lastKnownLocation = latLng;
-
-                if (!initialLocationSet) {
-                    map.flyTo(latLng, 16);
-                    initialLocationSet = true;
+        function requestAndWatchGeo() {
+            return new Promise((resolve, reject) => {
+                if (geoWatchId) { // Если уже отслеживаем, просто разрешаем
+                    resolve();
+                    return;
                 }
+                
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => { // Успех первого запроса
+                        geoWatchId = navigator.geolocation.watchPosition(
+                            (position) => { // Успешное постоянное отслеживание
+                                const { latitude, longitude } = position.coords;
+                                const latLng = [latitude, longitude];
+                                lastKnownLocation = latLng;
 
-                updateCurrentUserMarker(latLng);
+                                if (!initialLocationSet) {
+                                    map.flyTo(latLng, 16);
+                                    initialLocationSet = true;
+                                }
 
-                if (isRunning) {
-                    currentRunPath.push([locationData.longitude, locationData.latitude]);
-                    if (currentPathPolyline) {
-                        currentPathPolyline.addLatLng(latLng);
-                    }
-                }
+                                updateCurrentUserMarker(latLng);
+
+                                if (isRunning) {
+                                    currentRunPath.push([longitude, latitude]);
+                                    if (currentPathPolyline) {
+                                        currentPathPolyline.addLatLng(latLng);
+                                    }
+                                }
+                            },
+                            (err) => { // Ошибка постоянного отслеживания
+                                console.error("Geolocation watch error:", err);
+                                tg.showAlert("Потерян доступ к геолокации.");
+                            },
+                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                        );
+                        resolve(); // Разрешаем Promise после успешного запуска watch
+                    },
+                    (err) => { // Ошибка первого запроса (отказ пользователя)
+                        reject(err);
+                    },
+                    { enableHighAccuracy: true }
+                );
             });
-
-            if (!tg.LocationManager.isAccessGranted) {
-                tg.LocationManager.requestAccess({
-                    type: 'live_location',
-                    request_write_access: false
-                }, (granted) => {
-                    if (granted) {
-                        tg.LocationManager.start();
-                    } else {
-                         tg.showAlert("Доступ к геолокации необходим для работы приложения. Вы можете предоставить его, нажав на кнопку 'Найти меня'.");
-                    }
-                });
-            } else {
-                tg.LocationManager.start();
-            }
         }
 
         function startRun() {
             if (!initialLocationSet) {
-                 tg.showAlert("Сначала определите свое местоположение. Если вы отказали в доступе, нажмите на кнопку 'Найти меня', чтобы запросить его снова.");
+                 tg.showAlert("Сначала определите свое местоположение. Если вы отказали в доступе, перезапустите приложение.");
                  return;
             }
 
@@ -1390,8 +1412,10 @@
             if (lastKnownLocation) {
                 map.flyTo(lastKnownLocation, 16);
             } else {
-                initGeolocation(); // Повторный запрос, если геолокация еще не определена
                 tg.showAlert("Определяем ваше местоположение...");
+                requestAndWatchGeo().catch(() => {
+                    tg.showAlert("Не удалось получить доступ к геолокации. Пожалуйста, проверьте разрешения для Telegram.");
+                });
             }
         });
         userDetailModal.addEventListener('click', (e) => {
@@ -1438,6 +1462,8 @@
         window.handleTouchStart = handleTouchStart;
         window.handleTouchMove = handleTouchMove;
         window.handleTouchEnd = handleTouchEnd;
+        window.requestAndWatchGeo = requestAndWatchGeo;
+        window.initializeWithUser = initializeWithUser;
 
         // Запускаем приложение
         document.addEventListener('DOMContentLoaded', startApp);
