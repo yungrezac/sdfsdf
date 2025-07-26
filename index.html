@@ -1412,9 +1412,7 @@
             });
             tg.onEvent('activated', () => {
                 console.log('App activated');
-                if (!geoWatchId) {
-                    requestAndWatchGeo().catch(() => {});
-                }
+                // Больше не запрашиваем гео здесь, чтобы избежать повторных запросов
             });
             tg.onEvent('deactivated', () => {
                 console.log('App deactivated');
