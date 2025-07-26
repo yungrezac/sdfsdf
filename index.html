@@ -277,6 +277,17 @@
         .profile-tab-content.active {
             display: block;
         }
+        
+        /* NEW: Стили для комментариев в модальном окне деталей */
+        #detail-comments-section {
+            border-top: 1px solid var(--bg-color);
+            padding: 1rem;
+        }
+        #detail-comment-input-form {
+            padding: 0.5rem 1rem 1rem;
+            border-top: 1px solid var(--bg-color);
+            background-color: var(--secondary-bg-color);
+        }
     </style>
 </head>
 <body class="font-sans antialiased overflow-hidden">
@@ -498,12 +509,11 @@
         </div>
     </div>
 
-    <!-- Модальное окно с комментариями для постов -->
-    <div id="comments-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-end z-40 opacity-0 hidden transition-opacity duration-300" onclick="if(event.target === this) hideCommentsModal()">
-        <div id="comments-modal-content" class="w-full h-3/4 card-bg rounded-t-2xl shadow-2xl flex flex-col transform translate-y-full transition-transform duration-300 ease-in-out">
-            <div class="w-full flex justify-center py-3 flex-shrink-0 cursor-grab" onclick="hideCommentsModal()">
-                <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
-            </div>
+    <!-- Модальное окно с комментариями (ДЛЯ ПОСТОВ) -->
+    <div id="comments-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideCommentsModal()">
+        <div class="bottom-sheet-content" style="height: 75%;">
+             <div class="grabber" onclick="hideCommentsModal()"></div>
+             <h2 id="comments-modal-title" class="text-xl font-bold px-4 pb-2 flex-shrink-0">Комментарии</h2>
             <div id="comments-modal-body" class="flex-grow overflow-y-auto p-4"></div>
             <div id="comment-input-container" class="flex-shrink-0 p-2 border-t" style="background-color: var(--secondary-bg-color); border-color: var(--bg-color);">
                 <div id="reply-indicator" class="hidden text-xs px-2 pb-1 flex justify-between items-center" style="color: var(--hint-color);">
@@ -513,7 +523,7 @@
                 <div class="flex items-center space-x-2">
                     <textarea id="main-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
                     <button id="main-comment-send-btn" onclick="postComment()" class="flex-shrink-0 text-white rounded-full p-2 hover:opacity-80 disabled:opacity-50" style="background-color: var(--button-color);">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transform rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                     </button>
                 </div>
             </div>
@@ -557,7 +567,7 @@
         let lastCaptureData = null; // Для постов
         let currentEditContext = {}; // Для модалки создания/редактирования
         let currentDetailContext = {}; // Для модалки деталей
-        let currentReplyTarget = { postId: null, parentCommentId: null }; // Для комментариев к постам
+        let currentReplyTarget = { type: null, id: null, parentCommentId: null };
         
         // --- ЭЛЕМЕНТЫ DOM ---
         const initialLoader = document.getElementById('initial-loader');
@@ -744,12 +754,10 @@
             document.getElementById('simple-post-photo-input').value = '';
             document.getElementById('simple-post-filename').textContent = '';
             simplePostModal.classList.add('visible');
-            document.getElementById('simple-post-content').classList.remove('-translate-y-full');
         }
 
         function hideSimplePostModal() {
-            document.getElementById('simple-post-content').classList.add('-translate-y-full');
-            setTimeout(() => simplePostModal.classList.remove('visible'), 300);
+            simplePostModal.classList.remove('visible');
         }
         
         // NEW: Модальное окно создания Спота/Маршрута
@@ -811,6 +819,28 @@
             
             body.innerHTML = `<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
 
+            // Общая логика для комментариев
+            const commentsHtml = `
+                <div id="detail-comments-section" class="mt-4">
+                    <h3 class="text-xl font-bold px-4">Комментарии</h3>
+                    <div id="detail-comments-list" class="p-4 space-y-4">
+                         <p class="text-center text-gray-500">Загрузка комментариев...</p>
+                    </div>
+                </div>
+                <div id="detail-comment-input-form" class="flex-shrink-0 p-2 border-t" style="background-color: var(--secondary-bg-color); border-color: var(--bg-color);">
+                     <div id="detail-reply-indicator" class="hidden text-xs px-2 pb-1 flex justify-between items-center" style="color: var(--hint-color);">
+                        <span id="detail-reply-indicator-text"></span>
+                        <button onclick="cancelDetailReply()" class="font-bold text-xl">&times;</button>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <textarea id="detail-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
+                        <button onclick="postDetailComment()" class="flex-shrink-0 text-white rounded-full p-2 hover:opacity-80 disabled:opacity-50" style="background-color: var(--button-color);">
+                           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transform rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+
             if (type === 'spot') {
                 const { data: spot, error } = await supabase.from('spots').select('*, profiles(name, photo_url)').eq('id', id).single();
                 if (error || !spot) {
@@ -831,7 +861,9 @@
                             <p class="mt-4" style="color: var(--text-color);">${spot.description}</p>
                         </div>
                     </div>
+                    ${commentsHtml}
                 `;
+                loadAndRenderComments(type, id, 'detail-comments-list');
             } else if (type === 'route') {
                 const { data: route, error } = await supabase.from('routes').select('*, profiles(name, photo_url)').eq('id', id).single();
                 if (error || !route) {
@@ -852,6 +884,7 @@
                             ${route.description ? `<p class="mt-4" style="color: var(--text-color);">${route.description}</p>` : ''}
                         </div>
                     </div>
+                     ${commentsHtml}
                 `;
                 setTimeout(() => {
                     const mapContainer = document.getElementById('detail-mini-map');
@@ -862,6 +895,7 @@
                         miniMap.fitBounds(routeLayer.getBounds(), { padding: [10, 10] });
                     }
                 }, 100);
+                 loadAndRenderComments(type, id, 'detail-comments-list');
             } else if (type === 'user') {
                 const [profileRes, postsRes, spotsRes, routesRes] = await Promise.all([
                     supabase.from('profiles').select('*').eq('id', id).single(),
@@ -922,7 +956,7 @@
         }
 
         function generateMiniPostHTML(post) {
-            return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="showCommentsModal(${post.id})">
+            return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="showCommentsModal('post', ${post.id})">
                         <p class="font-semibold">${post.title}</p>
                         <p class="text-xs text-gray-400">${new Date(post.created_at).toLocaleDateString()}</p>
                     </div>`;
@@ -1052,7 +1086,7 @@
         
         function updateCurrentUserMarker(latLng) {
             if (!map) return;
-            const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E2E8F0/4A5563?text=${telegramUser.first_name.charAt(0)}`;
+            const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${telegramUser.first_name.charAt(0)}`;
             const icon = L.divIcon({
                 html: `<div class="avatar-marker current-user-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${userColor};"></div>`,
                 className: '',
@@ -1237,15 +1271,19 @@
             supabase.channel('public-changes')
               .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, fetchAllProfilesAndDraw)
               .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => { renderFeed(); renderMyProfileContent(); })
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, renderFeed)
+              .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, renderFeed)
+              .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, renderFeed)
               .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload) => {
-                  if (!commentsModal.classList.contains('hidden')) {
-                      const postId = payload.new?.post_id || payload.old?.post_id;
-                      if(postId && postId === currentReplyTarget.postId) {
-                          showCommentsModal(postId);
-                      }
+                  const {type, id} = currentReplyTarget;
+                  // Если открыта модалка с комментариями для поста
+                  if (!commentsModal.classList.contains('hidden') && type === 'post') {
+                      showCommentsModal(type, id);
                   }
-                  renderFeed();
+                  // Если открыта модалка деталей спота или маршрута
+                  if (detailModal.classList.contains('visible') && (currentDetailContext.type === 'spot' || currentDetailContext.type === 'route')) {
+                      loadAndRenderComments(currentDetailContext.type, currentDetailContext.id, 'detail-comments-list');
+                  }
+                  renderFeed(); // Обновляем счетчики в ленте
               })
               .on('postgres_changes', { event: '*', schema: 'public', table: 'spots' }, () => { loadInitialMapData(); renderMyProfileContent(); })
               .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, () => { loadInitialMapData(); renderMyProfileContent(); })
@@ -1255,10 +1293,10 @@
         function setupStaticEventListeners() {
             tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
             tg.onEvent('backButtonClicked', () => {
-                if (detailModal.classList.contains('visible')) {
-                    hideDetailModal();
-                } else if (!commentsModal.classList.contains('hidden')) {
+                if (commentsModal.classList.contains('visible')) {
                     hideCommentsModal();
+                } else if (detailModal.classList.contains('visible')) {
+                    hideDetailModal();
                 } else if (creationModal.classList.contains('visible')) {
                     hideCreationModal();
                 } else if (simplePostModal.classList.contains('visible')) {
@@ -1335,7 +1373,7 @@
              document.documentElement.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
              tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
              tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
-        }
+         }
 
         function requestAndWatchGeo() {
             loaderText.textContent = 'Определение местоположения...';
@@ -1613,9 +1651,9 @@
                             <div class="flex items-center space-x-6 mt-3" style="color: var(--hint-color);">
                                 <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" onclick="toggleLike(this, ${post.id})">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>
-                                    <span>${likes.length}</span>
+                                    <span data-likes-count>${likes.length}</span>
                                 </button>
-                                <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="showCommentsModal(${post.id})">
+                                <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="showCommentsModal('post', ${post.id})">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                                     <span>${comments.length}</span>
                                 </button>
@@ -1626,7 +1664,15 @@
 
         async function toggleLike(buttonElement, postId) {
             tg.HapticFeedback.impactOccurred('light');
+            
             const hasLiked = buttonElement.classList.contains('liked');
+            const countSpan = buttonElement.querySelector('[data-likes-count]');
+            let currentCount = parseInt(countSpan.textContent, 10);
+
+            // Optimistic UI update
+            buttonElement.classList.toggle('liked');
+            countSpan.textContent = hasLiked ? currentCount - 1 : currentCount + 1;
+
             try {
                 if (hasLiked) {
                     await supabase.from('likes').delete().match({ post_id: postId, user_id: telegramUser.id });
@@ -1635,38 +1681,91 @@
                 }
             } catch (error) {
                 console.error("Ошибка лайка:", error);
+                // Revert UI on error
+                buttonElement.classList.toggle('liked');
+                countSpan.textContent = currentCount;
+                tg.showAlert('Не удалось поставить лайк. Попробуйте снова.');
             }
         }
         
-        async function showCommentsModal(postId) {
+        // --- СИСТЕМА КОММЕНТАРИЕВ ---
+
+        /**
+         * NOTE: Для универсальной системы комментариев рекомендуется,
+         * чтобы ваша таблица 'comments' в Supabase имела следующую структуру:
+         * - id (PK)
+         * - user_id (FK to profiles.id)
+         * - content (text)
+         * - created_at (timestamp)
+         * - parent_comment_id (FK to comments.id, nullable)
+         * - parent_type ('post', 'spot', 'route')
+         * - parent_id (integer, id поста/спота/маршрута)
+         * * Этот код написан с учетом такой структуры.
+         * Если у вас отдельные таблицы (post_comments, spot_comments),
+         * вам нужно будет адаптировать запросы в функциях ниже.
+        */
+
+        async function fetchComments(type, id) {
+            // Адаптируйте этот запрос под вашу структуру БД
+            const { data, error } = await supabase.from('comments')
+                .select('*, profiles(name, photo_url)')
+                .eq(type === 'post' ? 'post_id' : 'parent_id', id) // Пример адаптации
+                //.eq('parent_type', type) // Идеальный вариант
+                .order('created_at', { ascending: true });
+            return { data, error };
+        }
+        
+        // Показывает модальное окно для комментариев к ПОСТАМ
+        async function showCommentsModal(type, id) {
+            if (type !== 'post') {
+                showDetailModal(type, id);
+                return;
+            }
             tg.HapticFeedback.impactOccurred('medium');
             tg.BackButton.show();
-            currentReplyTarget = { postId: postId, parentCommentId: null };
+            currentReplyTarget = { type, id, parentCommentId: null };
             cancelReply();
+            
             const modalBody = document.getElementById('comments-modal-body');
             modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>';
-            commentsModal.classList.remove('hidden', 'opacity-0');
-            document.getElementById('comments-modal-content').classList.remove('translate-y-full');
+            commentsModal.classList.add('visible');
             
-            const { data: comments, error } = await supabase.from('comments').select('*, profiles(name, photo_url)').eq('post_id', postId).order('created_at', { ascending: true });
+            const { data: comments, error } = await fetchComments(type, id);
             if (error) { modalBody.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
 
+            renderCommentTree(comments, modalBody);
+        }
+
+        // Загружает и рендерит комментарии в модальном окне ДЕТАЛЕЙ (для спотов/маршрутов)
+        async function loadAndRenderComments(type, id, containerId) {
+             const container = document.getElementById(containerId);
+             if (!container) return;
+             container.innerHTML = '<p class="text-center text-gray-500">Загрузка комментариев...</p>';
+             
+             const { data: comments, error } = await fetchComments(type, id);
+             if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
+
+             renderCommentTree(comments, container, 'detail');
+        }
+
+        function renderCommentTree(comments, container, context = 'post') {
             const commentsByParent = comments.reduce((acc, comment) => { (acc[comment.parent_comment_id || 'root'] = acc[comment.parent_comment_id || 'root'] || []).push(comment); return acc; }, {});
             const rootComments = commentsByParent['root'] || [];
-            modalBody.innerHTML = rootComments.length ? rootComments.map(c => generateCommentHTML(c, commentsByParent)).join('') : '<p class="text-center text-gray-500 py-4">Нет комментариев</p>';
+            container.innerHTML = rootComments.length ? rootComments.map(c => generateCommentHTML(c, commentsByParent, context)).join('') : '<p class="text-center text-gray-500 py-4">Нет комментариев</p>';
         }
 
         function hideCommentsModal() {
             tg.BackButton.hide();
-            commentsModal.classList.add('opacity-0');
-            document.getElementById('comments-modal-content').classList.add('translate-y-full');
-            setTimeout(() => commentsModal.classList.add('hidden'), 300);
+            commentsModal.classList.remove('visible');
         }
 
-        function generateCommentHTML(comment, commentsByParent) {
+        function generateCommentHTML(comment, commentsByParent, context = 'post') {
             const replies = commentsByParent[comment.id] || [];
             const profileName = comment.profiles ? comment.profiles.name : 'Аноним';
             const avatar = comment.profiles ? (comment.profiles.photo_url || `https://placehold.co/32x32/E5E7EB/4B5563?text=${profileName.charAt(0)}`) : 'https://placehold.co/32x32';
+            const replyFn = context === 'post' ? 'setReplyMode' : 'setDetailReplyMode';
+            const parentId = comment.post_id || comment.parent_id;
+
             return `<div class="flex items-start space-x-3 mt-4">
                         <img src="${avatar}" class="w-8 h-8 rounded-full">
                         <div class="flex-1">
@@ -1674,14 +1773,17 @@
                                 <p class="font-bold text-sm">${profileName}</p>
                                 <p class="text-sm">${comment.content}</p>
                             </div>
-                            <div class="text-xs mt-1"><button onclick="setReplyMode(${comment.post_id}, ${comment.id}, '${profileName.replace(/'/g, "\\'")}')" class="font-medium" style="color: var(--hint-color);">Ответить</button></div>
-                            <div class="pl-4 border-l-2">${replies.map(reply => generateCommentHTML(reply, commentsByParent)).join('')}</div>
+                            <div class="text-xs mt-1">
+                                <button onclick="${replyFn}(${parentId}, ${comment.id}, '${profileName.replace(/'/g, "\\'")}')" class="font-medium" style="color: var(--hint-color);">Ответить</button>
+                            </div>
+                            <div class="pl-4 border-l-2">${replies.map(reply => generateCommentHTML(reply, commentsByParent, context)).join('')}</div>
                         </div>
                     </div>`;
         }
         
-        function setReplyMode(postId, parentCommentId, parentAuthorName) {
-            currentReplyTarget = { postId, parentCommentId };
+        // --- Функции для ответов в модалке постов ---
+        function setReplyMode(id, parentCommentId, parentAuthorName) {
+            currentReplyTarget = { type: 'post', id, parentCommentId };
             document.getElementById('reply-indicator-text').textContent = `Ответ: ${parentAuthorName}`;
             document.getElementById('reply-indicator').classList.remove('hidden');
             document.getElementById('main-comment-input').focus();
@@ -1693,14 +1795,65 @@
         }
 
         async function postComment() {
-            const { postId, parentCommentId } = currentReplyTarget;
-            if (!postId) return;
+            const { type, id, parentCommentId } = currentReplyTarget;
+            if (!id) return;
             const inputElement = document.getElementById('main-comment-input');
             const content = inputElement.value.trim();
             if (!content) return;
-            const { error } = await supabase.from('comments').insert({ post_id: postId, user_id: telegramUser.id, parent_comment_id: parentCommentId, content: content });
+            
+            // Адаптируйте этот запрос под вашу структуру БД
+            const { error } = await supabase.from('comments').insert({ 
+                post_id: id, // Пример адаптации 
+                // parent_id: id, // Идеальный вариант
+                // parent_type: type,
+                user_id: telegramUser.id, 
+                parent_comment_id: parentCommentId, 
+                content: content 
+            });
             if (error) { tg.showAlert('Ошибка отправки'); } else { inputElement.value = ''; cancelReply(); }
         }
+
+        // --- Функции для ответов в модалке деталей ---
+        function setDetailReplyMode(id, parentCommentId, parentAuthorName) {
+            currentDetailContext.replyTo = { parentCommentId };
+            document.getElementById('detail-reply-indicator-text').textContent = `Ответ: ${parentAuthorName}`;
+            document.getElementById('detail-reply-indicator').classList.remove('hidden');
+            document.getElementById('detail-comment-input').focus();
+        }
+        
+        function cancelDetailReply() {
+            currentDetailContext.replyTo = null;
+            document.getElementById('detail-reply-indicator').classList.add('hidden');
+        }
+
+        async function postDetailComment() {
+            const { type, id, replyTo } = currentDetailContext;
+            if (!id) return;
+            const inputElement = document.getElementById('detail-comment-input');
+            const content = inputElement.value.trim();
+            if (!content) return;
+
+            const parentCommentId = replyTo ? replyTo.parentCommentId : null;
+
+            // Адаптируйте этот запрос под вашу структуру БД
+            const { error } = await supabase.from('comments').insert({ 
+                parent_id: id, // Идеальный вариант
+                parent_type: type,
+                user_id: telegramUser.id, 
+                parent_comment_id: parentCommentId, 
+                content: content 
+            });
+
+            if (error) { 
+                tg.showAlert('Ошибка отправки комментария.'); 
+                console.error("Comment post error:", error);
+            } else { 
+                inputElement.value = ''; 
+                cancelDetailReply();
+                loadAndRenderComments(type, id, 'detail-comments-list');
+            }
+        }
+
 
         function switchMainProfileTab(tabName) {
             document.querySelectorAll('#profile-view .profile-tab').forEach(t => t.classList.remove('active'));
@@ -1766,6 +1919,9 @@
         window.hideSimplePostModal = hideSimplePostModal;
         window.handleSimplePostSave = handleSimplePostSave;
         window.hideCreationModal = hideCreationModal;
+        window.postDetailComment = postDetailComment;
+        window.setDetailReplyMode = setDetailReplyMode;
+        window.cancelDetailReply = cancelDetailReply;
         
         document.addEventListener('DOMContentLoaded', main);
     </script>
