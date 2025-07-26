@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>TerraRun | Захват Территории</title>
 
     <!-- Подключение Tailwind CSS -->
@@ -32,6 +32,15 @@
             --hint-color: #6b7280;
             --button-color: #3b82f6;
             --button-text-color: #ffffff;
+            --destructive-color: #ef4444;
+        }
+
+        /* Адаптация под безопасные зоны iOS */
+        body {
+            padding-top: constant(safe-area-inset-top);
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: constant(safe-area-inset-bottom);
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         body {
@@ -49,11 +58,11 @@
             top: 0;
             left: 0;
             right: 0;
-            bottom: 80px;
+            bottom: 80px; /* Высота навбара */
         }
         .view {
             display: none;
-            height: calc(100vh - 80px);
+            height: calc(100vh - 80px - env(safe-area-inset-bottom));
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             transition: opacity 0.3s ease-in-out;
@@ -75,6 +84,8 @@
             background-color: var(--secondary-bg-color);
         }
         #bottom-navbar {
+            height: calc(80px + env(safe-area-inset-bottom));
+            padding-bottom: env(safe-area-inset-bottom);
             background-color: color-mix(in srgb, var(--secondary-bg-color) 80%, transparent);
         }
         .fade-in {
@@ -99,13 +110,28 @@
             animation: pulse 2s infinite;
         }
         @keyframes pulse {
-            0% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 rgba(59, 130, 246, 0.7); }
-            70% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 15px rgba(59, 130, 246, 0); }
-            100% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 rgba(59, 130, 246, 0); }
+            0% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 color-mix(in srgb, var(--button-color) 70%, transparent); }
+            70% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 15px color-mix(in srgb, var(--button-color) 0%, transparent); }
+            100% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 color-mix(in srgb, var(--button-color) 0%, transparent); }
         }
         .like-btn.liked svg {
-            fill: #ef4444;
-            color: #ef4444;
+            fill: var(--destructive-color);
+            color: var(--destructive-color);
+        }
+        #start-stop-btn {
+            position: fixed;
+            bottom: calc(4.5rem + env(safe-area-inset-bottom)); /* 72px + safe area */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            transition: all 0.3s ease-in-out;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+        }
+        #start-stop-btn.running {
+            background-color: var(--destructive-color);
+        }
+        #start-stop-btn.hidden {
+            bottom: -100px;
         }
     </style>
 </head>
@@ -127,8 +153,8 @@
             <button id="recenter-btn" class="z-20 fixed top-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             </button>
-            <div id="run-info" class="fixed bottom-24 left-0 right-0 p-4 z-20">
-                 <div class="max-w-md mx-auto card-bg backdrop-blur-md rounded-2xl shadow-xl p-4 flex items-center justify-center fade-in">
+            <div id="run-info" class="fixed top-4 left-0 right-0 p-4 z-20 pointer-events-none">
+                 <div class="max-w-md mx-auto card-bg backdrop-blur-md rounded-2xl shadow-xl p-3 flex items-center justify-center fade-in">
                     <div class="text-center">
                         <span id="username-display" class="font-bold text-lg">TerraRun</span>
                         <span id="area-display" class="text-sm block" style="color: var(--hint-color);">Площадь: 0 м²</span>
@@ -148,7 +174,7 @@
             <div class="flex justify-between items-center mb-6 px-2">
                 <h1 class="text-3xl font-bold">Топ Бегунов</h1>
                 <button id="scan-qr-btn" class="p-2 rounded-full hover:bg-gray-200" style="background-color: var(--secondary-bg-color);">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" style="color: var(--hint-color);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h-1m-1 6v-1M4 12H3m1-6V5M4 17v-1m17-6h-1m-1-6V5m-6 17v-1m6-1h-1M6 5v1M5 6H4m1 11H4m1 1h-1m11-1h1m-1-1v1m-1 1h1m-6-1v1m-1-1H9m1-1v1m6-17h-1M9 4H8m1 1H8m-1 6H6m-1-1v1M8 9V8m1 1H8m6 9h1m-1 1v-1m-1-1h1m6-1h1m-1-1v1m-1 1h1m-6-1v1m-1-1H9" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" style="color: var(--hint-color);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v.01M16 4v.01M20 4v.01M4 8h.01M8 8h.01M12 8h.01M16 8h.01M20 8h.01M4 12h.01M8 12h.01M12 12h.01M16 12h.01M20 12h.01M4 16h.01M8 16h.01M12 16h.01M4 20h.01M8 20h.01M12 20h.01M16 20h.01M20 20h.01" /></svg>
                 </button>
             </div>
             <div id="leaderboard" class="space-y-3"></div>
@@ -164,21 +190,31 @@
                     </div>
                     <div>
                         <h2 id="profile-name" class="text-2xl font-bold">Загрузка...</h2>
-                        <p style="color: var(--hint-color);">Энтузиаст захвата территорий</p>
+                        <p id="profile-status" class="text-sm" style="color: var(--hint-color);">Энтузиаст захвата территорий</p>
                     </div>
                 </div>
                 <div class="rounded-lg p-4 text-center" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent)">
                     <p class="text-sm" style="color: var(--button-color)">Общая площадь</p>
                     <p id="profile-area" class="text-3xl font-bold" style="color: var(--button-color)">0 м²</p>
                 </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="invite-friend-btn" class="w-full text-white font-bold py-3 px-4 rounded-full transition-all flex items-center justify-center" style="background-color: var(--button-color); color: var(--button-text-color);"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 11a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1v-1z" /></svg>Пригласить</button>
+                    <button id="donate-btn" class="w-full text-white font-bold py-3 px-4 rounded-full transition-all flex items-center justify-center" style="background-color: #28a745; color: var(--button-text-color);"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" /></svg>Поддержать</button>
+                </div>
             </div>
             <h2 class="text-2xl font-bold my-6 px-2">Мои посты</h2>
             <div id="profile-feed-container" class="space-y-4"></div>
         </div>
+        
+        <!-- Кнопка Старт/Стоп -->
+        <button id="start-stop-btn" class="w-16 h-16 rounded-full text-white flex items-center justify-center transition-all" style="background-color: var(--button-color);">
+            <svg id="start-icon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>
+            <svg id="stop-icon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 hidden" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" /></svg>
+        </button>
     </div>
 
     <!-- Нижний навбар -->
-    <nav id="bottom-navbar" class="hidden fixed bottom-0 left-0 right-0 h-20 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] flex justify-around items-center z-30">
+    <nav id="bottom-navbar" class="hidden fixed bottom-0 left-0 right-0 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] flex justify-around items-center z-20">
         <button class="nav-btn active flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('map-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg><span>Карта</span></button>
         <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('feed-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3h2m0 0h2" /></svg><span>Лента</span></button>
         <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('top-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg><span>Топ</span></button>
@@ -293,6 +329,7 @@
         const usernameDisplay = document.getElementById('username-display');
         const profileAreaDisplay = document.getElementById('profile-area');
         const profileName = document.getElementById('profile-name');
+        const profileStatus = document.getElementById('profile-status');
         const profileAvatarImg = document.getElementById('profile-avatar-img');
         const profileAvatarWrapper = document.getElementById('profile-avatar-wrapper');
         const leaderboardDiv = document.getElementById('leaderboard');
@@ -311,19 +348,24 @@
         const feedContainer = document.getElementById('feed-container');
         const profileFeedContainer = document.getElementById('profile-feed-container');
         const scanQrBtn = document.getElementById('scan-qr-btn');
+        const startStopBtn = document.getElementById('start-stop-btn');
+        const startIcon = document.getElementById('start-icon');
+        const stopIcon = document.getElementById('stop-icon');
+        const inviteFriendBtn = document.getElementById('invite-friend-btn');
+        const donateBtn = document.getElementById('donate-btn');
 
         // --- Функции UI ---
         function showView(viewId) {
-            tg.HapticFeedback.impactOccurred('light');
+            tg.HapticFeedback.selectionChanged();
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             document.querySelector(`button[onclick="showView('${viewId}')"]`).classList.add('active');
             
             if (viewId === 'map-view') {
-                tg.MainButton.show();
+                startStopBtn.classList.remove('hidden');
             } else {
-                tg.MainButton.hide();
+                startStopBtn.classList.add('hidden');
             }
             // Сохраняем последнюю открытую вкладку в облако
             tg.CloudStorage.setItem('lastView', viewId);
@@ -396,7 +438,7 @@
 
             const userDetailHeader = document.getElementById('user-detail-header');
             const avatar = profile.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
-            userDetailHeader.innerHTML = `<img src="${avatar}" class="w-16 h-16 rounded-full" alt="avatar"><div><p class="text-2xl font-bold">${profile.name}</p><p class="text-sm" style="color: var(--hint-color);">Завоеватель</p></div>`;
+            userDetailHeader.innerHTML = `<img src="${avatar}" class="w-16 h-16 rounded-full" alt="avatar"><div><p class="text-2xl font-bold">${profile.name}</p><p class="text-sm" style="color: var(--hint-color);">${profile.status || 'Завоеватель'}</p></div>`;
             
             const userDetailStats = document.getElementById('user-detail-stats');
             const area = profile.area || 0;
@@ -572,7 +614,6 @@
             tg.ready();
             tg.expand();
             applyTheme(tg.themeParams);
-            setupMainButton();
             setupEventListeners();
             
             // Handle deep linking
@@ -768,32 +809,28 @@
             isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
             tg.isClosingConfirmationEnabled = true;
-            updateMainButton();
+            updateStartStopButton();
             
             currentRunPath = [];
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
-            currentPathPolyline = L.polyline([], { color: '#ef4444', weight: 5, opacity: 0.9 }).addTo(map);
+            currentPathPolyline = L.polyline([], { color: 'var(--destructive-color)', weight: 5, opacity: 0.9 }).addTo(map);
         }
 
-        function stopRun(confirm = true) {
+        function stopRun() {
             if (!isRunning) return;
 
-            if (confirm) {
-                tg.showConfirm("Завершить пробежку и захватить территорию?", (ok) => {
-                    if (ok) {
-                        processStop();
-                    }
-                });
-            } else {
-                processStop();
-            }
+            tg.showConfirm("Завершить пробежку и захватить территорию?", (ok) => {
+                if (ok) {
+                    processStop();
+                }
+            });
         }
         
         function processStop() {
             isRunning = false;
             tg.HapticFeedback.notificationOccurred('success');
             tg.isClosingConfirmationEnabled = false;
-            updateMainButton();
+            updateStartStopButton();
 
             if (currentRunPath.length > 3) {
                 processRunPath();
@@ -897,12 +934,14 @@
             if (data) {
                 userColor = data.color;
                 userTerritory = data.territory;
+                profileStatus.textContent = data.status || 'Энтузиаст захвата территорий';
             } else {
                 userColor = generateColorFromId(telegramUser.id);
                 const { error: insertError } = await supabase
                     .from('profiles')
-                    .insert({ id: telegramUser.id, name: telegramUser.first_name, color: userColor, area: 0, photo_url: telegramUser.photo_url || null, territory: null });
+                    .insert({ id: telegramUser.id, name: telegramUser.first_name, color: userColor, area: 0, photo_url: telegramUser.photo_url || null, territory: null, status: 'Новый игрок' });
                 if (insertError) throw insertError;
+                profileStatus.textContent = 'Новый игрок';
             }
         }
 
@@ -1386,33 +1425,18 @@
             
             // Устанавливаем цвет хедера для бесшовной интеграции
             tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
+            tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
         }
 
-        function setupMainButton() {
-            tg.MainButton.setText("Старт");
-            tg.MainButton.onClick(() => {
-                if (isRunning) {
-                    stopRun();
-                } else {
-                    startRun();
-                }
-            });
-            tg.MainButton.show();
-        }
-        
-        function updateMainButton() {
+        function updateStartStopButton() {
              if (isRunning) {
-                tg.MainButton.setText("Стоп");
-                tg.MainButton.setParams({
-                    color: '#ef4444',
-                    text_color: '#ffffff'
-                });
+                startStopBtn.classList.add('running');
+                startIcon.classList.add('hidden');
+                stopIcon.classList.remove('hidden');
             } else {
-                tg.MainButton.setText("Старт");
-                tg.MainButton.setParams({
-                    color: tg.themeParams.button_color || '#3b82f6',
-                    text_color: tg.themeParams.button_text_color || '#ffffff'
-                });
+                startStopBtn.classList.remove('running');
+                startIcon.classList.remove('hidden');
+                stopIcon.classList.add('hidden');
             }
         }
 
@@ -1430,7 +1454,11 @@
             // Показываем и настраиваем кнопку Настроек
             tg.SettingsButton.show();
             tg.onEvent('settingsButtonClicked', () => {
-                tg.showAlert('Настройки скоро появятся! Здесь вы сможете изменить тему карты, единицы измерения и другие параметры.');
+                tg.showPopup({
+                    title: 'Настройки',
+                    message: 'Здесь вы сможете изменить тему карты, единицы измерения и другие параметры. Эта функция в разработке.',
+                    buttons: [{type: 'ok', text: 'Понятно'}]
+                });
             });
 
             // Обработчик сканирования QR-кода
@@ -1473,8 +1501,36 @@
         });
         
         scanQrBtn.addEventListener('click', () => {
+            tg.HapticFeedback.impactOccurred('light');
             tg.showScanQrPopup({
                 text: 'Наведите на QR-код другого игрока'
+            });
+        });
+
+        startStopBtn.addEventListener('click', () => {
+            if (isRunning) {
+                stopRun();
+            } else {
+                startRun();
+            }
+        });
+
+        inviteFriendBtn.addEventListener('click', () => {
+            tg.HapticFeedback.impactOccurred('light');
+            tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(`https://t.me/TerraRunBot/app`)}&text=${encodeURIComponent(`Присоединяйся ко мне в TerraRun и давай захватывать территории вместе!`)}`);
+        });
+
+        donateBtn.addEventListener('click', () => {
+            tg.HapticFeedback.impactOccurred('light');
+            // Это демонстрационный инвойс. Замените `invoice_link` на реальную ссылку, полученную от вашего платежного провайдера.
+            tg.openInvoice('https://t.me/invoice/example', (status) => {
+                if (status === 'paid') {
+                    tg.HapticFeedback.notificationOccurred('success');
+                    tg.showAlert('Спасибо за вашу поддержку!');
+                } else if (status === 'failed') {
+                    tg.HapticFeedback.notificationOccurred('error');
+                    tg.showAlert('Не удалось обработать платеж.');
+                }
             });
         });
 
