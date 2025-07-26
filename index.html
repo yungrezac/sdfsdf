@@ -674,7 +674,20 @@
 
         function initMap() {
             if (map) return;
-            map = L.map('map', { zoomControl: false, attributionControl: false }).setView([55.75, 37.61], 13);
+            
+            let initialView = [55.75, 37.61];
+            let initialZoom = 13;
+            const savedLocation = localStorage.getItem('lastKnownLocation');
+            if (savedLocation) {
+                try {
+                    initialView = JSON.parse(savedLocation);
+                    initialZoom = 16; 
+                } catch (e) {
+                    console.error("Failed to parse saved location", e);
+                }
+            }
+
+            map = L.map('map', { zoomControl: false, attributionControl: false }).setView(initialView, initialZoom);
             
             const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
             L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}', {
@@ -706,18 +719,19 @@
         // --- Логика бега и территории ---
         function requestAndWatchGeo() {
             return new Promise((resolve, reject) => {
-                if (geoWatchId) { // Если уже отслеживаем, просто разрешаем
+                if (geoWatchId) {
                     resolve();
                     return;
                 }
                 
                 navigator.geolocation.getCurrentPosition(
-                    (pos) => { // Успех первого запроса
+                    (pos) => {
                         geoWatchId = navigator.geolocation.watchPosition(
-                            (position) => { // Успешное постоянное отслеживание
+                            (position) => {
                                 const { latitude, longitude } = position.coords;
                                 const latLng = [latitude, longitude];
                                 lastKnownLocation = latLng;
+                                localStorage.setItem('lastKnownLocation', JSON.stringify(latLng));
 
                                 if (!initialLocationSet) {
                                     map.flyTo(latLng, 16);
@@ -733,15 +747,15 @@
                                     }
                                 }
                             },
-                            (err) => { // Ошибка постоянного отслеживания
+                            (err) => {
                                 console.error("Geolocation watch error:", err);
                                 tg.showAlert("Потерян доступ к геолокации.");
                             },
                             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                         );
-                        resolve(); // Разрешаем Promise после успешного запуска watch
+                        resolve();
                     },
-                    (err) => { // Ошибка первого запроса (отказ пользователя)
+                    (err) => {
                         reject(err);
                     },
                     { enableHighAccuracy: true }
