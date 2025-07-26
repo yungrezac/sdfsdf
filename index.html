@@ -180,9 +180,6 @@
         <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('profile-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg><span>Профиль</span></button>
     </nav>
     
-    <!-- Модальное окно -->
-    <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center hidden z-50"><div class="card-bg rounded-2xl shadow-2xl p-8 text-center max-w-sm w-full fade-in"><p id="modal-message" class="text-lg mb-6"></p><button onclick="closeModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-full transition-all">OK</button></div></div>
-
     <!-- Модальное окно создания поста -->
     <div id="create-post-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center hidden z-50 p-4">
         <div class="card-bg rounded-2xl shadow-2xl p-6 w-full max-w-md fade-in space-y-4">
@@ -250,7 +247,7 @@
                 <div class="flex items-center space-x-2">
                     <textarea id="main-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
                     <button id="main-comment-send-btn" onclick="postComment()" class="flex-shrink-0 bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600 disabled:bg-gray-400">
-                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                     </button>
                 </div>
             </div>
@@ -279,6 +276,8 @@
         let currentReplyTarget = { postId: null, parentCommentId: null };
         let initialLocationSet = false;
         let lastKnownLocation = null;
+        let deepLinkedUserId = null;
+
 
         // --- Элементы DOM ---
         const authScreen = document.getElementById('auth-screen');
@@ -292,8 +291,6 @@
         const profileAvatarImg = document.getElementById('profile-avatar-img');
         const profileAvatarWrapper = document.getElementById('profile-avatar-wrapper');
         const leaderboardDiv = document.getElementById('leaderboard');
-        const modal = document.getElementById('message-modal');
-        const modalMessage = document.getElementById('modal-message');
         const recenterBtn = document.getElementById('recenter-btn');
         const userDetailModal = document.getElementById('user-detail-modal');
         const userDetailContent = document.getElementById('user-detail-content');
@@ -324,14 +321,6 @@
             }
         }
 
-        function showMessage(message) {
-            modalMessage.textContent = message;
-            modal.classList.remove('hidden');
-        }
-        function closeModal() {
-            modal.classList.add('hidden');
-        }
-
         function generateColorFromId(id) {
             const strId = String(id);
             let hash = 0;
@@ -350,7 +339,7 @@
                     map.flyToBounds(userLayerGroup.getBounds(), { padding: [50, 50], duration: 1, maxZoom: 16 });
                 }, 100);
             } else {
-                showMessage("У этого пользователя еще нет захваченных территорий.");
+                tg.showAlert("У этого пользователя еще нет захваченных территорий.");
             }
         }
         
@@ -390,7 +379,7 @@
         async function showUserDetailModal(userId) {
             const profile = allProfilesData.find(p => p.id === userId);
             if (!profile) {
-                showMessage("Профиль пользователя не найден.");
+                tg.showAlert("Профиль пользователя не найден.");
                 return;
             }
 
@@ -578,6 +567,12 @@
             setupMainButton();
             setupEventListeners();
             
+            // Handle deep linking
+            const startParam = tg.initDataUnsafe.start_param;
+            if (startParam && startParam.startsWith('user')) {
+                deepLinkedUserId = parseInt(startParam.substring(4), 10);
+            }
+
             if (tg.initDataUnsafe?.user) {
                 telegramUser = tg.initDataUnsafe.user;
                 await initializeWithUser();
@@ -607,21 +602,21 @@
              
              // Запрашиваем геолокацию ПЕРЕД инициализацией остального
              try {
-                await requestAndWatchGeo();
+                 await requestAndWatchGeo();
                 
-                const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
-                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                 const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
+                 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
+                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 
-                await setupUser();
+                 await setupUser();
 
              } catch (error) {
-                console.error("Geolocation permission denied:", error);
-                authContent.innerHTML = `
-                    <h1 class="text-2xl font-bold mb-4 text-red-500">Доступ к геолокации необходим</h1>
-                    <p class="mb-6" style="color: var(--hint-color);">Для работы приложения TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение.</p>
-                    <button onclick="requestAndWatchGeo().then(initializeWithUser).catch(() => {})" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Предоставить доступ</button>
-                `;
+                 console.error("Geolocation permission denied:", error);
+                 authContent.innerHTML = `
+                     <h1 class="text-2xl font-bold mb-4 text-red-500">Доступ к геолокации необходим</h1>
+                     <p class="mb-6" style="color: var(--hint-color);">Для работы приложения TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение.</p>
+                     <button onclick="requestAndWatchGeo().then(initializeWithUser).catch(() => {})" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Предоставить доступ</button>
+                 `;
              }
         }
         
@@ -788,7 +783,7 @@
             if (currentRunPath.length > 3) {
                 processRunPath();
             } else {
-                showMessage('Слишком короткий маршрут.');
+                tg.showAlert('Слишком короткий маршрут.');
             }
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
@@ -799,7 +794,7 @@
             const endPoint = currentRunPath[currentRunPath.length - 1];
             const distance = turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' });
             if (distance > 50) {
-                showMessage('Маршрут не замкнут. Вернитесь к точке старта для захвата.');
+                tg.showAlert('Маршрут не замкнут. Вернитесь к точке старта для захвата.');
                 return;
             }
             currentRunPath.push(startPoint);
@@ -808,7 +803,7 @@
             const polygonized = turf.polygonize(line);
 
             if (polygonized.features.length === 0) {
-                showMessage('Не удалось сформировать замкнутую территорию. Попробуйте снова.');
+                tg.showAlert('Не удалось сформировать замкнутую территорию. Попробуйте снова.');
                 return;
             }
 
@@ -867,7 +862,7 @@
                 showCreatePostModal(newCapture);
             } catch (error) {
                 console.error("Ошибка в updateTerritory:", error);
-                showMessage("Ошибка обработки территории. Форма слишком сложная.");
+                tg.showAlert("Ошибка обработки территории. Форма слишком сложная.");
                 tg.HapticFeedback.notificationOccurred('error');
             }
         }
@@ -915,14 +910,14 @@
             if (error) {
                 console.error('Error saving user data (upsert):', error);
                 tg.HapticFeedback.notificationOccurred('error');
-                showMessage("Ошибка сохранения прогресса.");
+                tg.showAlert("Ошибка сохранения прогресса.");
             }
         }
 
         async function handlePostSubmission() {
             const title = postTitleInput.value.trim();
             if (!title) {
-                showMessage("Пожалуйста, введите название.");
+                tg.showAlert("Пожалуйста, введите название.");
                 return;
             }
             if (!lastCaptureData) return;
@@ -938,7 +933,7 @@
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
                 if (error) {
                     console.error("Error uploading photo:", error);
-                    showMessage("Не удалось загрузить фото.");
+                    tg.showAlert("Не удалось загрузить фото.");
                     savePostBtn.disabled = false;
                     savePostText.classList.remove('hidden');
                     savePostLoader.classList.add('hidden');
@@ -967,9 +962,9 @@
 
             if (postError) {
                 console.error("Error saving post:", postError);
-                showMessage("Не удалось сохранить пост.");
+                tg.showAlert("Не удалось сохранить пост.");
             } else {
-                showMessage("Пост успешно опубликован!");
+                tg.showAlert("Пост успешно опубликован!");
                 hideCreatePostModal();
             }
         }
@@ -1027,6 +1022,12 @@
             });
             
             updateLeaderboard(profiles);
+
+            // Handle deep link after data is loaded
+            if (deepLinkedUserId) {
+                showUserDetailModal(deepLinkedUserId);
+                deepLinkedUserId = null; // Reset after use
+            }
         }
         
         function updateLeaderboard(profiles) {
@@ -1232,7 +1233,7 @@
                 console.error("Ошибка лайка:", error);
                 buttonElement.classList.toggle('liked');
                 countSpan.textContent = currentCount;
-                showMessage(`Не удалось обработать лайк. Код ошибки: ${error.code}. Подробности в консоли.`);
+                tg.showAlert(`Не удалось обработать лайк. Код ошибки: ${error.code}. Подробности в консоли.`);
             }
         }
         
@@ -1282,7 +1283,7 @@
 
             } catch (error) {
                 console.error('Ошибка отправки комментария:', error);
-                showMessage(`Не удалось отправить комментарий. Код ошибки: ${error.code}. Подробности в консоли.`);
+                tg.showAlert(`Не удалось отправить комментарий. Код ошибки: ${error.code}. Подробности в консоли.`);
             } finally {
                 buttonElement.disabled = false;
             }
@@ -1364,6 +1365,9 @@
             document.documentElement.style.setProperty('--hint-color', themeParams.hint_color || '#6b7280');
             document.documentElement.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
             document.documentElement.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
+            
+            // Устанавливаем цвет хедера для бесшовной интеграции
+            tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
         }
 
         function setupMainButton() {
@@ -1445,7 +1449,6 @@
         
         // --- Глобальные функции для HTML ---
         window.showView = showView;
-        window.closeModal = closeModal;
         window.showUserDetailModal = showUserDetailModal;
         window.hideUserDetailModal = hideUserDetailModal;
         window.toggleLike = toggleLike;
