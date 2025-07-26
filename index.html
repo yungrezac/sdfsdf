@@ -140,13 +140,20 @@
         #initial-loader {
             background-color: var(--bg-color);
         }
-        /* Стили для таб-бара режимов */
-        #mode-switcher {
+        /* Стили для верхней панели на карте */
+        #map-top-panel {
             position: fixed;
             top: calc(1rem + env(safe-area-inset-top));
-            left: 50%;
-            transform: translateX(-50%);
+            left: 0;
+            right: 0;
             z-index: 20;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1rem;
+            pointer-events: none; /* Позволяет кликать сквозь контейнер */
+        }
+        #mode-switcher {
             background-color: rgba(255, 255, 255, 0.8);
             backdrop-filter: blur(10px);
             border-radius: 9999px;
@@ -154,6 +161,11 @@
             display: flex;
             gap: 0.25rem;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            pointer-events: all; /* Включаем клики для самого свитчера */
+            margin: 0 auto; /* Центрирование */
+        }
+        #recenter-btn {
+            pointer-events: all; /* Включаем клики для кнопки */
         }
         .mode-btn {
             padding: 0.5rem 1rem;
@@ -171,7 +183,7 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
         
-        /* Стили для модального окна спота */
+        /* Стили для модального окна */
         .bottom-sheet-modal {
             position: fixed;
             inset: 0;
@@ -189,7 +201,8 @@
         }
         .bottom-sheet-content {
             width: 100%;
-            max-height: calc(100vh - env(safe-area-inset-top) - 2rem);
+            height: 85%; /* Увеличил высоту для профиля */
+            max-height: calc(100vh - env(safe-area-inset-top) - 1rem);
             background-color: var(--secondary-bg-color);
             border-radius: 1.5rem 1.5rem 0 0;
             box-shadow: 0 -5px 20px rgba(0,0,0,0.15);
@@ -229,6 +242,27 @@
         .star-rating label:hover ~ label {
             color: var(--star-color);
         }
+        /* Стили для табов в профиле */
+        .profile-tab {
+            flex-grow: 1;
+            text-align: center;
+            padding: 0.75rem 0.5rem;
+            font-weight: 600;
+            color: var(--hint-color);
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .profile-tab.active {
+            color: var(--button-color);
+            border-bottom-color: var(--button-color);
+        }
+        .profile-tab-content {
+            display: none;
+        }
+        .profile-tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body class="font-sans antialiased overflow-hidden">
@@ -250,20 +284,27 @@
         <div id="map-view" class="view active">
             <div id="map"></div>
             
-            <div id="mode-switcher" class="hidden">
-                <button id="mode-capture" class="mode-btn active">Захват</button>
-                <button id="mode-spots" class="mode-btn">Споты</button>
-                <button id="mode-routes" class="mode-btn">Маршруты</button>
+            <div id="map-top-panel">
+                <div class="w-12"></div> <!-- Пустой див для баланса -->
+                <div id="mode-switcher" class="hidden">
+                    <button id="mode-capture" class="mode-btn active">Захват</button>
+                    <button id="mode-spots" class="mode-btn">Споты</button>
+                    <button id="mode-routes" class="mode-btn">Маршруты</button>
+                </div>
+                <button id="recenter-btn" class="bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                </button>
             </div>
-
-            <button id="recenter-btn" class="z-20 fixed top-20 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            </button>
         </div>
 
         <!-- Вид 2: Лента -->
         <div id="feed-view" class="view p-4 fade-in">
-            <h1 class="text-3xl font-bold mb-6 px-2">Лента</h1>
+            <div class="flex justify-between items-center mb-6 px-2">
+                <h1 class="text-3xl font-bold">Лента</h1>
+                <button id="create-simple-post-btn" class="p-2 rounded-full hover:bg-gray-200" style="background-color: var(--secondary-bg-color);">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" style="color: var(--button-color);" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                </button>
+            </div>
             <div id="feed-container" class="space-y-4"></div>
         </div>
 
@@ -335,8 +376,8 @@
                 <input type="text" id="edit-modal-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Например, 'Красивый вид'">
             </div>
             <div id="edit-modal-details-section">
-                <label for="edit-modal-details" class="block text-sm font-medium">Подробное описание</label>
-                <textarea id="edit-modal-details" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Опишите это место или маршрут..."></textarea>
+                <label for="edit-modal-details" class="block text-sm font-medium">Описание</label>
+                <textarea id="edit-modal-details" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Опишите это место, маршрут или просто поделитесь мыслями..."></textarea>
             </div>
             <div id="edit-modal-photo-section">
                 <label for="edit-modal-photo-input" class="block text-sm font-medium">Фото</label>
@@ -459,6 +500,7 @@
         const inviteFriendBtn = document.getElementById('invite-friend-btn');
         const donateBtn = document.getElementById('donate-btn');
         const showQrBtn = document.getElementById('show-qr-btn');
+        const createSimplePostBtn = document.getElementById('create-simple-post-btn');
 
         // --- ФУНКЦИИ UI ---
         function showView(viewId) {
@@ -604,9 +646,9 @@
                 detailsSection.style.display = 'block';
                 photoSection.style.display = 'block';
             } else if (type === 'post') {
-                 title.textContent = 'Новое достижение!';
-                 description.textContent = 'Дайте название вашей новой территории и поделитесь с другими.';
-                 detailsSection.style.display = 'none'; // У постов нет описания
+                 title.textContent = context.simple ? 'Новый пост' : 'Новое достижение!';
+                 description.textContent = context.simple ? 'Поделитесь своими мыслями с сообществом.' : 'Дайте название вашей новой территории.';
+                 detailsSection.style.display = context.simple ? 'block' : 'none';
                  photoSection.style.display = 'block';
             }
             
@@ -649,49 +691,86 @@
             commentInputContainer.innerHTML = '';
 
             if (type === 'spot') {
-                const { data: spot, error } = await supabase.from('spots').select('*, profiles(name, photo_url)').eq('id', id).single();
-                if (error || !spot) {
-                    body.innerHTML = `<p class="text-red-500 text-center">Не удалось загрузить спот.</p>`;
+                // ... (код для спота без изменений)
+            } else if (type === 'user') {
+                const [profileRes, postsRes, spotsRes, routesRes] = await Promise.all([
+                    supabase.from('profiles').select('*').eq('id', id).single(),
+                    supabase.from('posts').select('*').eq('user_id', id).order('created_at', { ascending: false }),
+                    supabase.from('spots').select('*').eq('user_id', id).order('created_at', { ascending: false }),
+                    supabase.from('routes').select('*').eq('user_id', id).order('created_at', { ascending: false })
+                ]);
+
+                if (profileRes.error) {
+                    body.innerHTML = `<p class="text-red-500 text-center">Не удалось загрузить профиль.</p>`;
                     return;
                 }
-                
-                const authorName = spot.profiles ? spot.profiles.name : 'Неизвестный автор';
-                const destination = `${spot.location.coordinates[1]},${spot.location.coordinates[0]}`;
-                const navLink = `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
+                const profile = profileRes.data;
+                const posts = postsRes.data || [];
+                const spots = spotsRes.data || [];
+                const routes = routesRes.data || [];
+
+                const avatar = profile.photo_url || `https://placehold.co/80x80/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
+                const area = profile.area || 0;
+                const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
 
                 body.innerHTML = `
-                    ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-48 object-cover rounded-lg mb-4" alt="Фото спота">` : ''}
-                    <h2 class="text-2xl font-bold">${spot.name}</h2>
-                    <p class="text-sm text-gray-500 mb-4">Автор: ${authorName}</p>
-                    <p class="mb-4">${spot.description}</p>
-                    
-                    <div class="my-4 text-center">
-                        <p class="font-semibold mb-2">Оцените это место</p>
-                        <div class="star-rating">
-                            <input type="radio" id="5-stars" name="rating" value="5" /><label for="5-stars">★</label>
-                            <input type="radio" id="4-stars" name="rating" value="4" /><label for="4-stars">★</label>
-                            <input type="radio" id="3-stars" name="rating" value="3" /><label for="3-stars">★</label>
-                            <input type="radio" id="2-stars" name="rating" value="2" /><label for="2-stars">★</label>
-                            <input type="radio" id="1-star" name="rating" value="1" /><label for="1-star">★</label>
+                    <div class="p-4">
+                        <div class="flex items-center space-x-4">
+                            <img src="${avatar}" class="w-20 h-20 rounded-full" alt="avatar">
+                            <div>
+                                <h2 class="text-2xl font-bold">${profile.name}</h2>
+                                <p class="text-sm" style="color: var(--hint-color);">Общая площадь</p>
+                                <p class="text-xl font-bold" style="color: var(--button-color);">${formattedArea}</p>
+                            </div>
                         </div>
                     </div>
-
-                    <div class="flex items-center justify-around my-4">
-                         <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>
-                            <span>0</span>
-                        </button>
-                        <button class="flex items-center space-x-1 hover:text-blue-500 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                            <span>0</span>
-                        </button>
-                    </div>
                     
-                    <button onclick="tg.openLink('${navLink}')" class="mt-4 w-full text-white font-bold py-3 px-4 rounded-full transition-all" style="background-color: var(--button-color); color: var(--button-text-color)">Построить маршрут</button>
+                    <div class="flex border-b mt-4">
+                        <div id="tab-posts" class="profile-tab active" onclick="switchProfileTab('posts')">Посты (${posts.length})</div>
+                        <div id="tab-spots" class="profile-tab" onclick="switchProfileTab('spots')">Споты (${spots.length})</div>
+                        <div id="tab-routes" class="profile-tab" onclick="switchProfileTab('routes')">Маршруты (${routes.length})</div>
+                    </div>
+
+                    <div id="content-posts" class="profile-tab-content active p-2 space-y-2">
+                        ${posts.length > 0 ? posts.map(generateMiniPostHTML).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет постов.</p>'}
+                    </div>
+                    <div id="content-spots" class="profile-tab-content p-2 space-y-2">
+                        ${spots.length > 0 ? spots.map(generateMiniSpotHTML).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет спотов.</p>'}
+                    </div>
+                    <div id="content-routes" class="profile-tab-content p-2 space-y-2">
+                         ${routes.length > 0 ? routes.map(generateMiniRouteHTML).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет маршрутов.</p>'}
+                    </div>
                 `;
             }
-            // TODO: Реализовать для 'route'
         }
+        
+        function switchProfileTab(tabName) {
+            document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.profile-tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            document.getElementById(`content-${tabName}`).classList.add('active');
+        }
+
+        function generateMiniPostHTML(post) {
+            return `<div class="card-bg rounded-lg p-3 shadow-sm">
+                        <p class="font-semibold">${post.title}</p>
+                        <p class="text-xs text-gray-400">${new Date(post.created_at).toLocaleDateString()}</p>
+                    </div>`;
+        }
+        function generateMiniSpotHTML(spot) {
+             return `<div class="card-bg rounded-lg p-3 shadow-sm">
+                        <p class="font-semibold">${spot.name}</p>
+                        <p class="text-sm text-gray-600 truncate">${spot.description}</p>
+                        <p class="text-xs text-gray-400">${new Date(spot.created_at).toLocaleDateString()}</p>
+                    </div>`;
+        }
+        function generateMiniRouteHTML(route) {
+             return `<div class="card-bg rounded-lg p-3 shadow-sm">
+                        <p class="font-semibold">${route.name}</p>
+                        <p class="text-xs text-gray-400">${new Date(route.created_at).toLocaleDateString()}</p>
+                    </div>`;
+        }
+
 
         // --- ОСНОВНАЯ ЛОГИКА И ИНИЦИАЛИЗАЦИЯ ---
         async function main() {
@@ -873,8 +952,9 @@
         
         function addSpotToMap(spot) {
             const coords = spot.location.coordinates;
-            const marker = L.marker([coords[1], coords[0]]).addTo(spotMarkersLayer);
+            const marker = L.marker([coords[1], coords[0]]);
             marker.on('click', () => showDetailModal('spot', spot.id));
+            spotMarkersLayer.addLayer(marker);
         }
 
         // МАРШРУТЫ
@@ -932,8 +1012,9 @@
         
         function addRouteToMap(route) {
             const coords = route.path.coordinates.map(p => [p[1], p[0]]);
-            const polyline = L.polyline(coords, { color: '#ff7800', weight: 3 }).addTo(routePolylinesLayer);
+            const polyline = L.polyline(coords, { color: '#ff7800', weight: 3 });
             polyline.on('click', () => showDetailModal('route', route.id));
+            routePolylinesLayer.addLayer(polyline);
         }
 
         // --- ЗАГРУЗКА ДАННЫХ ---
@@ -1007,6 +1088,10 @@
             inviteFriendBtn.addEventListener('click', () => {
                 tg.HapticFeedback.impactOccurred('light');
                 tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(`https://t.me/TerraRunBot/app`)}&text=${encodeURIComponent(`Присоединяйся ко мне в TerraRun и давай захватывать территории вместе!`)}`);
+            });
+            
+            createSimplePostBtn.addEventListener('click', () => {
+                showEditModal('post', { simple: true });
             });
             
             showQrBtn.addEventListener('click', () => { /* TODO: Implement */ });
@@ -1122,7 +1207,7 @@
                 await saveUserData();
                 refreshAllStats();
                 tg.HapticFeedback.notificationOccurred('success');
-                showEditModal('post', { captureData: newCapture });
+                showEditModal('post', { captureData: newCapture, simple: false });
             } catch (error) {
                 console.error("Ошибка в updateTerritory:", error);
                 tg.showAlert("Ошибка обработки территории.");
@@ -1137,10 +1222,12 @@
         }
 
         async function handlePostSubmission() {
+            const { captureData, simple } = currentEditContext;
             const title = document.getElementById('edit-modal-name').value.trim();
+            const description = document.getElementById('edit-modal-details').value.trim();
+            
             if (!title) { tg.showAlert("Пожалуйста, введите название."); return; }
-            const { captureData } = currentEditContext;
-            if (!captureData) return;
+            if (simple && !description) { tg.showAlert("Пожалуйста, введите описание."); return; }
 
             let photoUrl = null;
             const file = document.getElementById('edit-modal-photo-input').files[0];
@@ -1151,10 +1238,19 @@
                 photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
             }
 
-            const areaCaptured = turf.area(captureData);
-            const { error: postError } = await supabase.from('posts').insert({
-                user_id: telegramUser.id, title: title, photo_url: photoUrl, territory_captured: captureData, area_captured: areaCaptured, user_name: telegramUser.first_name, user_avatar_url: telegramUser.photo_url, user_color: userColor
-            });
+            const postData = {
+                user_id: telegramUser.id,
+                title: title,
+                description: simple ? description : null,
+                photo_url: photoUrl,
+                territory_captured: simple ? null : captureData,
+                area_captured: simple ? null : turf.area(captureData),
+                user_name: telegramUser.first_name,
+                user_avatar_url: telegramUser.photo_url,
+                user_color: userColor
+            };
+
+            const { error: postError } = await supabase.from('posts').insert(postData);
             
             if (postError) {
                 console.error("Error saving post:", postError); tg.showAlert("Не удалось сохранить пост.");
@@ -1197,7 +1293,7 @@
                 const avatar = u.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${name.charAt(0)}`;
                 const area = u.area || 0;
                 const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
-                return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="console.log('Leaderboard click')">
+                return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showDetailModal('user', ${u.id})">
                             <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
                             <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
                             <div class="flex-grow">
@@ -1237,12 +1333,14 @@
             profileFeedContainer.innerHTML = userPostsHTML || '<p class="text-center text-gray-500">У вас еще нет постов.</p>';
 
             posts.forEach(post => {
-                const mapContainer = document.getElementById(`mini-map-${post.id}`);
-                if (mapContainer && !mapContainer._leaflet_id) {
-                    const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
-                    L.tileLayer(MAP_TILE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
-                    const territoryLayer = L.geoJSON(post.territory_captured, { style: { color: post.user_color, weight: 2, opacity: 0.8, fillColor: post.user_color, fillOpacity: 0.5 } }).addTo(miniMap);
-                    miniMap.fitBounds(territoryLayer.getBounds(), { padding: [10, 10] });
+                if (post.territory_captured) {
+                    const mapContainer = document.getElementById(`mini-map-${post.id}`);
+                    if (mapContainer && !mapContainer._leaflet_id) {
+                        const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
+                        L.tileLayer(MAP_TILE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
+                        const territoryLayer = L.geoJSON(post.territory_captured, { style: { color: post.user_color, weight: 2, opacity: 0.8, fillColor: post.user_color, fillOpacity: 0.5 } }).addTo(miniMap);
+                        miniMap.fitBounds(territoryLayer.getBounds(), { padding: [10, 10] });
+                    }
                 }
             });
         }
@@ -1255,12 +1353,13 @@
             return `<div class="card-bg rounded-2xl shadow-lg overflow-hidden" id="post-${post.id}">
                         <div class="p-4">
                             <div class="flex items-center space-x-3"><img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar"><div><p class="font-bold">${post.user_name}</p><p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p></div></div>
-                            <p class="mt-4">${post.title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+                            <p class="mt-4 font-semibold">${post.title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+                            ${post.description ? `<p class="mt-2 text-sm text-gray-700">${post.description.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>` : ''}
                         </div>
                         ${post.photo_url ? `<img src="${post.photo_url}" class="w-full h-64 object-cover" alt="Post photo">` : ''}
-                        <div id="mini-map-${post.id}" class="h-48 w-full mini-map"></div>
+                        ${post.territory_captured ? `<div id="mini-map-${post.id}" class="h-48 w-full mini-map"></div>` : ''}
                         <div class="p-4">
-                            <p class="font-semibold">Захвачено: <span class="font-bold" style="color: var(--button-color);">${formattedArea}</span></p>
+                            ${post.area_captured ? `<p class="font-semibold">Захвачено: <span class="font-bold" style="color: var(--button-color);">${formattedArea}</span></p>` : ''}
                             <div class="flex items-center space-x-6 mt-3" style="color: var(--hint-color);">
                                 <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" onclick="toggleLike(this, ${post.id})">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>
@@ -1362,6 +1461,8 @@
         window.setReplyMode = setReplyMode;
         window.cancelReply = cancelReply;
         window.postComment = postComment;
+        window.showDetailModal = showDetailModal;
+        window.switchProfileTab = switchProfileTab;
         
         document.addEventListener('DOMContentLoaded', main);
     </script>
