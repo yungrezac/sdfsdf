@@ -1500,93 +1500,77 @@
         }
 
         /**
-         * [MODIFIED] Запрашивает доступ к геолокации через Telegram SDK и 
-         * затем запускает непрерывное отслеживание через браузерный Geolocation API.
-         * Это обеспечивает нативный опыт запроса разрешений в Telegram и 
-         * сохраняет функциональность отслеживания маршрута в реальном времени.
+         * [MODIFIED] Запрашивает доступ к геолокации через Telegram SDK LocationManager
+         * для однократного запроса разрешения. После получения первоначальных координат,
+         * запускает непрерывное отслеживание через браузерный Geolocation API.
          */
         function requestAndWatchGeo() {
-            loaderText.textContent = 'Запрос доступа к геолокации...';
-            
+            loaderText.textContent = 'Инициализация геолокации...';
+
             return new Promise((resolve, reject) => {
-                // Обработчик события, которое Telegram пришлет после запроса геолокации
-                const locationHandler = (data) => {
-                    // Важно: сразу удаляем обработчик, чтобы избежать повторных вызовов
-                    tg.offEvent('locationReceived', locationHandler);
+                // Проверяем, поддерживает ли клиент LocationManager (Bot API 8.0+)
+                if (!tg.locationManager || !tg.isVersionAtLeast('8.0')) {
+                    const errorMsg = "Ваша версия Telegram не поддерживает постоянный доступ к геолокации. Пожалуйста, обновите приложение.";
+                    console.error(errorMsg);
+                    return reject(new Error(errorMsg));
+                }
 
-                    // В документации указан `locationReceived`, но в вашем запросе был `location_requested`.
-                    // Если `locationReceived` не сработает, попробуйте заменить его на `location_requested`.
+                // Инициализируем LocationManager
+                tg.locationManager.init();
 
-                    if (data && data.latitude && data.longitude) {
+                const startBrowserWatching = (initialPosition) => {
+                    loaderText.textContent = 'Отслеживание местоположения...';
+                    
+                    if (!navigator.geolocation || !navigator.geolocation.watchPosition) {
+                        console.warn("Браузер не поддерживает непрерывное отслеживание геолокации. Будет использоваться только начальная позиция.");
+                        resolve(initialPosition); // Возвращаем хотя бы одну точку
+                        return;
+                    }
+
+                    geoWatchId = navigator.geolocation.watchPosition(
+                        (position) => {
+                            const { latitude, longitude } = position.coords;
+                            lastKnownLocation = [latitude, longitude];
+                            updateCurrentUserMarker(lastKnownLocation);
+
+                            if (isRunning && currentPathPolyline) {
+                                const newPoint = (currentMode === 'capture') 
+                                    ? [longitude, latitude] 
+                                    : [latitude, longitude];
+                                currentRunPath.push(newPoint);
+                                currentPathPolyline.addLatLng([latitude, longitude]);
+                            }
+                        },
+                        (err) => {
+                            console.error("Ошибка отслеживания геолокации в браузере:", err);
+                        },
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                    );
+                    
+                    resolve(initialPosition);
+                };
+
+                const locationCallback = (locationData) => {
+                    if (locationData) {
                         const initialPosition = {
                             coords: {
-                                latitude: data.latitude,
-                                longitude: data.longitude,
-                                altitude: data.altitude,
-                                speed: data.speed,
-                                course: data.course,
-                                horizontal_accuracy: data.horizontal_accuracy,
+                                latitude: locationData.latitude,
+                                longitude: locationData.longitude,
+                                altitude: locationData.altitude,
+                                speed: locationData.speed,
+                                course: locationData.course,
+                                horizontal_accuracy: locationData.horizontal_accuracy,
                             }
                         };
-                        lastKnownLocation = [data.latitude, data.longitude];
-                        
-                        // Разрешение получено, теперь запускаем стандартное отслеживание для записи маршрута
-                        loaderText.textContent = 'Отслеживание местоположения...';
-                        if (!navigator.geolocation || !navigator.geolocation.watchPosition) {
-                            console.warn("Geolocation watching is not supported. Using single location from Telegram.");
-                            resolve(initialPosition); // Возвращаем хотя бы одну точку
-                            return;
-                        }
-
-                        geoWatchId = navigator.geolocation.watchPosition(
-                            (position) => {
-                                const { latitude, longitude } = position.coords;
-                                lastKnownLocation = [latitude, longitude];
-                                updateCurrentUserMarker(lastKnownLocation);
-
-                                if (isRunning && currentPathPolyline) {
-                                    const newPoint = (currentMode === 'capture') 
-                                        ? [longitude, latitude]
-                                        : [latitude, longitude];
-                                    currentRunPath.push(newPoint);
-                                    currentPathPolyline.addLatLng([latitude, longitude]);
-                                }
-                            },
-                            (err) => {
-                                console.error("Ошибка отслеживания геолокации:", err);
-                                // Не показываем alert, т.к. пользователь мог просто отключить GPS.
-                                // Приложение продолжит работать с последней известной позицией.
-                            },
-                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                        );
-                        
-                        resolve(initialPosition);
-
+                        lastKnownLocation = [locationData.latitude, locationData.longitude];
+                        startBrowserWatching(initialPosition);
                     } else {
-                        // Пользователь отклонил запрос в Telegram
                         reject({ code: 1, message: "Доступ к геолокации не предоставлен." });
                     }
                 };
-
-                // Устанавливаем обработчик события
-                // Используем `locationReceived` как более вероятный вариант из официальной документации
-                tg.onEvent('locationReceived', locationHandler);
-
-                // Запрашиваем геолокацию через Telegram SDK
-                // Это должно показать нативный UI-запрос
-                try {
-                    tg.requestLocation((accessGranted) => {
-                        if (!accessGranted) {
-                            // Если пользователь сразу нажал "Отмена" в диалоге запроса
-                            tg.offEvent('locationReceived', locationHandler); // Очищаем обработчик
-                            reject({ code: 1, message: "Вы не предоставили доступ к геолокации." });
-                        }
-                        // Если доступ предоставлен, ждем события 'locationReceived'
-                    });
-                } catch (e) {
-                     tg.offEvent('locationReceived', locationHandler);
-                     reject(e);
-                }
+                
+                loaderText.textContent = 'Запрос доступа к геолокации...';
+                tg.locationManager.getLocation(locationCallback);
             });
         }
         
