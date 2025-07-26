@@ -278,7 +278,7 @@
             display: block;
         }
         
-        /* NEW: Стили для комментариев в модальном окне деталей */
+        /* Стили для комментариев в модальном окне деталей */
         #detail-comments-section {
             border-top: 1px solid var(--bg-color);
             padding: 1rem;
@@ -729,6 +729,7 @@
         // --- ЛОГИКА МОДАЛЬНЫХ ОКОН ---
         
         function showEditModal(type, context = {}) {
+            tg.BackButton.show();
             currentEditContext = { type, ...context };
             const title = document.getElementById('edit-modal-title');
             const description = document.getElementById('edit-modal-description');
@@ -754,11 +755,13 @@
         }
 
         function hideEditModal() {
+            tg.BackButton.hide();
             editModal.classList.remove('visible');
             currentEditContext = {};
         }
         
         function showSimplePostModal() {
+            tg.BackButton.show();
             document.getElementById('simple-post-details').value = '';
             document.getElementById('simple-post-photo-input').value = '';
             document.getElementById('simple-post-filename').textContent = '';
@@ -766,10 +769,12 @@
         }
 
         function hideSimplePostModal() {
+            tg.BackButton.hide();
             simplePostModal.classList.remove('visible');
         }
         
         function showCreationModal(type, context = {}) {
+            tg.BackButton.show();
             currentEditContext = { type, ...context };
             const title = document.getElementById('creation-modal-title');
             const description = document.getElementById('creation-modal-description');
@@ -794,6 +799,7 @@
         }
 
         function hideCreationModal() {
+            tg.BackButton.hide();
             creationModal.classList.remove('visible');
             currentEditContext = {};
         }
@@ -1045,13 +1051,11 @@
             }
             
             try {
-                const match = wkt.match(/(POINT|LINESTRING)\s*\((.+)\)/i);
-                if (!match) {
-                    return null;
-                }
+                const match = wkt.match(/(POINT|LINESTRING|POLYGON|MULTIPOLYGON)\s*\((.+)\)/i);
+                if (!match) return null;
 
                 const type = match[1].toUpperCase();
-                let content = match[2];
+                const content = match[2];
 
                 if (type === 'POINT') {
                     const coords = content.match(/-?\d+(\.\d+)?/g);
@@ -1066,10 +1070,36 @@
                         if (!nums || nums.length < 2) return null;
                         return [parseFloat(nums[0]), parseFloat(nums[1])];
                     }).filter(p => p !== null);
-
                     if (coordinates.length < 2) return null;
                     return { type: 'LineString', coordinates: coordinates };
                 }
+                
+                // Добавим поддержку POLYGON и MULTIPOLYGON, так как Turf.js может их возвращать
+                if (type === 'POLYGON') {
+                    // Упрощенный парсер для одного полигона без дырок
+                    const pointsStr = content.replace(/\(|\)/g, '');
+                    const coordPairs = pointsStr.split(',');
+                    const coordinates = coordPairs.map(pair => {
+                         const nums = pair.trim().match(/-?\d+(\.\d+)?/g);
+                         if (!nums || nums.length < 2) return null;
+                         return [parseFloat(nums[0]), parseFloat(nums[1])];
+                    }).filter(p => p !== null);
+                    return { type: 'Polygon', coordinates: [coordinates] };
+                }
+                 if (type === 'MULTIPOLYGON') {
+                    // Очень упрощенный парсер, берет только первый полигон
+                    const firstPolygonMatch = content.match(/\(\((.+?)\)\)/);
+                    if (!firstPolygonMatch) return null;
+                    const pointsStr = firstPolygonMatch[1];
+                    const coordPairs = pointsStr.split(',');
+                    const coordinates = coordPairs.map(pair => {
+                         const nums = pair.trim().match(/-?\d+(\.\d+)?/g);
+                         if (!nums || nums.length < 2) return null;
+                         return [parseFloat(nums[0]), parseFloat(nums[1])];
+                    }).filter(p => p !== null);
+                    return { type: 'Polygon', coordinates: [coordinates] };
+                }
+
 
             } catch (e) {
                 console.error("Failed to parse WKT:", wkt, e);
@@ -1080,7 +1110,6 @@
 
         // --- ОСНОВНАЯ ЛОГИКА И ИНИЦИАЛИЗАЦИЯ ---
         
-        // [MODIFIED] Главная функция теперь только подготавливает UI
         async function main() {
             try {
                 tg.ready();
@@ -1094,7 +1123,6 @@
                 }
                 telegramUser = tg.initDataUnsafe.user;
 
-                // Показываем модальное окно для запроса разрешения, скрываем загрузчик
                 welcomeModal.classList.add('visible');
                 initialLoader.classList.add('hidden');
 
@@ -1104,7 +1132,6 @@
             }
         }
 
-        // [MODIFIED] Основная инициализация вынесена в отдельную функцию
         async function initializeMainApp() {
             try {
                 const initialPosition = await requestAndWatchGeo();
@@ -1241,7 +1268,6 @@
             });
         }
 
-        // ** MODIFIED: Использует RPC для вставки **
         async function saveSpot() {
             const { location } = currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
@@ -1266,22 +1292,18 @@
                 name_in: name,
                 description_in: description,
                 photo_url_in: photoUrl,
-                location_wkt_in: location // 'location' - это WKT строка
+                location_wkt_in: location
             });
 
             if (error) {
                 console.error("Ошибка сохранения спота:", error); tg.showAlert("Не удалось сохранить спот.");
             } else {
+                tg.HapticFeedback.notificationOccurred('success');
                 tg.showAlert("Спот успешно создан!");
                 hideCreationModal();
             }
         }
         
-        /**
-         * [FIXED] Более безопасная функция добавления спота на карту.
-         * Проверяет результат парсинга перед созданием слоя.
-         * @param {object} spot - Объект спота из базы данных.
-         */
         function addSpotToMap(spot) {
             try {
                 const wkt = spot.location_wkt || spot.location;
@@ -1337,7 +1359,6 @@
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
 
-        // ** MODIFIED: Использует RPC для вставки **
         async function saveRoute() {
             const { path } = currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
@@ -1349,22 +1370,18 @@
                 user_id_in: telegramUser.id,
                 name_in: name,
                 description_in: description,
-                path_wkt_in: path // 'path' - это WKT строка
+                path_wkt_in: path
             });
 
             if (error) {
                 console.error("Ошибка сохранения маршрута:", error); tg.showAlert("Не удалось сохранить маршрут.");
             } else {
+                tg.HapticFeedback.notificationOccurred('success');
                 tg.showAlert("Маршрут сохранен!");
                 hideCreationModal();
             }
         }
         
-        /**
-         * [FIXED] Более безопасная функция добавления маршрута на карту.
-         * Проверяет результат парсинга перед созданием слоя.
-         * @param {object} route - Объект маршрута из базы данных.
-         */
         function addRouteToMap(route) {
             try {
                 const wkt = route.path_wkt || route.path;
@@ -1435,18 +1452,22 @@
         function setupStaticEventListeners() {
             tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
             tg.onEvent('backButtonClicked', () => {
-                if (commentsModal.classList.contains('visible')) {
-                    hideCommentsModal();
-                } else if (detailModal.classList.contains('visible')) {
-                    hideDetailModal();
-                } else if (creationModal.classList.contains('visible')) {
-                    hideCreationModal();
-                } else if (simplePostModal.classList.contains('visible')) {
-                    hideSimplePostModal();
+                if (commentsModal.classList.contains('visible')) hideCommentsModal();
+                else if (detailModal.classList.contains('visible')) hideDetailModal();
+                else if (creationModal.classList.contains('visible')) hideCreationModal();
+                else if (simplePostModal.classList.contains('visible')) hideSimplePostModal();
+                else if (editModal.classList.contains('visible')) hideEditModal();
+            });
+            tg.onEvent('qrTextReceived', (data) => {
+                const userId = data.data;
+                if (userId && !isNaN(parseInt(userId))) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                    showDetailModal('user', parseInt(userId));
+                } else {
+                    tg.showAlert("QR-код не распознан.");
                 }
             });
 
-            // [MODIFIED] Единственная точка входа для запуска приложения
             requestGeoBtn.addEventListener('click', async () => {
                 welcomeModal.classList.remove('visible');
                 initialLoader.classList.remove('hidden');
@@ -1498,8 +1519,32 @@
             
             createSimplePostBtn.addEventListener('click', showSimplePostModal);
             
-            showQrBtn.addEventListener('click', () => { /* TODO: Implement */ });
-            donateBtn.addEventListener('click', () => { /* TODO: Implement */ });
+            showQrBtn.addEventListener('click', () => {
+                tg.HapticFeedback.impactOccurred('light');
+                if (!telegramUser) return;
+                tg.showPopup({
+                    title: 'Мой QR-код',
+                    message: `Покажите этот код другому игроку, чтобы он мог посмотреть ваш профиль.`,
+                    buttons: [{ type: 'close' }]
+                });
+                // Небольшая задержка, чтобы DOM успел обновиться
+                setTimeout(() => {
+                    const messageContainer = document.querySelector('.popup-message');
+                    if (messageContainer) {
+                        messageContainer.innerHTML += '<div id="qrcode-container" class="flex justify-center p-4"></div>';
+                        new QRCode(document.getElementById("qrcode-container"), {
+                            text: String(telegramUser.id),
+                            width: 128,
+                            height: 128
+                        });
+                    }
+                }, 100);
+            });
+
+            donateBtn.addEventListener('click', () => {
+                 tg.HapticFeedback.impactOccurred('light');
+                 tg.showAlert('Спасибо за вашу поддержку! Функция донатов в разработке.');
+            });
 
             document.body.addEventListener('click', (event) => {
                 const button = event.target.closest('button[data-action], div[data-action]');
@@ -1540,24 +1585,16 @@
              tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
         }
 
-        /**
-         * [REWRITTEN] Запрашивает доступ к геолокации, получает начальные координаты и запускает непрерывное отслеживание.
-         * Отдает предпочтение Telegram API, но использует стандартный браузерный API как запасной вариант.
-         */
         function requestAndWatchGeo() {
             return new Promise((resolve, reject) => {
                 loaderText.textContent = 'Запрос доступа к геолокации...';
 
-                // Функция, которая будет вызываться при каждом обновлении позиции
                 const onPositionUpdate = (position) => {
                     const { latitude, longitude } = position.coords;
                     lastKnownLocation = [latitude, longitude];
-                    // Обновляем маркер на карте, только если карта уже инициализирована
                     if (map) {
                         updateCurrentUserMarker(lastKnownLocation);
                     }
-
-                    // Обновляем путь, если идет запись
                     if (isRunning && currentPathPolyline) {
                         const newPoint = (currentMode === 'capture') 
                             ? [longitude, latitude] 
@@ -1567,13 +1604,10 @@
                     }
                 };
 
-                // Обработчик ошибок для непрерывного отслеживания
                 const onWatchError = (err) => {
                     console.error("Ошибка отслеживания геолокации в браузере:", err);
-                    // Можно показать неблокирующее уведомление пользователю
                 };
 
-                // Функция для запуска непрерывного отслеживания
                 const startWatching = () => {
                     if (!navigator.geolocation || !navigator.geolocation.watchPosition) {
                         console.warn("Браузер не поддерживает непрерывное отслеживание геолокации.");
@@ -1586,21 +1620,18 @@
                     });
                 };
 
-                // Функция для обработки самой первой полученной позиции
                 const handleInitialPosition = (position) => {
                     loaderText.textContent = 'Отслеживание местоположения...';
-                    onPositionUpdate(position); // Обрабатываем первую позицию
-                    startWatching();           // Запускаем непрерывное отслеживание
-                    resolve(position);         // Резолвим Promise для продолжения инициализации приложения
+                    onPositionUpdate(position);
+                    startWatching();
+                    resolve(position);
                 };
                 
-                // Общий обработчик ошибок
                 const handleError = (error) => {
                     console.error("Geolocation error:", error);
                     reject({ code: 1, message: "Не удалось получить доступ к геолокации. Проверьте настройки вашего устройства и разрешения для Telegram." });
                 };
 
-                // Запасной метод: используем стандартный браузерный API
                 const getWithBrowserApi = () => {
                     if (navigator.geolocation) {
                         navigator.geolocation.getCurrentPosition(handleInitialPosition, handleError, {
@@ -1613,20 +1644,17 @@
                     }
                 };
 
-                // Основной метод: пытаемся использовать современный Telegram Location Manager
                 if (tg.locationManager && tg.isVersionAtLeast('8.0')) {
                     tg.locationManager.init();
                     tg.locationManager.getLocation((locationData) => {
                         if (locationData) {
                             handleInitialPosition({ coords: locationData });
                         } else {
-                            // Если не удалось или пользователь отказал, пробуем запасной метод
                             console.warn("tg.locationManager.getLocation() failed or was denied. Falling back to browser API.");
                             getWithBrowserApi();
                         }
                     });
                 } else {
-                    // Если Location Manager недоступен, сразу используем запасной метод
                     getWithBrowserApi();
                 }
             });
@@ -1742,6 +1770,7 @@
             if (postError) {
                 console.error("Error saving post:", postError); tg.showAlert("Не удалось сохранить пост.");
             } else {
+                tg.HapticFeedback.notificationOccurred('success');
                 tg.showAlert("Пост успешно опубликован!");
                 hideEditModal();
             }
@@ -1778,6 +1807,7 @@
             if (postError) {
                 console.error("Error saving post:", postError); tg.showAlert("Не удалось сохранить пост.");
             } else {
+                tg.HapticFeedback.notificationOccurred('success');
                 tg.showAlert("Пост успешно опубликован!");
                 hideSimplePostModal();
             }
