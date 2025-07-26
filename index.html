@@ -1089,7 +1089,10 @@
                 setupStaticEventListeners();
 
                 if (!tg.initDataUnsafe?.user) {
-                    showFallbackScreen('Требуется Telegram', 'Это приложение предназначено для работы исключительно внутри Telegram.', false);
+                    showFallbackScreen({ 
+                        title: 'Требуется Telegram', 
+                        message: 'Это приложение предназначено для работы исключительно внутри Telegram.' 
+                    });
                     return;
                 }
                 telegramUser = tg.initDataUnsafe.user;
@@ -1125,20 +1128,26 @@
 
             } catch (error) {
                 console.error("Критическая ошибка инициализации:", error);
-                let title = "Ошибка инициализации";
-                let message = "Не удалось запустить приложение. Пожалуйста, попробуйте перезагрузить его.";
+                let fallbackOptions = {
+                    title: "Ошибка инициализации",
+                    message: "Не удалось запустить приложение. Пожалуйста, попробуйте перезагрузить его.",
+                    button: { text: 'Попробовать снова', action: 'window.location.reload()' }
+                };
                 
                 if (error.message === 'GEOLOCATION_DENIED') {
-                     title = "Доступ к геолокации необходим";
-                     message = "Для работы TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение в профиле бота и перезапустите приложение.";
+                     fallbackOptions = {
+                        title: "Доступ к геолокации необходим",
+                        message: "Для работы TerraRun требуется доступ к вашему местоположению. Нажмите кнопку ниже, чтобы предоставить разрешение.",
+                        button: { text: 'Разрешить доступ', action: 'requestPermissionAndReload()' }
+                     };
                 } else if (error.message.includes("is not a function")) {
-                    title = "Ошибка API Telegram";
-                    message = "Функция геолокации недоступна. Убедитесь, что вы используете последнюю версию Telegram и ваш бот настроен правильно.";
+                    fallbackOptions.title = "Ошибка API Telegram";
+                    fallbackOptions.message = "Функция геолокации недоступна. Убедитесь, что вы используете последнюю версию Telegram и ваш бот настроен правильно.";
                 }
                 else if (error.message) {
-                    message = error.message;
+                    fallbackOptions.message = error.message;
                 }
-                showFallbackScreen(title, message, true);
+                showFallbackScreen(fallbackOptions);
             }
         }
 
@@ -1524,11 +1533,12 @@
             });
         }
         
-        function showFallbackScreen(title, message, showRetryButton = false) {
+        function showFallbackScreen(options) {
+            const { title, message, button } = options;
             fallbackContent.innerHTML = `
-                <h1 class="text-2xl font-bold mb-4 ${showRetryButton ? 'text-red-500' : ''}">${title}</h1>
+                <h1 class="text-2xl font-bold mb-4">${title}</h1>
                 <p class="mb-6" style="color: var(--hint-color);">${message}</p>
-                ${showRetryButton ? `<button onclick="window.location.reload()" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Попробовать снова</button>` : ''}
+                ${button ? `<button onclick="${button.action}" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">${button.text}</button>` : ''}
             `;
             initialLoader.classList.add('hidden');
             fallbackScreen.classList.remove('hidden');
@@ -1606,6 +1616,20 @@
             lastKnownLocation = [latitude, longitude];
             // Отслеживание (watch) будет запускаться только при старте пробежки/записи
             return initialPosition;
+        }
+
+        /**
+         * Новая функция для повторного запроса разрешений и перезагрузки.
+         */
+        function requestPermissionAndReload() {
+            tg.requestGeoLocation((location) => {
+                if (location) {
+                    // Пользователь дал разрешение, перезагружаем страницу
+                    // чтобы пройти процесс инициализации заново.
+                    window.location.reload();
+                }
+                // Если разрешение не дано, пользователь останется на том же экране.
+            });
         }
         
         async function upsertUserProfile() {
@@ -2119,6 +2143,7 @@
         window.postDetailComment = postDetailComment;
         window.setDetailReplyMode = setDetailReplyMode;
         window.cancelDetailReply = cancelDetailReply;
+        window.requestPermissionAndReload = requestPermissionAndReload;
         
         document.addEventListener('DOMContentLoaded', main);
     </script>
