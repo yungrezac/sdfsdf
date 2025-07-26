@@ -145,7 +145,12 @@
 
         <!-- Вид 3: Топ пользователей -->
         <div id="top-view" class="view p-4 fade-in">
-            <h1 class="text-3xl font-bold mb-6 px-2">Топ Бегунов</h1>
+            <div class="flex justify-between items-center mb-6 px-2">
+                <h1 class="text-3xl font-bold">Топ Бегунов</h1>
+                <button id="scan-qr-btn" class="p-2 rounded-full hover:bg-gray-200" style="background-color: var(--secondary-bg-color);">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" style="color: var(--hint-color);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h-1m-1 6v-1M4 12H3m1-6V5M4 17v-1m17-6h-1m-1-6V5m-6 17v-1m6-1h-1M6 5v1M5 6H4m1 11H4m1 1h-1m11-1h1m-1-1v1m-1 1h1m-6-1v1m-1-1H9m1-1v1m6-17h-1M9 4H8m1 1H8m-1 6H6m-1-1v1M8 9V8m1 1H8m6 9h1m-1 1v-1m-1-1h1m6-1h1m-1-1v1m-1 1h1m-6-1v1m-1-1H9" /></svg>
+                </button>
+            </div>
             <div id="leaderboard" class="space-y-3"></div>
         </div>
 
@@ -305,6 +310,7 @@
         const savePostLoader = document.getElementById('save-post-loader');
         const feedContainer = document.getElementById('feed-container');
         const profileFeedContainer = document.getElementById('profile-feed-container');
+        const scanQrBtn = document.getElementById('scan-qr-btn');
 
         // --- Функции UI ---
         function showView(viewId) {
@@ -319,6 +325,8 @@
             } else {
                 tg.MainButton.hide();
             }
+            // Сохраняем последнюю открытую вкладку в облако
+            tg.CloudStorage.setItem('lastView', viewId);
         }
 
         function generateColorFromId(id) {
@@ -572,6 +580,13 @@
             if (startParam && startParam.startsWith('user')) {
                 deepLinkedUserId = parseInt(startParam.substring(4), 10);
             }
+
+            // Load last view from Cloud Storage
+            tg.CloudStorage.getItem('lastView', (err, value) => {
+                if (value) {
+                    showView(value);
+                }
+            });
 
             if (tg.initDataUnsafe?.user) {
                 telegramUser = tg.initDataUnsafe.user;
@@ -1172,7 +1187,7 @@
                     <div id="mini-map-${post.id}" class="h-48 w-full mini-map"></div>
                     <div class="p-4">
                         <p class="font-semibold">Захвачено: <span class="font-bold" style="color: var(--button-color);">${formattedArea}</span></p>
-                         <div class="flex items-center space-x-4 mt-3" style="color: var(--hint-color);">
+                         <div class="flex items-center space-x-6 mt-3" style="color: var(--hint-color);">
                             <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" onclick="toggleLike(this, ${post.id})">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>
                                 <span>${likes.length}</span>
@@ -1180,6 +1195,9 @@
                             <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="showCommentsModal(${post.id})">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                                 <span>${comments.length}</span>
+                            </button>
+                            <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="shareProfile(${post.user_id}, '${post.user_name.replace(/'/g, "\\'")}')">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6.002l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" /></svg>
                             </button>
                         </div>
                     </div>
@@ -1400,11 +1418,42 @@
 
         function setupEventListeners() {
             tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
+            
             tg.onEvent('backButtonClicked', () => {
                 if (!document.getElementById('comments-modal').classList.contains('hidden')) {
                     hideCommentsModal();
                 } else if (!document.getElementById('user-detail-modal').classList.contains('hidden')) {
                     hideUserDetailModal();
+                }
+            });
+
+            // Показываем и настраиваем кнопку Настроек
+            tg.SettingsButton.show();
+            tg.onEvent('settingsButtonClicked', () => {
+                tg.showAlert('Настройки скоро появятся! Здесь вы сможете изменить тему карты, единицы измерения и другие параметры.');
+            });
+
+            // Обработчик сканирования QR-кода
+            tg.onEvent('qrTextReceived', (eventData) => {
+                tg.closeScanQrPopup();
+                const url = eventData.data;
+                try {
+                    // Пытаемся распарсить URL и найти параметр startapp
+                    const urlPattern = /startapp=(user\d+)/;
+                    const match = url.match(urlPattern);
+                    if (match && match[1]) {
+                        const startParam = match[1];
+                        const userId = parseInt(startParam.substring(4), 10);
+                        if (!isNaN(userId)) {
+                            showUserDetailModal(userId);
+                        } else {
+                            tg.showAlert('Некорректный QR-код пользователя.');
+                        }
+                    } else {
+                        tg.showAlert('Этот QR-код не поддерживается.');
+                    }
+                } catch (e) {
+                    tg.showAlert('Не удалось прочитать QR-код.');
                 }
             });
         }
@@ -1422,6 +1471,13 @@
                 });
             }
         });
+        
+        scanQrBtn.addEventListener('click', () => {
+            tg.showScanQrPopup({
+                text: 'Наведите на QR-код другого игрока'
+            });
+        });
+
         userDetailModal.addEventListener('click', (e) => {
             if (e.target.id === 'user-detail-modal') {
                 hideUserDetailModal();
@@ -1457,6 +1513,7 @@
         window.postComment = postComment;
         window.showCommentsModal = showCommentsModal;
         window.hideCommentsModal = hideCommentsModal;
+        window.shareProfile = shareProfile;
         window.onTelegramAuth = async (user) => {
             console.log("Logged in via external widget:", user);
             telegramUser = user;
