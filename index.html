@@ -3,91 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Mini App с геолокацией</title>
+    <title>Geo Location App</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 0;
             background-color: #f5f5f5;
-            color: #333;
+            color: #222;
         }
         .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: white;
+            max-width: 100%;
             padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
         }
-        h1 {
-            color: #0088cc;
-            font-size: 24px;
-            margin-top: 0;
+        .header {
+            background-color: #0088cc;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 0 0 15px 15px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
         button {
             background-color: #0088cc;
             color: white;
             border: none;
-            padding: 10px 15px;
+            padding: 12px 20px;
             border-radius: 8px;
             font-size: 16px;
             cursor: pointer;
-            margin: 10px 0;
             width: 100%;
+            margin-top: 10px;
+            transition: background-color 0.2s;
         }
         button:hover {
             background-color: #0077b3;
         }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
         .location-data {
             margin-top: 20px;
-            padding: 15px;
-            background-color: #f0f8ff;
-            border-radius: 8px;
             display: none;
+        }
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .data-label {
+            font-weight: bold;
+            color: #555;
+        }
+        .data-value {
+            color: #0088cc;
         }
         .error {
             color: #d63031;
             margin-top: 20px;
+            text-align: center;
         }
         .instructions {
-            background-color: #fff8e1;
+            background-color: #f0f8ff;
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
             font-size: 14px;
+            line-height: 1.5;
+        }
+        .map-container {
+            height: 200px;
+            margin-top: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            display: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Тестовое приложение с геолокацией</h1>
-        
-        <div class="instructions">
-            <p>Для работы геолокации:</p>
-            <ol>
-                <li>Откройте это приложение через Telegram бота</li>
-                <li>Включите "Allow Access to Geolocation" в профиле бота</li>
-                <li>Нажмите кнопку ниже для получения координат</li>
-            </ol>
+        <div class="header">
+            <h1>Геолокация в Telegram</h1>
         </div>
         
-        <button id="getLocationBtn">Получить геолокацию</button>
-        
-        <div id="locationData" class="location-data">
-            <h3>Данные геолокации:</h3>
-            <p><strong>Широта:</strong> <span id="latitude"></span></p>
-            <p><strong>Долгота:</strong> <span id="longitude"></span></p>
-            <p><strong>Точность:</strong> <span id="accuracy"></span> метров</p>
+        <div class="card">
+            <div class="instructions">
+                <p>Для работы геолокации:</p>
+                <ol>
+                    <li>Включите "Allow Access to Geolocation" в профиле бота</li>
+                    <li>Нажмите кнопку ниже для получения координат</li>
+                </ol>
+            </div>
+            
+            <button id="getLocationBtn">Получить моё местоположение</button>
+            
+            <div id="locationData" class="location-data">
+                <div class="data-row">
+                    <span class="data-label">Широта:</span>
+                    <span id="latitude" class="data-value"></span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Долгота:</span>
+                    <span id="longitude" class="data-value"></span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Точность:</span>
+                    <span id="accuracy" class="data-value"></span>
+                </div>
+            </div>
+            
+            <div id="mapContainer" class="map-container">
+                <!-- Карта будет вставлена сюда -->
+            </div>
+            
+            <div id="error" class="error"></div>
         </div>
-        
-        <div id="error" class="error"></div>
     </div>
 
     <script>
         // Инициализация Telegram WebApp
         Telegram.WebApp.ready();
+        Telegram.WebApp.expand();
         
         // Элементы интерфейса
         const getLocationBtn = document.getElementById('getLocationBtn');
@@ -96,6 +144,7 @@
         const longitudeEl = document.getElementById('longitude');
         const accuracyEl = document.getElementById('accuracy');
         const errorEl = document.getElementById('error');
+        const mapContainer = document.getElementById('mapContainer');
         
         // Проверяем, открыто ли приложение в Telegram
         const isTelegram = window.Telegram && Telegram.WebApp.initData;
@@ -103,6 +152,9 @@
         if (!isTelegram) {
             errorEl.textContent = 'Это приложение работает только внутри Telegram. Откройте его через бота.';
             getLocationBtn.disabled = true;
+        } else {
+            // Показываем основную кнопку только в Telegram
+            getLocationBtn.style.display = 'block';
         }
         
         // Обработчик кнопки получения геолокации
@@ -111,61 +163,50 @@
             
             errorEl.textContent = '';
             locationData.style.display = 'none';
+            mapContainer.style.display = 'none';
+            
+            getLocationBtn.disabled = true;
+            getLocationBtn.textContent = 'Получаем данные...';
             
             Telegram.WebApp.requestGeoLocation((location) => {
+                getLocationBtn.disabled = false;
+                getLocationBtn.textContent = 'Получить моё местоположение';
+                
                 if (location) {
                     // Показываем данные геолокации
-                    latitudeEl.textContent = location.latitude;
-                    longitudeEl.textContent = location.longitude;
-                    accuracyEl.textContent = location.accuracy || 'неизвестно';
+                    latitudeEl.textContent = location.latitude.toFixed(6);
+                    longitudeEl.textContent = location.longitude.toFixed(6);
+                    accuracyEl.textContent = location.accuracy ? `${Math.round(location.accuracy)} метров` : 'неизвестно';
                     locationData.style.display = 'block';
+                    
+                    // Показываем карту
+                    showMap(location.latitude, location.longitude);
                 } else {
-                    errorEl.textContent = 'Геолокация не предоставлена. Пожалуйста, включите "Allow Access to Geolocation" в профиле бота.';
+                    errorEl.textContent = 'Доступ к геолокации не предоставлен. Пожалуйста, включите "Allow Access to Geolocation" в профиле бота.';
                 }
             });
         });
-    </script>
-
-    <script>
-        // Этот код настраивает кнопку меню бота с доступом к геолокации
-        // В реальном приложении этот код должен выполняться на сервере,
-        // но для демонстрации мы показываем его здесь
         
-        async function setupBotMenuButton() {
-            const botToken = '8203577700:AAHBPcxw4y5kT4trl_bfZY4QRBQ99Q0S2E8';
-            const webAppUrl = 'https://lively-malabi-81b16c.netlify.app';
-            
-            const apiUrl = `https://api.telegram.org/bot${botToken}/setChatMenuButton`;
-            
-            const requestBody = {
-                menu_button: {
-                    type: "web_app",
-                    text: "Открыть мини-приложение",
-                    web_app: {
-                        url: webAppUrl,
-                        request_location_access: true
-                    }
-                }
-            };
-            
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestBody)
-                });
-                
-                const result = await response.json();
-                console.log('Результат настройки кнопки меню:', result);
-            } catch (error) {
-                console.error('Ошибка при настройке кнопки меню:', error);
-            }
+        // Функция для отображения карты
+        function showMap(lat, lng) {
+            mapContainer.style.display = 'block';
+            mapContainer.innerHTML = `
+                <iframe 
+                    width="100%" 
+                    height="100%" 
+                    frameborder="0" 
+                    scrolling="no" 
+                    marginheight="0" 
+                    marginwidth="0" 
+                    src="https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed">
+                </iframe>
+            `;
         }
         
-        // Вызываем функцию настройки (в реальном приложении это должно быть на сервере)
-        // setupBotMenuButton();
+        // Проверяем, есть ли уже доступ к геолокации
+        if (isTelegram && Telegram.WebApp.isLocationAccessAllowed()) {
+            getLocationBtn.textContent = 'Обновить местоположение';
+        }
     </script>
 </body>
 </html>
