@@ -888,7 +888,7 @@
                 `;
                 setTimeout(() => {
                     const mapContainer = document.getElementById('detail-mini-map');
-                    if (mapContainer && !mapContainer._leaflet_id) {
+                    if (mapContainer && !mapContainer._leaflet_id && route.path) {
                         const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
                         L.tileLayer(MAP_TILE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
                         const routeLayer = L.geoJSON(route.path, { style: { color: '#ff7800', weight: 3 } }).addTo(miniMap);
@@ -913,6 +913,17 @@
                 const spots = spotsRes.data || [];
                 const routes = routesRes.data || [];
 
+                // FIX: Fetch likes and comments for this user's posts to render full posts
+                const postIds = posts.map(p => p.id);
+                const likesByPost = {};
+                const commentsByPost = {};
+                if (postIds.length > 0) {
+                    const { data: likes } = await supabase.from('likes').select('*').in('post_id', postIds);
+                    const { data: comments } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
+                    if(likes) likes.forEach(like => (likesByPost[like.post_id] = likesByPost[like.post_id] || []).push(like));
+                    if(comments) comments.forEach(comment => (commentsByPost[comment.post_id] = commentsByPost[comment.post_id] || []).push(comment));
+                }
+
                 const avatar = profile.photo_url || `https://placehold.co/80x80/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
                 const area = profile.area || 0;
                 const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
@@ -936,7 +947,7 @@
                     </div>
 
                     <div id="content-posts" class="profile-tab-content active p-4 space-y-4">
-                        ${posts.length > 0 ? posts.map(generateMiniPostHTML).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет постов.</p>'}
+                        ${posts.length > 0 ? posts.map(p => generatePostHTML(p, likesByPost[p.id] || [], commentsByPost[p.id] || [])).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет постов.</p>'}
                     </div>
                     <div id="content-spots" class="profile-tab-content p-4 space-y-4">
                         ${spots.length > 0 ? spots.map(generateMiniSpotHTML).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет спотов.</p>'}
@@ -945,6 +956,21 @@
                          ${routes.length > 0 ? routes.map(generateMiniRouteHTML).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет маршрутов.</p>'}
                     </div>
                 `;
+
+                // FIX: Initialize mini-maps for posts in the modal
+                setTimeout(() => {
+                    posts.forEach(post => {
+                        if (post.territory_captured) {
+                            const mapContainer = body.querySelector(`#mini-map-${post.id}`);
+                            if (mapContainer && !mapContainer._leaflet_id) {
+                                const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
+                                L.tileLayer(MAP_TILE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
+                                const territoryLayer = L.geoJSON(post.territory_captured, { style: { color: post.user_color, weight: 2, opacity: 0.8, fillColor: post.user_color, fillOpacity: 0.5 } }).addTo(miniMap);
+                                miniMap.fitBounds(territoryLayer.getBounds(), { padding: [10, 10] });
+                            }
+                        }
+                    });
+                }, 100);
             }
         }
         
@@ -1185,15 +1211,18 @@
             }
         }
         
+        // FIX: Refactored to use L.geoJSON for robustness
         function addSpotToMap(spot) {
-            if (!spot || !spot.location || !Array.isArray(spot.location.coordinates) || spot.location.coordinates.length < 2) {
-                console.warn(`Skipping invalid spot data:`, spot);
+            if (!spot || !spot.location || spot.location.type !== 'Point') {
+                console.warn('Skipping invalid spot data:', spot);
                 return;
             }
-            const coords = spot.location.coordinates;
-            const marker = L.marker([coords[1], coords[0]]);
-            marker.on('click', () => showDetailModal('spot', spot.id));
-            spotMarkersLayer.addLayer(marker);
+            const spotLayer = L.geoJSON(spot.location, {
+                pointToLayer: (feature, latlng) => {
+                    return L.marker(latlng);
+                }
+            }).on('click', () => showDetailModal('spot', spot.id));
+            spotMarkersLayer.addLayer(spotLayer);
         }
 
         // МАРШРУТЫ
@@ -1253,23 +1282,16 @@
             }
         }
         
+        // FIX: Refactored to use L.geoJSON for robustness
         function addRouteToMap(route) {
-            if (!route || !route.path || !Array.isArray(route.path.coordinates)) {
-                console.warn(`Skipping invalid route data:`, route);
+            if (!route || !route.path || route.path.type !== 'LineString' || !Array.isArray(route.path.coordinates) || route.path.coordinates.length < 2) {
+                console.warn('Skipping invalid route data:', route);
                 return;
             }
-            const coords = route.path.coordinates
-                .filter(p => Array.isArray(p) && p.length >= 2)
-                .map(p => [p[1], p[0]]);
-            
-            if (coords.length < 2) {
-                console.warn(`Skipping route with insufficient valid points:`, route);
-                return;
-            }
-
-            const polyline = L.polyline(coords, { color: '#ff7800', weight: 3 });
-            polyline.on('click', () => showDetailModal('route', route.id));
-            routePolylinesLayer.addLayer(polyline);
+            const routeLayer = L.geoJSON(route.path, {
+                style: { color: '#ff7800', weight: 3 }
+            }).on('click', () => showDetailModal('route', route.id));
+            routePolylinesLayer.addLayer(routeLayer);
         }
 
         // --- ЗАГРУЗКА ДАННЫХ ---
