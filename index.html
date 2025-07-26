@@ -1016,29 +1016,43 @@
             }
         }
 
+        /**
+         * [FIXED] Более надежная функция для парсинга WKT-строк в GeoJSON.
+         * Использует регулярные выражения для извлечения координат, что делает ее
+         * устойчивой к префиксам (например, SRID) и вариациям в форматировании.
+         * @param {string | null} wkt - Строка в формате Well-Known Text (например, 'POINT(30 10)').
+         * @returns {object | null} GeoJSON-объект или null в случае ошибки.
+         */
         function parseWKT(wkt) {
-            if (!wkt || typeof wkt !== 'string') return null;
+            if (!wkt || typeof wkt !== 'string') {
+                return null;
+            }
             
             try {
-                const typeMatch = wkt.match(/^([A-Z]+)\s*\((.*)\)$/);
-                if (!typeMatch) return null;
+                const match = wkt.match(/(POINT|LINESTRING)\s*\((.+)\)/i);
+                if (!match) {
+                    return null;
+                }
 
-                const type = typeMatch[1].toUpperCase();
-                const content = typeMatch[2];
+                const type = match[1].toUpperCase();
+                let content = match[2];
 
                 if (type === 'POINT') {
-                    const coords = content.split(' ').map(Number);
-                    return { type: 'Point', coordinates: [coords[0], coords[1]] };
+                    const coords = content.match(/-?\d+(\.\d+)?/g);
+                    if (!coords || coords.length < 2) return null;
+                    return { type: 'Point', coordinates: [parseFloat(coords[0]), parseFloat(coords[1])] };
                 }
 
                 if (type === 'LINESTRING') {
-                    const coords = content.split(',').map(pair => pair.trim().split(' ').map(Number));
-                    return { type: 'LineString', coordinates: coords };
-                }
-                
-                if (type.includes('POLYGON')) {
-                    console.warn("WKT Parser: Polygons are not fully supported by this simple parser and may not display.");
-                    return null;
+                    const coordPairs = content.split(',');
+                    const coordinates = coordPairs.map(pair => {
+                        const nums = pair.trim().match(/-?\d+(\.\d+)?/g);
+                        if (!nums || nums.length < 2) return null;
+                        return [parseFloat(nums[0]), parseFloat(nums[1])];
+                    }).filter(p => p !== null);
+
+                    if (coordinates.length < 2) return null;
+                    return { type: 'LineString', coordinates: coordinates };
                 }
 
             } catch (e) {
@@ -1170,7 +1184,7 @@
         }
         function stopRun() {
              tg.showConfirm("Завершить пробежку и захватить территорию?", (ok) => {
-                  if (ok) processStop();
+                   if (ok) processStop();
              });
         }
         function processStop() {
@@ -1232,16 +1246,20 @@
             }
         }
         
+        /**
+         * [FIXED] Более безопасная функция добавления спота на карту.
+         * Проверяет результат парсинга перед созданием слоя.
+         * @param {object} spot - Объект спота из базы данных.
+         */
         function addSpotToMap(spot) {
             try {
-                let geoJsonPoint = spot.location;
-                if (typeof spot.location_wkt === 'string') {
-                    geoJsonPoint = parseWKT(spot.location_wkt);
-                } else if (typeof spot.location === 'string') {
-                    geoJsonPoint = parseWKT(spot.location);
-                }
+                const wkt = spot.location_wkt || spot.location;
+                const geoJsonPoint = parseWKT(wkt);
 
-                if (!geoJsonPoint || geoJsonPoint.type !== 'Point') return;
+                if (!geoJsonPoint || geoJsonPoint.type !== 'Point') {
+                    console.warn(`Не удалось обработать геолокацию спота ${spot.id}:`, wkt);
+                    return;
+                }
 
                 const spotLayer = L.geoJSON(geoJsonPoint, {
                     pointToLayer: (feature, latlng) => L.marker(latlng)
@@ -1249,7 +1267,7 @@
                 
                 spotMarkersLayer.addLayer(spotLayer);
             } catch (e) {
-                console.error(`Failed to process and add spot ${spot.id} to map.`, e, spot);
+                console.error(`Ошибка при добавлении спота ${spot.id} на карту.`, e, spot);
             }
         }
 
@@ -1311,23 +1329,27 @@
             }
         }
         
+        /**
+         * [FIXED] Более безопасная функция добавления маршрута на карту.
+         * Проверяет результат парсинга перед созданием слоя.
+         * @param {object} route - Объект маршрута из базы данных.
+         */
         function addRouteToMap(route) {
             try {
-                let geoJsonLine = route.path;
-                if (typeof route.path_wkt === 'string') {
-                    geoJsonLine = parseWKT(route.path_wkt);
-                } else if (typeof route.path === 'string') {
-                    geoJsonLine = parseWKT(route.path);
-                }
+                const wkt = route.path_wkt || route.path;
+                const geoJsonLine = parseWKT(wkt);
 
-                if (!geoJsonLine || geoJsonLine.type !== 'LineString' || !Array.isArray(geoJsonLine.coordinates) || geoJsonLine.coordinates.length < 2) return;
+                if (!geoJsonLine || geoJsonLine.type !== 'LineString' || !Array.isArray(geoJsonLine.coordinates) || geoJsonLine.coordinates.length < 2) {
+                    console.warn(`Не удалось обработать путь для маршрута ${route.id}:`, wkt);
+                    return;
+                }
 
                 const routeLayer = L.geoJSON(geoJsonLine, {
                     style: { color: '#ff7800', weight: 3 }
                 }).on('click', () => showDetailModal('route', route.id));
                 routePolylinesLayer.addLayer(routeLayer);
             } catch (e) {
-                console.error(`Failed to process and add route ${route.id} to map.`, e, route);
+                console.error(`Ошибка при добавлении маршрута ${route.id} на карту.`, e, route);
             }
         }
 
