@@ -1213,16 +1213,18 @@
         
         // FIX: Refactored to use L.geoJSON for robustness
         function addSpotToMap(spot) {
-            if (!spot || !spot.location || spot.location.type !== 'Point') {
-                console.warn('Skipping invalid spot data:', spot);
-                return;
-            }
-            const spotLayer = L.geoJSON(spot.location, {
-                pointToLayer: (feature, latlng) => {
-                    return L.marker(latlng);
+            try {
+                if (!spot || !spot.location || spot.location.type !== 'Point') {
+                    // console.warn('Skipping invalid spot data (structure):', spot);
+                    return;
                 }
-            }).on('click', () => showDetailModal('spot', spot.id));
-            spotMarkersLayer.addLayer(spotLayer);
+                const spotLayer = L.geoJSON(spot.location, {
+                    pointToLayer: (feature, latlng) => L.marker(latlng)
+                }).on('click', () => showDetailModal('spot', spot.id));
+                spotMarkersLayer.addLayer(spotLayer);
+            } catch (e) {
+                console.error(`Failed to process and add spot ${spot.id} to map.`, e, spot);
+            }
         }
 
         // МАРШРУТЫ
@@ -1284,14 +1286,18 @@
         
         // FIX: Refactored to use L.geoJSON for robustness
         function addRouteToMap(route) {
-            if (!route || !route.path || route.path.type !== 'LineString' || !Array.isArray(route.path.coordinates) || route.path.coordinates.length < 2) {
-                console.warn('Skipping invalid route data:', route);
-                return;
+            try {
+                if (!route || !route.path || route.path.type !== 'LineString' || !Array.isArray(route.path.coordinates) || route.path.coordinates.length < 2) {
+                    // console.warn('Skipping invalid route data (structure):', route);
+                    return;
+                }
+                const routeLayer = L.geoJSON(route.path, {
+                    style: { color: '#ff7800', weight: 3 }
+                }).on('click', () => showDetailModal('route', route.id));
+                routePolylinesLayer.addLayer(routeLayer);
+            } catch (e) {
+                console.error(`Failed to process and add route ${route.id} to map.`, e, route);
             }
-            const routeLayer = L.geoJSON(route.path, {
-                style: { color: '#ff7800', weight: 3 }
-            }).on('click', () => showDetailModal('route', route.id));
-            routePolylinesLayer.addLayer(routeLayer);
         }
 
         // --- ЗАГРУЗКА ДАННЫХ ---
@@ -1403,8 +1409,8 @@
             showQrBtn.addEventListener('click', () => { /* TODO: Implement */ });
             donateBtn.addEventListener('click', () => { /* TODO: Implement */ });
 
-            // FIX: Use event delegation for dynamic content
-            appContainer.addEventListener('click', (event) => {
+            // FIX: Use event delegation for dynamic content on the whole body
+            document.body.addEventListener('click', (event) => {
                 const button = event.target.closest('button[data-action], div[data-action]');
                 if (!button) return;
 
