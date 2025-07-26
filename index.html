@@ -956,7 +956,7 @@
         }
 
         function generateMiniPostHTML(post) {
-            return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="showCommentsModal('post', ${post.id})">
+            return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="showPostComments(${post.id})">
                         <p class="font-semibold">${post.title}</p>
                         <p class="text-xs text-gray-400">${new Date(post.created_at).toLocaleDateString()}</p>
                     </div>`;
@@ -1274,16 +1274,22 @@
               .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, renderFeed)
               .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, renderFeed)
               .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload) => {
-                  const {type, id} = currentReplyTarget;
                   // Если открыта модалка с комментариями для поста
-                  if (!commentsModal.classList.contains('hidden') && type === 'post') {
-                      showCommentsModal(type, id);
+                  if (commentsModal.classList.contains('visible') && currentReplyTarget.type === 'post') {
+                      const changedPostId = payload.new?.post_id || payload.old?.post_id;
+                      if (changedPostId && changedPostId === currentReplyTarget.id) {
+                          showPostComments(currentReplyTarget.id);
+                      }
                   }
                   // Если открыта модалка деталей спота или маршрута
                   if (detailModal.classList.contains('visible') && (currentDetailContext.type === 'spot' || currentDetailContext.type === 'route')) {
-                      loadAndRenderComments(currentDetailContext.type, currentDetailContext.id, 'detail-comments-list');
+                      const changedParentId = payload.new?.parent_id || payload.old?.parent_id;
+                      const changedParentType = payload.new?.parent_type || payload.old?.parent_type;
+                      if (changedParentId === currentDetailContext.id && changedParentType === currentDetailContext.type) {
+                          loadAndRenderComments(currentDetailContext.type, currentDetailContext.id, 'detail-comments-list');
+                      }
                   }
-                  renderFeed(); // Обновляем счетчики в ленте
+                  renderFeed(); // Always update feed counters
               })
               .on('postgres_changes', { event: '*', schema: 'public', table: 'spots' }, () => { loadInitialMapData(); renderMyProfileContent(); })
               .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, () => { loadInitialMapData(); renderMyProfileContent(); })
@@ -1653,7 +1659,7 @@
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>
                                     <span data-likes-count>${likes.length}</span>
                                 </button>
-                                <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="showCommentsModal('post', ${post.id})">
+                                <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="showPostComments(${post.id})">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                                     <span>${comments.length}</span>
                                 </button>
@@ -1663,6 +1669,10 @@
         }
 
         async function toggleLike(buttonElement, postId) {
+            if (!telegramUser) {
+                tg.showAlert('Пользователь не определен. Попробуйте перезагрузить приложение.');
+                return;
+            }
             tg.HapticFeedback.impactOccurred('light');
             
             const hasLiked = buttonElement.classList.contains('liked');
@@ -1716,21 +1726,17 @@
         }
         
         // Показывает модальное окно для комментариев к ПОСТАМ
-        async function showCommentsModal(type, id) {
-            if (type !== 'post') {
-                showDetailModal(type, id);
-                return;
-            }
+        async function showPostComments(postId) {
             tg.HapticFeedback.impactOccurred('medium');
             tg.BackButton.show();
-            currentReplyTarget = { type, id, parentCommentId: null };
+            currentReplyTarget = { type: 'post', id: postId, parentCommentId: null };
             cancelReply();
             
             const modalBody = document.getElementById('comments-modal-body');
             modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>';
             commentsModal.classList.add('visible');
             
-            const { data: comments, error } = await fetchComments(type, id);
+            const { data: comments, error } = await fetchComments('post', postId);
             if (error) { modalBody.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
 
             renderCommentTree(comments, modalBody);
@@ -1782,8 +1788,8 @@
         }
         
         // --- Функции для ответов в модалке постов ---
-        function setReplyMode(id, parentCommentId, parentAuthorName) {
-            currentReplyTarget = { type: 'post', id, parentCommentId };
+        function setReplyMode(postId, parentCommentId, parentAuthorName) {
+            currentReplyTarget = { type: 'post', id: postId, parentCommentId };
             document.getElementById('reply-indicator-text').textContent = `Ответ: ${parentAuthorName}`;
             document.getElementById('reply-indicator').classList.remove('hidden');
             document.getElementById('main-comment-input').focus();
@@ -1906,7 +1912,7 @@
         window.hideEditModal = hideEditModal;
         window.hideDetailModal = hideDetailModal;
         window.toggleLike = toggleLike;
-        window.showCommentsModal = showCommentsModal;
+        window.showPostComments = showPostComments;
         window.hideCommentsModal = hideCommentsModal;
         window.setReplyMode = setReplyMode;
         window.cancelReply = cancelReply;
