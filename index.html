@@ -32,7 +32,6 @@
             --hint-color: #6b7280;
             --button-color: #3b82f6;
             --button-text-color: #ffffff;
-            --destructive-color: #ef4444;
         }
 
         body {
@@ -108,29 +107,11 @@
             fill: #ef4444;
             color: #ef4444;
         }
-        /* Стили для переключателя режимов */
-        .mode-switcher {
-            display: flex;
-            background-color: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(5px);
-            border-radius: 9999px;
-            padding: 4px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        .btn-gradient {
+            background-image: linear-gradient(to right, #3b82f6, #60a5fa);
         }
-        .mode-btn {
-            padding: 8px 16px;
-            border-radius: 9999px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            color: var(--hint-color);
-            background-color: transparent;
-            border: none;
-        }
-        .mode-btn.active {
-            color: var(--button-text-color);
-            background-color: var(--button-color);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        .btn-gradient-red {
+             background-image: linear-gradient(to right, #ef4444, #f87171);
         }
     </style>
 </head>
@@ -149,22 +130,20 @@
         <!-- Вид 1: Карта -->
         <div id="map-view" class="view active">
             <div id="map"></div>
-            <div class="fixed top-4 right-4 z-20 flex flex-col space-y-2">
-                <button id="recenter-btn" class="bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                </button>
-                <button id="scan-qr-btn" class="bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 5h1m-6.465 6.465l.707.707M4 12h1m14.394-.5l.707-.707M5.636 5.636l-.707-.707M12 20v-1m-5-6H6m6.465-6.465l-.707-.707m7.07 7.07l.707.707M5.636 18.364l-.707.707" /></svg>
-                </button>
-            </div>
-            <!-- Переключатель режимов -->
-            <div class="fixed top-4 left-1/2 -translate-x-1/2 z-20">
-                <div id="mode-switcher" class="mode-switcher">
-                    <button id="mode-territory" class="mode-btn active">Территория</button>
-                    <button id="mode-route" class="mode-btn">Маршрут</button>
+            <button id="recenter-btn" class="z-20 fixed top-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+            <div id="run-controls" class="fixed bottom-24 left-0 right-0 p-4 z-20">
+                <div class="max-w-md mx-auto card-bg backdrop-blur-md rounded-2xl shadow-xl p-4 flex items-center justify-between fade-in">
+                    <div class="flex flex-col">
+                        <span id="username-display" class="font-bold text-lg">TerraRun</span>
+                        <span id="area-display" class="text-sm" style="color: var(--hint-color);">Площадь: 0 м²</span>
+                    </div>
+                    <button id="toggle-run-btn" class="btn-gradient text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300">
+                        Старт
+                    </button>
                 </div>
             </div>
-            <!-- Нижняя панель будет заменена на MainButton -->
         </div>
 
         <!-- Вид 2: Лента -->
@@ -182,7 +161,7 @@
         <!-- Вид 4: Профиль -->
         <div id="profile-view" class="view p-4 fade-in">
             <h1 class="text-3xl font-bold mb-6 px-2">Профиль</h1>
-            <div class="card-bg rounded-2xl shadow-lg p-6 space-y-4">
+            <div class="card-bg rounded-2xl shadow-lg p-6 space-y-6">
                 <div class="flex items-center space-x-4">
                     <div id="profile-avatar-wrapper" class="w-20 h-20 rounded-full border-4 flex-shrink-0">
                         <img src="https://placehold.co/80x80/E2E8F0/4A5568?text=?" id="profile-avatar-img" class="w-full h-full rounded-full object-cover" alt="avatar">
@@ -196,22 +175,11 @@
                     <p class="text-sm" style="color: var(--button-color)">Общая площадь</p>
                     <p id="profile-area" class="text-3xl font-bold" style="color: var(--button-color)">0 м²</p>
                 </div>
-                <button id="share-profile-inline-btn" class="w-full text-white font-bold py-3 px-4 rounded-full transition-all" style="background-color: var(--button-color); color: var(--button-text-color)">Поделиться профилем</button>
             </div>
-
-            <!-- Переключатель вкладок в профиле -->
-            <div class="flex border-b mt-6">
-                <button id="profile-tab-posts" class="py-2 px-4 font-semibold border-b-2" style="border-color: var(--button-color); color: var(--button-color);">Мои посты</button>
-                <button id="profile-tab-routes" class="py-2 px-4 font-semibold text-gray-500">Мои маршруты</button>
-            </div>
-            
-            <div id="profile-posts-content" class="mt-4">
-                <div id="profile-feed-container" class="space-y-4"></div>
-            </div>
-            <div id="profile-routes-content" class="mt-4 hidden">
-                <div id="profile-routes-container" class="space-y-3"></div>
-            </div>
-
+            <h2 class="text-2xl font-bold my-6 px-2">Мои посты</h2>
+            <div id="profile-feed-container" class="space-y-4"></div>
+            <h2 class="text-2xl font-bold my-6 px-2">Мои маршруты</h2>
+            <div id="profile-routes-container" class="space-y-3"></div>
         </div>
     </div>
 
@@ -309,6 +277,7 @@
         let supabase;
         let telegramUser = null;
         let isRunning = false;
+        let geoWatchId = null;
         let currentRunPath = [];
         let currentPathPolyline = null;
         let userTerritory = null;
@@ -321,14 +290,14 @@
         let currentReplyTarget = { postId: null, parentCommentId: null };
         let initialLocationSet = false;
         let lastKnownLocation = null;
-        let currentMode = 'territory'; // 'territory' или 'route'
-        let activeView = 'map-view';
 
         // --- Элементы DOM ---
         const authScreen = document.getElementById('auth-screen');
         const authContent = document.getElementById('auth-content');
         const appContainer = document.getElementById('app-container');
         const bottomNavbar = document.getElementById('bottom-navbar');
+        const areaDisplay = document.getElementById('area-display');
+        const usernameDisplay = document.getElementById('username-display');
         const profileAreaDisplay = document.getElementById('profile-area');
         const profileName = document.getElementById('profile-name');
         const profileAvatarImg = document.getElementById('profile-avatar-img');
@@ -337,7 +306,6 @@
         const modal = document.getElementById('message-modal');
         const modalMessage = document.getElementById('modal-message');
         const recenterBtn = document.getElementById('recenter-btn');
-        const scanQrBtn = document.getElementById('scan-qr-btn');
         const userDetailModal = document.getElementById('user-detail-modal');
         const userDetailContent = document.getElementById('user-detail-content');
         const createPostModal = document.getElementById('create-post-modal');
@@ -351,14 +319,7 @@
         const savePostLoader = document.getElementById('save-post-loader');
         const feedContainer = document.getElementById('feed-container');
         const profileFeedContainer = document.getElementById('profile-feed-container');
-        const profileRoutesContainer = document.getElementById('profile-routes-container');
-        const modeTerritoryBtn = document.getElementById('mode-territory');
-        const modeRouteBtn = document.getElementById('mode-route');
-        const profileTabPosts = document.getElementById('profile-tab-posts');
-        const profileTabRoutes = document.getElementById('profile-tab-routes');
-        const profilePostsContent = document.getElementById('profile-posts-content');
-        const profileRoutesContent = document.getElementById('profile-routes-content');
-        const shareProfileInlineBtn = document.getElementById('share-profile-inline-btn');
+        const toggleRunBtn = document.getElementById('toggle-run-btn');
 
         // --- Функции UI ---
         function showView(viewId) {
@@ -367,22 +328,12 @@
             document.getElementById(viewId).classList.add('active');
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             document.querySelector(`button[onclick="showView('${viewId}')"]`).classList.add('active');
-            
-            activeView = viewId;
-            updateMainButton();
-
-            if (viewId === 'profile-view') {
-                renderMyRoutes();
-            }
         }
 
-        function showMessage(message, isError = false) {
-            tg.showAlert(message);
-            if (isError) {
-                 tg.HapticFeedback.notificationOccurred('error');
-            }
+        function showMessage(message) {
+            modalMessage.textContent = message;
+            modal.classList.remove('hidden');
         }
-
         function closeModal() {
             modal.classList.add('hidden');
         }
@@ -445,7 +396,7 @@
         async function showUserDetailModal(userId) {
             const profile = allProfilesData.find(p => p.id === userId);
             if (!profile) {
-                showMessage("Профиль пользователя не найден.", true);
+                showMessage("Профиль пользователя не найден.");
                 return;
             }
 
@@ -660,21 +611,21 @@
              if (loginAnimationInterval) clearInterval(loginAnimationInterval);
              
              try {
-                 await initGeolocation();
-                 
-                 const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
-                 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
-                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                 
-                 await setupUser();
+                await initGeolocation();
+                
+                const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
+                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                
+                await setupUser();
 
              } catch (error) {
-                 console.error("Geolocation permission denied:", error);
-                 authContent.innerHTML = `
-                     <h1 class="text-2xl font-bold mb-4 text-red-500">Доступ к геолокации необходим</h1>
-                     <p class="mb-6" style="color: var(--hint-color);">Для работы приложения TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение.</p>
-                     <button onclick="initializeWithUser()" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Предоставить доступ</button>
-                 `;
+                console.error("Geolocation permission denied:", error);
+                authContent.innerHTML = `
+                    <h1 class="text-2xl font-bold mb-4 text-red-500">Доступ к геолокации необходим</h1>
+                    <p class="mb-6" style="color: var(--hint-color);">Для работы приложения TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение.</p>
+                    <button onclick="initializeWithUser()" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Предоставить доступ</button>
+                `;
              }
         }
         
@@ -685,14 +636,6 @@
                 updateUI();
                 listenToAllProfiles();
                 listenToPosts();
-                listenToRoutes();
-                
-                // Load last used mode from cloud storage
-                tg.CloudStorage.getItem('currentMode', (err, value) => {
-                    if (value) {
-                        switchMode(value, false);
-                    }
-                });
                 
                 setTimeout(() => {
                     if (!localStorage.getItem('attachmentPromptSeen')) {
@@ -721,6 +664,7 @@
         function updateUI() {
             const name = telegramUser.first_name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
             profileName.textContent = name;
+            usernameDisplay.textContent = name;
             
             if (telegramUser.photo_url) {
                 profileAvatarImg.src = telegramUser.photo_url;
@@ -817,13 +761,13 @@
 
         function startRun() {
             if (!initialLocationSet) {
-                 showMessage("Сначала определите свое местоположение. Если вы отказали в доступе, перезапустите приложение.", true);
+                 tg.showAlert("Сначала определите свое местоположение. Если вы отказали в доступе, перезапустите приложение.");
                  return;
             }
 
             isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
-            tg.enableClosingConfirmation();
+            tg.isClosingConfirmationEnabled = true;
             updateMainButton();
             
             if (telegramUser?.is_premium) {
@@ -833,28 +777,27 @@
 
             currentRunPath = [];
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
-            
-            const pathColor = currentMode === 'territory' ? '#ef4444' : '#10b981'; // Красный для территории, зеленый для маршрута
-            currentPathPolyline = L.polyline([], { color: pathColor, weight: 5, opacity: 0.9 }).addTo(map);
+            currentPathPolyline = L.polyline([], { color: '#ef4444', weight: 5, opacity: 0.9 }).addTo(map);
         }
 
-        function stopRun() {
+        function stopRun(confirm = true) {
             if (!isRunning) return;
 
-            const message = currentMode === 'territory' 
-                ? "Завершить пробежку и захватить территорию?"
-                : "Завершить запись и сохранить маршрут?";
-
-            tg.showConfirm(message, (ok) => {
-                if (ok) {
-                    processStop();
-                }
-            });
+            if (confirm) {
+                tg.showConfirm("Завершить пробежку и захватить территорию?", (ok) => {
+                    if (ok) {
+                        processStop();
+                    }
+                });
+            } else {
+                processStop();
+            }
         }
         
         function processStop() {
             isRunning = false;
-            tg.disableClosingConfirmation();
+            tg.HapticFeedback.notificationOccurred('success');
+            tg.isClosingConfirmationEnabled = false;
             updateMainButton();
 
             if (telegramUser?.is_premium) {
@@ -862,53 +805,20 @@
             }
 
             if (currentRunPath.length > 3) {
-                 if (currentMode === 'territory') {
-                    processTerritoryPath();
-                } else {
-                    processRoutePath();
-                }
+                processRunPath();
             } else {
-                showMessage('Слишком короткий маршрут.', true);
-                 tg.HapticFeedback.notificationOccurred('warning');
+                showMessage('Слишком короткий маршрут.');
             }
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
 
-        async function processRoutePath() {
-            const line = turf.lineString(currentRunPath);
-            const kinks = turf.kinks(line);
 
-            if (kinks.features.length > 2) {
-                showMessage('Маршрут слишком запутанный и не может быть сохранен. Попробуйте более прямой путь.', true);
-                return;
-            }
-
-            const length = turf.length(line, { units: 'meters' });
-            const defaultName = `Маршрут от ${new Date().toLocaleDateString('ru-RU')}`;
-            
-            const { error } = await supabase.from('routes').insert({
-                user_id: telegramUser.id,
-                name: defaultName,
-                path: line.geometry,
-                length: length
-            });
-
-            if (error) {
-                console.error("Error saving route:", error);
-                showMessage("Не удалось сохранить маршрут.", true);
-            } else {
-                showMessage("Маршрут успешно сохранен!");
-                tg.HapticFeedback.notificationOccurred('success');
-                renderMyRoutes(); 
-            }
-        }
-
-        function processTerritoryPath() {
+        function processRunPath() {
             const startPoint = currentRunPath[0];
             const endPoint = currentRunPath[currentRunPath.length - 1];
             const distance = turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' });
             if (distance > 50) {
-                showMessage('Маршрут не замкнут. Вернитесь к точке старта для захвата.', true);
+                showMessage('Маршрут не замкнут. Вернитесь к точке старта для захвата.');
                 return;
             }
             currentRunPath.push(startPoint);
@@ -917,7 +827,7 @@
             const polygonized = turf.polygonize(line);
 
             if (polygonized.features.length === 0) {
-                showMessage('Не удалось сформировать замкнутую территорию. Попробуйте снова.', true);
+                showMessage('Не удалось сформировать замкнутую территорию. Попробуйте снова.');
                 return;
             }
 
@@ -976,7 +886,8 @@
                 showCreatePostModal(newCapture);
             } catch (error) {
                 console.error("Ошибка в updateTerritory:", error);
-                showMessage("Ошибка обработки территории. Форма слишком сложная.", true);
+                showMessage("Ошибка обработки территории. Форма слишком сложная.");
+                tg.HapticFeedback.notificationOccurred('error');
             }
         }
         
@@ -1022,14 +933,15 @@
 
             if (error) {
                 console.error('Error saving user data (upsert):', error);
-                showMessage("Ошибка сохранения прогресса.", true);
+                tg.HapticFeedback.notificationOccurred('error');
+                showMessage("Ошибка сохранения прогресса.");
             }
         }
 
         async function handlePostSubmission() {
             const title = postTitleInput.value.trim();
             if (!title) {
-                showMessage("Пожалуйста, введите название.", true);
+                showMessage("Пожалуйста, введите название.");
                 return;
             }
             if (!lastCaptureData) return;
@@ -1045,7 +957,7 @@
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
                 if (error) {
                     console.error("Error uploading photo:", error);
-                    showMessage("Не удалось загрузить фото.", true);
+                    showMessage("Не удалось загрузить фото.");
                     savePostBtn.disabled = false;
                     savePostText.classList.remove('hidden');
                     savePostLoader.classList.add('hidden');
@@ -1074,7 +986,7 @@
 
             if (postError) {
                 console.error("Error saving post:", postError);
-                showMessage("Не удалось сохранить пост.", true);
+                showMessage("Не удалось сохранить пост.");
             } else {
                 showMessage("Пост успешно опубликован!");
                 hideCreatePostModal();
@@ -1176,6 +1088,7 @@
                 ? `${(area / 1000000).toFixed(2)} км²` 
                 : `${Math.round(area)} м²`;
             
+            areaDisplay.textContent = `Площадь: ${formattedArea}`;
             profileAreaDisplay.textContent = formattedArea;
         }
 
@@ -1338,7 +1251,7 @@
                 console.error("Ошибка лайка:", error);
                 buttonElement.classList.toggle('liked');
                 countSpan.textContent = currentCount;
-                showMessage(`Не удалось обработать лайк. Код ошибки: ${error.code}. Подробности в консоли.`, true);
+                showMessage(`Не удалось обработать лайк. Код ошибки: ${error.code}. Подробности в консоли.`);
             }
         }
         
@@ -1388,7 +1301,7 @@
 
             } catch (error) {
                 console.error('Ошибка отправки комментария:', error);
-                showMessage(`Не удалось отправить комментарий. Код ошибки: ${error.code}. Подробности в консоли.`, true);
+                showMessage(`Не удалось отправить комментарий. Код ошибки: ${error.code}. Подробности в консоли.`);
             } finally {
                 buttonElement.disabled = false;
             }
@@ -1456,61 +1369,10 @@
                 document.getElementById('comments-modal-body').innerHTML = '';
             }, 300);
         }
-        
-        // --- Маршруты ---
-        function listenToRoutes() {
-            renderMyRoutes();
-            supabase.channel('public:routes')
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'routes', filter: `user_id=eq.${telegramUser?.id}` }, renderMyRoutes)
-              .subscribe();
-        }
-
-        async function renderMyRoutes() {
-            if (!telegramUser) return;
-            const { data: routes, error } = await supabase
-                .from('routes')
-                .select('*')
-                .eq('user_id', telegramUser.id)
-                .order('created_at', { ascending: false });
-
-            if (error) {
-                console.error("Error fetching routes:", error);
-                profileRoutesContainer.innerHTML = `<p class="text-center text-red-500">Не удалось загрузить маршруты.</p>`;
-                return;
-            }
-
-            if (!routes || routes.length === 0) {
-                profileRoutesContainer.innerHTML = `<p class="text-center text-gray-500">У вас еще нет сохраненных маршрутов.</p>`;
-                return;
-            }
-
-            profileRoutesContainer.innerHTML = routes.map(route => {
-                const length = route.length > 1000 ? `${(route.length / 1000).toFixed(2)} км` : `${Math.round(route.length)} м`;
-                return `
-                    <div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4">
-                        <div class="flex-shrink-0 text-blue-500">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                            </svg>
-                        </div>
-                        <div class="flex-grow">
-                            <p class="font-bold">${route.name}</p>
-                            <p class="text-sm" style="color: var(--hint-color);">${length} &bull; ${new Date(route.created_at).toLocaleDateString()}</p>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
 
         function shareProfile(userId, userName) {
             const url = `https://t.me/share/url?url=${encodeURIComponent(`https://t.me/TerraRunBot/app?startapp=user${userId}`)}&text=${encodeURIComponent(`Посмотри на территорию, которую захватил(а) ${userName} в TerraRun!`)}`;
             tg.openTelegramLink(url);
-        }
-        
-        function shareProfileInline(userId, userName) {
-             const text = `Посмотри на мою территорию в TerraRun!`;
-             tg.switchInlineQuery(`user_${userId}`, [userName]);
         }
 
         // --- Интеграция с Telegram API ---
@@ -1521,139 +1383,81 @@
             document.documentElement.style.setProperty('--hint-color', themeParams.hint_color || '#6b7280');
             document.documentElement.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
             document.documentElement.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
-            document.documentElement.style.setProperty('--destructive-color', themeParams.destructive_text_color || '#ef4444');
         }
         
         function updateMainButton() {
-            if (activeView !== 'map-view') {
-                tg.MainButton.hide();
-                return;
-            }
-
              if (isRunning) {
-                tg.MainButton.setText("СТОП");
-                tg.MainButton.setParams({
-                    color: getComputedStyle(document.documentElement).getPropertyValue('--destructive-color').trim(),
-                    text_color: '#ffffff'
-                });
+                toggleRunBtn.textContent = "Стоп";
+                toggleRunBtn.className = "btn-gradient-red text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-red-300";
             } else {
-                tg.MainButton.setText("СТАРТ");
-                tg.MainButton.setParams({
-                    color: getComputedStyle(document.documentElement).getPropertyValue('--button-color').trim(),
-                    text_color: getComputedStyle(document.documentElement).getPropertyValue('--button-text-color').trim()
-                });
+                toggleRunBtn.textContent = "Старт";
+                toggleRunBtn.className = "btn-gradient text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300";
             }
-            tg.MainButton.show();
-        }
-        
-        function switchMode(newMode, playHaptic = true) {
-            if (isRunning) { 
-                showMessage("Сначала завершите текущую активность.", true); 
-                return; 
-            }
-            if (playHaptic) tg.HapticFeedback.impactOccurred('light');
-
-            currentMode = newMode;
-            if (newMode === 'territory') {
-                modeTerritoryBtn.classList.add('active');
-                modeRouteBtn.classList.remove('active');
-            } else {
-                modeRouteBtn.classList.add('active');
-                modeTerritoryBtn.classList.remove('active');
-            }
-            
-            tg.CloudStorage.setItem('currentMode', newMode, (err) => {
-                if (err) console.error("Cloud storage error:", err);
-            });
         }
 
         function setupEventListeners() {
-            // Telegram API Events
             tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
-            tg.onEvent('viewportChanged', () => setTimeout(() => map?.invalidateSize(), 100));
-            tg.onEvent('mainButtonClicked', () => {
-                if (isRunning) {
-                    stopRun();
-                } else {
-                    startRun();
-                }
-            });
             tg.onEvent('backButtonClicked', () => {
                 if (!document.getElementById('comments-modal').classList.contains('hidden')) {
                     hideCommentsModal();
                 } else if (!document.getElementById('user-detail-modal').classList.contains('hidden')) {
                     hideUserDetailModal();
-                } else {
-                    tg.BackButton.hide();
                 }
             });
-            tg.onEvent('qrTextReceived', (data) => {
-                tg.showAlert(`Отсканирован QR-код: ${data.data}`);
+             tg.onEvent('activated', () => {
+                console.log('App activated');
+                // Не перезапрашиваем геолокацию, если она уже отслеживается
             });
-
-            // DOM Events
-            recenterBtn.addEventListener('click', () => {
-                tg.HapticFeedback.impactOccurred('medium');
-                if (lastKnownLocation) {
-                    map.flyTo(lastKnownLocation, 16);
-                } else {
-                    showMessage("Определяем ваше местоположение...", true);
-                    initGeolocation().catch(() => {
-                        showMessage("Не удалось получить доступ к геолокации. Пожалуйста, проверьте разрешения для Telegram.", true);
-                    });
-                }
-            });
-            
-            scanQrBtn.addEventListener('click', () => {
-                tg.showScanQrPopup({ text: "Наведите камеру на QR-код" });
-            });
-
-            shareProfileInlineBtn.addEventListener('click', () => {
-                shareProfileInline(telegramUser.id, telegramUser.first_name);
-            });
-            
-            modeTerritoryBtn.addEventListener('click', () => switchMode('territory'));
-            modeRouteBtn.addEventListener('click', () => switchMode('route'));
-
-            profileTabPosts.addEventListener('click', () => {
-                profileTabPosts.classList.add('border-b-2');
-                profileTabPosts.style.borderColor = 'var(--button-color)';
-                profileTabPosts.style.color = 'var(--button-color)';
-                profileTabRoutes.classList.remove('border-b-2');
-                profileTabRoutes.style.borderColor = 'transparent';
-                profileTabRoutes.style.color = 'var(--hint-color)';
-
-                profilePostsContent.classList.remove('hidden');
-                profileRoutesContent.classList.add('hidden');
-            });
-            profileTabRoutes.addEventListener('click', () => {
-                profileTabRoutes.classList.add('border-b-2');
-                profileTabRoutes.style.borderColor = 'var(--button-color)';
-                profileTabRoutes.style.color = 'var(--button-color)';
-                profileTabPosts.classList.remove('border-b-2');
-                profileTabPosts.style.borderColor = 'transparent';
-                profileTabPosts.style.color = 'var(--hint-color)';
-
-                profileRoutesContent.classList.remove('hidden');
-                profilePostsContent.classList.add('hidden');
-            });
-            
-            savePostBtn.addEventListener('click', handlePostSubmission);
-            cancelPostBtn.addEventListener('click', hideCreatePostModal);
-            postPhotoInput.addEventListener('change', () => {
-                const file = postPhotoInput.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        postPhotoPreview.src = e.target.result;
-                        postPhotoPreview.classList.remove('hidden');
-                        postPhotoIcon.classList.add('hidden');
-                    };
-                    reader.readAsDataURL(file);
-                }
+            tg.onEvent('deactivated', () => {
+                console.log('App deactivated');
             });
         }
 
+
+        // --- Обработчики событий ---
+        recenterBtn.addEventListener('click', () => {
+             tg.HapticFeedback.impactOccurred('medium');
+            if (lastKnownLocation) {
+                map.flyTo(lastKnownLocation, 16);
+            } else {
+                tg.showAlert("Определяем ваше местоположение...");
+                requestAndWatchGeo().catch(() => {
+                    tg.showAlert("Не удалось получить доступ к геолокации. Пожалуйста, проверьте разрешения для Telegram.");
+                });
+            }
+        });
+        toggleRunBtn.addEventListener('click', () => {
+            if (isRunning) {
+                stopRun();
+            } else {
+                startRun();
+            }
+        });
+        userDetailModal.addEventListener('click', (e) => {
+            if (e.target.id === 'user-detail-modal') {
+                hideUserDetailModal();
+            }
+        });
+        document.getElementById('comments-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'comments-modal') {
+                hideCommentsModal();
+            }
+        });
+        savePostBtn.addEventListener('click', handlePostSubmission);
+        cancelPostBtn.addEventListener('click', hideCreatePostModal);
+        postPhotoInput.addEventListener('change', () => {
+            const file = postPhotoInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    postPhotoPreview.src = e.target.result;
+                    postPhotoPreview.classList.remove('hidden');
+                    postPhotoIcon.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
         // --- Глобальные функции для HTML ---
         window.showView = showView;
         window.closeModal = closeModal;
