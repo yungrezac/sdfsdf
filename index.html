@@ -977,23 +977,28 @@
 
         // MODIFIED: Navigate to map object and set mode
         function navigateToMapObject(type, id) {
-            hideDetailModal(); // Закрываем модалку профиля
+            hideDetailModal(); 
             showView('map-view');
-            setMode(type === 'spot' ? 'spots' : 'routes'); // Устанавливаем режим
+            setMode(type === 'spot' ? 'spots' : 'routes'); 
 
             let target;
             if (type === 'spot') {
                 target = allSpots.find(s => s.id === id);
-                if (target) {
+                if (target && target.location && Array.isArray(target.location.coordinates) && target.location.coordinates.length >= 2) {
                     const coords = target.location.coordinates;
                     map.flyTo([coords[1], coords[0]], 17);
                 }
             } else if (type === 'route') {
                 target = allRoutes.find(r => r.id === id);
-                if (target) {
-                    const coords = target.path.coordinates.map(p => [p[1], p[0]]);
-                    const polyline = L.polyline(coords);
-                    map.flyToBounds(polyline.getBounds(), { padding: [50, 50] });
+                if (target && target.path && Array.isArray(target.path.coordinates)) {
+                    const coords = target.path.coordinates
+                        .filter(p => Array.isArray(p) && p.length >= 2)
+                        .map(p => [p[1], p[0]]);
+                    
+                    if (coords.length >= 2) {
+                        const polyline = L.polyline(coords);
+                        map.flyToBounds(polyline.getBounds(), { padding: [50, 50] });
+                    }
                 }
             }
         }
@@ -1181,7 +1186,10 @@
         }
         
         function addSpotToMap(spot) {
-            // Supabase returns geography as GeoJSON, so we can parse it
+            if (!spot || !spot.location || !Array.isArray(spot.location.coordinates) || spot.location.coordinates.length < 2) {
+                console.warn(`Skipping invalid spot data:`, spot);
+                return;
+            }
             const coords = spot.location.coordinates;
             const marker = L.marker([coords[1], coords[0]]);
             marker.on('click', () => showDetailModal('spot', spot.id));
@@ -1246,8 +1254,19 @@
         }
         
         function addRouteToMap(route) {
-            // Supabase returns geography as GeoJSON
-            const coords = route.path.coordinates.map(p => [p[1], p[0]]);
+            if (!route || !route.path || !Array.isArray(route.path.coordinates)) {
+                console.warn(`Skipping invalid route data:`, route);
+                return;
+            }
+            const coords = route.path.coordinates
+                .filter(p => Array.isArray(p) && p.length >= 2)
+                .map(p => [p[1], p[0]]);
+            
+            if (coords.length < 2) {
+                console.warn(`Skipping route with insufficient valid points:`, route);
+                return;
+            }
+
             const polyline = L.polyline(coords, { color: '#ff7800', weight: 3 });
             polyline.on('click', () => showDetailModal('route', route.id));
             routePolylinesLayer.addLayer(polyline);
@@ -1444,7 +1463,14 @@
         
         async function upsertUserProfile() {
             const { data, error } = await supabase.from('profiles').select('*').eq('id', telegramUser.id).single();
-            if (error && error.code !== 'PGRST116') { console.error("Profile fetch error:", error); throw error; } 
+            if (error && error.code !== 'PGRST116') { 
+                console.error("Profile fetch error:", error); 
+                // FIX: Add specific error check for UUID mismatch
+                if (error.message.includes("invalid input syntax for type uuid")) {
+                    throw new Error("Ошибка базы данных: несоответствие ID пользователя. Пожалуйста, убедитесь, что ваша таблица `profiles` использует числовой ID (BIGINT), а не UUID.");
+                }
+                throw error; 
+            } 
             if (data) {
                 userColor = data.color;
                 userTerritory = data.territory;
@@ -1458,7 +1484,13 @@
                     photo_url: telegramUser.photo_url || null, 
                     territory: null 
                 });
-                if (insertError) { console.error("Profile insert error:", insertError); throw insertError; }
+                if (insertError) { 
+                    console.error("Profile insert error:", insertError); 
+                    if (insertError.message.includes("invalid input syntax for type uuid")) {
+                       throw new Error("Ошибка базы данных: несоответствие ID пользователя. Пожалуйста, убедитесь, что ваша таблица `profiles` использует числовой ID (BIGINT), а не UUID.");
+                    }
+                    throw insertError; 
+                }
             }
         }
         
