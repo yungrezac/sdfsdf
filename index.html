@@ -8,7 +8,7 @@
     <!-- Подключение Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Подключение Leaflet JS и CSS (только для мини-карт) -->
+    <!-- Подключение Leaflet JS и CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
@@ -52,9 +52,16 @@
             color: var(--text-color);
             transition: background-color 0.3s, color 0.3s;
         }
-        .mini-map {
+        #map, .mini-map {
             z-index: 10;
             background-color: var(--bg-color);
+        }
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 80px; /* Высота навбара */
         }
         .view {
             display: none;
@@ -101,6 +108,14 @@
         }
         .avatar-marker:hover {
             transform: scale(1.1);
+        }
+        .current-user-marker {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 color-mix(in srgb, var(--button-color) 70%, transparent); }
+            70% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 15px color-mix(in srgb, var(--button-color) 0%, transparent); }
+            100% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 color-mix(in srgb, var(--button-color) 0%, transparent); }
         }
         .like-btn.liked svg {
             fill: var(--destructive-color);
@@ -150,20 +165,19 @@
 
     <!-- Основной контейнер приложения -->
     <div id="app-container" class="hidden">
-        <!-- Вид 1: Карта (Панель управления) -->
-        <div id="map-view" class="view active flex flex-col justify-center items-center p-4">
-             <div class="text-center">
-                <div id="run-info" class="max-w-md mx-auto card-bg backdrop-blur-md rounded-2xl shadow-xl p-4 mb-8">
-                    <span id="username-display" class="font-bold text-2xl block">TerraRun</span>
-                    <span id="area-display" class="text-lg block" style="color: var(--hint-color);">Площадь: 0 м²</span>
+        <!-- Вид 1: Карта -->
+        <div id="map-view" class="view active">
+            <div id="map"></div>
+            <button id="recenter-btn" class="z-20 fixed top-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+            <div id="run-info" class="fixed top-4 left-0 right-0 p-4 z-20 pointer-events-none">
+                 <div class="max-w-md mx-auto card-bg backdrop-blur-md rounded-2xl shadow-xl p-3 flex items-center justify-center fade-in">
+                    <div class="text-center">
+                        <span id="username-display" class="font-bold text-lg">TerraRun</span>
+                        <span id="area-display" class="text-sm block" style="color: var(--hint-color);">Площадь: 0 м²</span>
+                    </div>
                 </div>
-                <button id="open-map-btn" class="w-full max-w-xs text-white font-bold py-4 px-6 rounded-full transition-all flex items-center justify-center text-lg" style="background-color: var(--button-color); color: var(--button-text-color);">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    Показать карту
-                </button>
-                <p class="mt-4 text-sm max-w-xs mx-auto" style="color: var(--hint-color);">
-                    Ваши захваченные территории и территории других игроков отображаются на мини-картах в Ленте и Профилях.
-                </p>
             </div>
         </div>
 
@@ -307,14 +321,18 @@
     <script type="module">
         // --- Глобальные переменные ---
         const tg = window.Telegram.WebApp;
+        let map;
         let detailMap = null;
         let supabase;
         let telegramUser = null;
         let isRunning = false;
         let geoWatchId = null;
         let currentRunPath = [];
+        let currentPathPolyline = null;
         let userTerritory = null;
         let userColor = '#3b82f6';
+        let currentUserMarker = null;
+        let allUserLayers = {};
         let allProfilesData = [];
         let loginAnimationInterval = null;
         let lastCaptureData = null;
@@ -338,6 +356,7 @@
         const profileAvatarImg = document.getElementById('profile-avatar-img');
         const profileAvatarWrapper = document.getElementById('profile-avatar-wrapper');
         const leaderboardDiv = document.getElementById('leaderboard');
+        const recenterBtn = document.getElementById('recenter-btn');
         const userDetailModal = document.getElementById('user-detail-modal');
         const userDetailContent = document.getElementById('user-detail-content');
         const createPostModal = document.getElementById('create-post-modal');
@@ -357,7 +376,6 @@
         const stopIcon = document.getElementById('stop-icon');
         const inviteFriendBtn = document.getElementById('invite-friend-btn');
         const donateBtn = document.getElementById('donate-btn');
-        const openMapBtn = document.getElementById('open-map-btn');
         const editStatusBtn = document.getElementById('edit-status-btn');
         const showQrBtn = document.getElementById('show-qr-btn');
 
@@ -371,6 +389,8 @@
             
             if (viewId === 'map-view') {
                 startStopBtn.classList.remove('hidden');
+                // Invalidate map size to fix rendering issues
+                setTimeout(() => map?.invalidateSize(), 100);
             } else {
                 startStopBtn.classList.add('hidden');
             }
@@ -386,6 +406,18 @@
             }
             const h = hash % 360;
             return `hsl(${h}, 80%, 65%)`;
+        }
+        
+        function focusOnUser(userId) {
+            showView('map-view');
+            const userLayerGroup = allUserLayers[userId];
+            if (userLayerGroup && map && userLayerGroup.getLayers().length > 0) {
+                setTimeout(() => {
+                    map.flyToBounds(userLayerGroup.getBounds(), { padding: [50, 50], duration: 1, maxZoom: 16 });
+                }, 100);
+            } else {
+                tg.showAlert("У этого пользователя еще нет захваченных территорий.");
+            }
         }
         
         // --- Логика модальных окон ---
@@ -690,6 +722,7 @@
         async function setupUser() {
             try {
                 await upsertUserProfile();
+                initMap();
                 updateUI();
                 listenToAllProfiles();
                 listenToPosts();
@@ -730,18 +763,40 @@
                 profileAvatarImg.src = telegramUser.photo_url;
             } else {
                 const initial = name.charAt(0).toUpperCase();
-                profileAvatarImg.src = `https://placehold.co/80x80/E2E8F0/4A5568?text=${initial}`;
+                profileAvatarImg.src = `https://placehold.co/80x80/E2E8F0/4A5563?text=${initial}`;
             }
             profileAvatarWrapper.style.borderColor = userColor;
             refreshAllStats();
         }
 
-        function openNativeMap() {
-            if (lastKnownLocation) {
-                tg.HapticFeedback.impactOccurred('light');
-                tg.showMap(lastKnownLocation[0], lastKnownLocation[1]);
+        function initMap() {
+            if (map) return;
+            map = L.map('map', { zoomControl: false, attributionControl: false }).setView([55.75, 37.61], 13);
+            
+            const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
+            L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}', {
+                maxZoom: 19,
+                tileSize: 512,
+                zoomOffset: -1,
+                accessToken: mapboxAccessToken
+            }).addTo(map);
+            
+            setTimeout(() => map?.invalidateSize(), 100);
+        }
+
+        function updateCurrentUserMarker(latLng) {
+            const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E2E8F0/4A5568?text=${telegramUser.first_name.charAt(0)}`;
+            const icon = L.divIcon({
+                html: `<div class="avatar-marker current-user-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${userColor};"></div>`,
+                className: '',
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
+            });
+            
+            if (currentUserMarker) {
+                currentUserMarker.setLatLng(latLng);
             } else {
-                tg.showAlert("Определяем ваше местоположение... Попробуйте через несколько секунд.");
+                currentUserMarker = L.marker(latLng, { icon: icon, zIndexOffset: 1000 }).addTo(map);
             }
         }
         
@@ -762,11 +817,17 @@
                                 lastKnownLocation = latLng;
 
                                 if (!initialLocationSet) {
+                                    map.flyTo(latLng, 16);
                                     initialLocationSet = true;
                                 }
 
+                                updateCurrentUserMarker(latLng);
+
                                 if (isRunning) {
                                     currentRunPath.push([longitude, latitude]);
+                                    if (currentPathPolyline) {
+                                        currentPathPolyline.addLatLng(latLng);
+                                    }
                                 }
                             },
                             (err) => {
@@ -797,6 +858,8 @@
             updateStartStopButton();
             
             currentRunPath = [];
+            if (currentPathPolyline) map.removeLayer(currentPathPolyline);
+            currentPathPolyline = L.polyline([], { color: 'var(--destructive-color)', weight: 5, opacity: 0.9 }).addTo(map);
         }
 
         function stopRun() {
@@ -820,6 +883,7 @@
             } else {
                 tg.showAlert('Слишком короткий маршрут.');
             }
+            if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
 
 
@@ -1018,6 +1082,45 @@
             if (error) { console.error("Error fetching profiles:", error); return; }
             
             allProfilesData = profiles; 
+
+            for (const userId in allUserLayers) {
+                if (allUserLayers[userId]) map.removeLayer(allUserLayers[userId]);
+            }
+            allUserLayers = {};
+
+            profiles.forEach(profile => {
+                const isCurrentUser = profile.id === telegramUser.id;
+                const userLayerGroup = L.layerGroup();
+
+                if (profile.territory) {
+                    L.geoJSON(profile.territory, { 
+                        style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } 
+                    }).addTo(userLayerGroup);
+
+                    if (profile.territory.geometry.coordinates.length > 0 && profile.territory.geometry.coordinates[0].length > 0) {
+                        const perimeterCoords = profile.territory.geometry.coordinates[0].map(p => [p[1], p[0]]);
+                        const label = L.polyline(perimeterCoords, {opacity: 0});
+                        label.setText(`\u25BA ${profile.name} `, {
+                            repeat: true, center: true,
+                            attributes: { 'font-weight': 'bold', 'font-size': '14', 'fill': '#000', 'text-shadow': '1px 1px 1px #fff, -1px -1px 1px #fff, 1px -1px 1px #fff, -1px 1px 1px #fff' }
+                        });
+                        label.addTo(userLayerGroup);
+                    }
+                }
+
+                if (!isCurrentUser && profile.territory) {
+                    const center = turf.centerOfMass(profile.territory);
+                    const avatarUrl = profile.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
+                    const icon = L.divIcon({
+                        html: `<div class="avatar-marker" style="background-image: url(${avatarUrl}); width: 32px; height: 32px; border-color: ${profile.color};"></div>`,
+                        className: '', iconSize: [32, 32], iconAnchor: [16, 16]
+                    });
+                    L.marker([center.geometry.coordinates[1], center.geometry.coordinates[0]], { icon: icon }).addTo(userLayerGroup);
+                }
+                
+                userLayerGroup.addTo(map);
+                allUserLayers[profile.id] = userLayerGroup;
+            });
             
             updateLeaderboard(profiles);
 
@@ -1477,7 +1580,17 @@
 
 
         // --- Обработчики событий ---
-        openMapBtn.addEventListener('click', openNativeMap);
+        recenterBtn.addEventListener('click', () => {
+             tg.HapticFeedback.impactOccurred('medium');
+            if (lastKnownLocation) {
+                map.flyTo(lastKnownLocation, 16);
+            } else {
+                tg.showAlert("Определяем ваше местоположение...");
+                requestAndWatchGeo().catch(() => {
+                    tg.showAlert("Не удалось получить доступ к геолокации. Пожалуйста, проверьте разрешения для Telegram.");
+                });
+            }
+        });
         
         scanQrBtn.addEventListener('click', () => {
             tg.HapticFeedback.impactOccurred('light');
