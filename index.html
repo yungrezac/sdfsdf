@@ -104,13 +104,17 @@
             box-shadow: 0 2px 15px rgba(0,0,0,0.4);
             background-size: cover;
             background-position: center;
-            transition: transform 0.2s ease-in-out;
+            transition: transform 0.2s ease-in-out, opacity 0.3s;
         }
         .avatar-marker:hover {
             transform: scale(1.1);
         }
         .current-user-marker {
             animation: pulse 2s infinite;
+        }
+        .phantom-marker {
+            opacity: 0.5;
+            filter: grayscale(80%);
         }
         @keyframes pulse {
             0% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 color-mix(in srgb, var(--button-color) 70%, transparent); }
@@ -175,10 +179,14 @@
         <!-- Вид 1: Карта -->
         <div id="map-view" class="view active">
             <div id="map"></div>
+            <div id="location-status" class="fixed top-4 left-4 z-20 bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg text-sm flex items-center space-x-2">
+                <div id="location-dot" class="w-3 h-3 rounded-full bg-gray-400 animate-pulse"></div>
+                <span id="location-text">Поиск GPS...</span>
+            </div>
             <button id="recenter-btn" class="z-20 fixed top-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             </button>
-            <div id="run-info" class="fixed top-4 left-0 right-0 p-4 z-20 pointer-events-none">
+            <div id="run-info" class="fixed top-20 left-0 right-0 p-4 z-20 pointer-events-none">
                  <div class="max-w-md mx-auto card-bg backdrop-blur-md rounded-2xl shadow-xl p-3 flex items-center justify-center fade-in">
                     <div class="text-center">
                         <span id="username-display" class="font-bold text-lg">TerraRun</span>
