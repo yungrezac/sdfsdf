@@ -176,21 +176,6 @@
         .bottom-sheet.visible .bottom-sheet-content {
             transform: translateY(0);
         }
-        /* Стили для всплывающего окна на карте */
-        .leaflet-popup-content-wrapper {
-            background-color: var(--secondary-bg-color);
-            color: var(--text-color);
-            border-radius: 12px;
-        }
-        .leaflet-popup-content {
-            margin: 14px !important;
-        }
-        .leaflet-popup-tip {
-            background-color: var(--secondary-bg-color);
-        }
-        .leaflet-popup-close-button {
-            color: var(--text-color) !important;
-        }
     </style>
 </head>
 <body class="font-sans antialiased overflow-hidden">
@@ -364,43 +349,19 @@
         </div>
     </div>
 
-    <!-- Шторка с настройками -->
-    <div id="settings-modal" class="bottom-sheet">
-        <div class="bottom-sheet-content card-bg rounded-t-2xl shadow-2xl p-4">
-             <div class="w-full flex justify-center mb-2 flex-shrink-0" ontouchstart="UI.handleTouchStart(event, 'settings-modal')" ontouchmove="UI.handleTouchMove(event, 'settings-modal')" ontouchend="UI.handleTouchEnd('settings-modal')">
-                <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
-            </div>
-            <h2 class="text-2xl font-bold mb-6 text-center">Настройки</h2>
-            <div class="space-y-4 px-2">
-                <div>
-                    <label class="font-semibold">Стиль карты</label>
-                    <div id="map-style-selector" class="grid grid-cols-3 gap-3 mt-2">
-                        <!-- Кнопки будут сгенерированы JS -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
 
     <script type="module">
         // --- КОНФИГУРАЦИЯ И КОНСТАНТЫ ---
         const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
         const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-        
-        const MAP_STYLES = {
-            streets: { id: 'streets-v12', name: 'Схема' },
-            satellite: { id: 'satellite-streets-v12', name: 'Спутник' },
-            dark: { id: 'dark-v11', name: 'Темная' }
-        };
+        const MAP_STYLE_URL = 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}';
 
         // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ ПРИЛОЖЕНИЯ ---
         const State = {
             tg: window.Telegram.WebApp,
             supabase: null,
             map: null,
-            tileLayer: null,
             detailMap: null,
             
             telegramUser: null,
@@ -414,16 +375,13 @@
             initialLocationSet: false,
 
             allUserLayers: {},
-            allProfilesData: new Map(),
+            allProfilesData: new Map(), // Используем Map для быстрого доступа по ID
             
             lastCaptureData: null,
+            currentReplyTarget: { postId: null, parentCommentId: null },
             deepLinkedUserId: null,
             
-            activeModal: null,
-            
-            settings: {
-                mapStyle: 'streets'
-            }
+            activeModal: null, // Отслеживаем активное модальное окно
         };
 
         // --- МОДУЛЬ UI ---
@@ -443,16 +401,16 @@
                 document.getElementById('post-photo-input').addEventListener('change', UI.previewPostPhoto);
 
                 // Закрытие модалок по клику на фон
-                document.querySelectorAll('.modal, .bottom-sheet').forEach(el => {
-                    el.addEventListener('click', (e) => {
-                        if (e.target.id === el.id) {
-                            UI.hideModal(el.id);
-                            UI.hideBottomSheet(el.id);
-                        }
+                document.querySelectorAll('.modal').forEach(modal => {
+                    modal.addEventListener('click', (e) => {
+                        if (e.target.id === modal.id) UI.hideModal(modal.id);
                     });
                 });
-                
-                this.renderMapStyleSelector();
+                document.querySelectorAll('.bottom-sheet').forEach(sheet => {
+                    sheet.addEventListener('click', (e) => {
+                        if (e.target.id === sheet.id) UI.hideBottomSheet(sheet.id);
+                    });
+                });
             },
 
             showView(viewId) {
@@ -520,11 +478,13 @@
             // --- Управление модальными окнами ---
             showModal(modalId) {
                 State.activeModal = modalId;
-                document.getElementById(modalId).classList.add('visible');
+                const modal = document.getElementById(modalId);
+                modal.classList.add('visible');
                 TelegramModule.updateBackButton();
             },
             hideModal(modalId) {
-                document.getElementById(modalId).classList.remove('visible');
+                const modal = document.getElementById(modalId);
+                modal.classList.remove('visible');
                 if (State.activeModal === modalId) {
                     State.activeModal = null;
                     TelegramModule.updateBackButton();
@@ -533,32 +493,21 @@
             showBottomSheet(sheetId) {
                 State.activeModal = sheetId;
                 const sheet = document.getElementById(sheetId);
+                const content = sheet.querySelector('.bottom-sheet-content');
                 sheet.classList.add('visible');
+                content.classList.remove('translate-y-full');
                 TelegramModule.updateBackButton();
             },
             hideBottomSheet(sheetId) {
-                document.getElementById(sheetId).classList.remove('visible');
+                const sheet = document.getElementById(sheetId);
+                const content = sheet.querySelector('.bottom-sheet-content');
+                content.classList.add('translate-y-full');
+                setTimeout(() => sheet.classList.remove('visible'), 300);
+
                 if (State.activeModal === sheetId) {
                     State.activeModal = null;
                     TelegramModule.updateBackButton();
                 }
-            },
-            
-            renderMapStyleSelector() {
-                const container = document.getElementById('map-style-selector');
-                container.innerHTML = Object.entries(MAP_STYLES).map(([key, style]) => {
-                    const isActive = State.settings.mapStyle === key;
-                    return `<button 
-                                data-style="${key}" 
-                                class="map-style-btn text-sm font-semibold p-3 rounded-lg border-2 transition ${isActive ? 'border-blue-500 bg-blue-50' : 'border-transparent bg-gray-100'}"
-                             >
-                                ${style.name}
-                             </button>`;
-                }).join('');
-
-                container.querySelectorAll('.map-style-btn').forEach(btn => {
-                    btn.addEventListener('click', () => App.changeMapStyle(btn.dataset.style));
-                });
             },
 
             showCreatePostModal(newCapture) {
@@ -591,11 +540,8 @@
 
                 setTimeout(() => {
                     if (State.detailMap) State.detailMap.remove();
-                    const mapStyleId = MAP_STYLES[State.settings.mapStyle].id;
-                    const tileUrl = `https://api.mapbox.com/styles/v1/mapbox/${mapStyleId}/tiles/512/{z}/{x}/{y}?access_token=${MAPBOX_ACCESS_TOKEN}`;
-                    
                     State.detailMap = L.map('detail-map', { zoomControl: false, attributionControl: false });
-                    L.tileLayer(tileUrl, { maxZoom: 19, tileSize: 512, zoomOffset: -1 }).addTo(State.detailMap);
+                    L.tileLayer(MAP_STYLE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(State.detailMap);
                     
                     if (profile.territory) {
                         const territoryLayer = L.geoJSON(profile.territory, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.5 } }).addTo(State.detailMap);
@@ -691,7 +637,8 @@
                 const deltaY = this.touchState.currentY - this.touchState.startY;
 
                 if (deltaY > contentEl.clientHeight * 0.3) {
-                    UI.hideBottomSheet(targetId);
+                    if (targetId === 'user-detail-modal') this.hideUserDetailModal();
+                    if (targetId === 'comments-modal') this.hideCommentsModal();
                 } else {
                     contentEl.style.transform = '';
                 }
@@ -703,31 +650,13 @@
             init() {
                 if (State.map) return;
                 State.map = L.map('map', { zoomControl: false, attributionControl: false }).setView([55.75, 37.61], 13);
-                this.changeMapStyle(State.settings.mapStyle, false); // Применяем стиль без сохранения
-                setTimeout(() => State.map?.invalidateSize(), 100);
-            },
-
-            changeMapStyle(styleKey, save = true) {
-                if (!MAP_STYLES[styleKey] || !State.map) return;
-
-                const styleId = MAP_STYLES[styleKey].id;
-                const tileUrl = `https://api.mapbox.com/styles/v1/mapbox/${styleId}/tiles/512/{z}/{x}/{y}?access_token=${MAPBOX_ACCESS_TOKEN}`;
-                
-                if (State.tileLayer) {
-                    State.map.removeLayer(State.tileLayer);
-                }
-
-                State.tileLayer = L.tileLayer(tileUrl, {
+                L.tileLayer(MAP_STYLE_URL, {
                     maxZoom: 19,
                     tileSize: 512,
-                    zoomOffset: -1
+                    zoomOffset: -1,
+                    accessToken: MAPBOX_ACCESS_TOKEN
                 }).addTo(State.map);
-
-                State.settings.mapStyle = styleKey;
-                if(save) {
-                    App.saveSettings();
-                }
-                UI.renderMapStyleSelector();
+                setTimeout(() => State.map?.invalidateSize(), 100);
             },
 
             requestAndWatchGeo() {
@@ -786,17 +715,20 @@
                 
                 const markerLayer = State.allUserLayers[State.telegramUser.id];
                 if (markerLayer) {
-                    const marker = markerLayer.getLayers().find(l => l instanceof L.Marker);
-                    if(marker) {
+                     // Предполагаем, что маркер - первый слой в группе
+                    const marker = markerLayer.getLayers()[0];
+                    if(marker && marker instanceof L.Marker) {
                         marker.setLatLng(latLng);
                     } else {
+                        // Если маркера нет, создаем его
+                         markerLayer.clearLayers(); // Очищаем старые слои (если там была территория)
                          L.marker(latLng, { icon: icon, zIndexOffset: 1000 }).addTo(markerLayer);
                     }
                 }
             },
 
-            drawMapLayers() {
-                // Очищаем все слои, кроме слоя текущего пользователя
+            drawAllUserTerritories() {
+                // Очищаем все слои, кроме маркера текущего пользователя
                 for (const [userId, layerGroup] of Object.entries(State.allUserLayers)) {
                     if (Number(userId) !== State.telegramUser.id) {
                          if (layerGroup) State.map.removeLayer(layerGroup);
@@ -804,39 +736,36 @@
                 }
                 State.allUserLayers = { [State.telegramUser.id]: State.allUserLayers[State.telegramUser.id] || L.layerGroup().addTo(State.map) };
 
+
                 State.allProfilesData.forEach(profile => {
                     const isCurrentUser = profile.id === State.telegramUser.id;
                     const userLayerGroup = isCurrentUser ? State.allUserLayers[profile.id] : L.layerGroup();
-
-                    // Очищаем старую территорию, сохраняя маркер
-                    const marker = userLayerGroup.getLayers().find(l => l instanceof L.Marker);
-                    userLayerGroup.clearLayers();
-                    if(marker) marker.addTo(userLayerGroup);
 
                     if (profile.territory) {
                         const territoryLayer = L.geoJSON(profile.territory, { 
                             style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } 
                         });
                         
-                        // Привязываем Popup
-                        const popupContent = `
-                            <div class="text-center">
-                                <p class="font-bold">${profile.name}</p>
-                                <p class="text-sm">${UI.formatArea(profile.area)}</p>
-                                <button class="mt-2 text-white text-xs font-bold py-1 px-3 rounded-full" style="background-color: var(--button-color);" onclick="UI.showUserDetailModal(${profile.id})">Профиль</button>
-                            </div>
-                        `;
-                        territoryLayer.bindPopup(popupContent);
-                        territoryLayer.addTo(userLayerGroup);
+                        // Добавляем территорию в группу слоев
+                        if(isCurrentUser) {
+                            // Для текущего пользователя, добавляем территорию, сохраняя маркер
+                            const marker = userLayerGroup.getLayers()[0];
+                            userLayerGroup.clearLayers();
+                            if(marker) marker.addTo(userLayerGroup);
+                            territoryLayer.addTo(userLayerGroup);
+                        } else {
+                            territoryLayer.addTo(userLayerGroup);
+                        }
                         
+                        // Добавляем имя пользователя на контур
                         try {
                             const perimeterCoords = profile.territory.geometry.coordinates[0].map(p => [p[1], p[0]]);
-                            L.polyline(perimeterCoords, {opacity: 0})
-                                .setText(`\u25BA ${profile.name} `, {
-                                    repeat: true, center: true,
-                                    attributes: { 'font-weight': 'bold', 'font-size': '14', 'fill': '#000', 'text-shadow': '1px 1px 1px #fff, -1px -1px 1px #fff, 1px -1px 1px #fff, -1px 1px 1px #fff' }
-                                })
-                                .addTo(userLayerGroup);
+                            const label = L.polyline(perimeterCoords, {opacity: 0});
+                            label.setText(`\u25BA ${profile.name} `, {
+                                repeat: true, center: true,
+                                attributes: { 'font-weight': 'bold', 'font-size': '14', 'fill': '#000', 'text-shadow': '1px 1px 1px #fff, -1px -1px 1px #fff, 1px -1px 1px #fff, -1px 1px 1px #fff' }
+                            });
+                            label.addTo(userLayerGroup);
                         } catch(e) { console.warn("Could not draw text path for user", profile.id, e); }
                     }
 
@@ -968,23 +897,21 @@
                     const affectedUsersUpdates = [];
                     for (const profile of State.allProfilesData.values()) {
                         if (profile.id !== State.telegramUser.id && profile.territory) {
-                            try {
-                                const intersection = turf.intersect(profile.territory, newTotalTerritory);
-                                if (intersection) {
-                                    const remainingTerritory = turf.difference(profile.territory, newTotalTerritory);
-                                    let finalTerritory = null;
-                                    let finalArea = 0;
-                                    if (remainingTerritory) {
+                            const intersection = turf.intersect(profile.territory, newTotalTerritory);
+                            if (intersection) {
+                                const remainingTerritory = turf.difference(profile.territory, newTotalTerritory);
+                                let finalTerritory = null;
+                                let finalArea = 0;
+                                if (remainingTerritory) {
+                                    try {
                                         const area = turf.area(remainingTerritory);
                                         if (area > 1) {
                                             finalTerritory = remainingTerritory;
                                             finalArea = area;
                                         }
-                                    }
-                                    affectedUsersUpdates.push({ id: profile.id, territory: finalTerritory, area: finalArea });
+                                    } catch (e) { /* Игнорируем невалидную геометрию */ }
                                 }
-                            } catch (e) {
-                                console.warn(`Could not process territory for user ${profile.id}`, e);
+                                affectedUsersUpdates.push({ id: profile.id, territory: finalTerritory, area: finalArea });
                             }
                         }
                     }
@@ -1057,22 +984,12 @@
                 }
             },
 
-            async deletePost(postId) {
-                const { error } = await State.supabase.from('posts').delete().eq('id', postId);
-                if (error) {
-                    console.error("Error deleting post:", error);
-                    State.tg.showAlert("Не удалось удалить пост.");
-                    throw error;
-                }
-            },
-
             listenToChanges() {
                 State.supabase.channel('public:profiles')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
-                        const record = payload.new || payload.old; // Handle delete case
-                        if(payload.eventType === 'DELETE') {
-                            State.allProfilesData.delete(record.id);
-                        } else {
+                        console.log('Profile change received!', payload);
+                        const record = payload.new;
+                        if(record) {
                             State.allProfilesData.set(record.id, record);
                             if(record.id === State.telegramUser.id) {
                                 State.currentUserProfile = record;
@@ -1080,7 +997,7 @@
                             }
                         }
                         UI.updateLeaderboard(State.allProfilesData);
-                        MapModule.drawMapLayers();
+                        MapModule.drawAllUserTerritories();
                     })
                     .subscribe();
 
@@ -1141,9 +1058,7 @@
                     const mapContainer = document.getElementById(`mini-map-${post.id}`);
                     if (mapContainer && !mapContainer._leaflet_id) {
                         const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
-                        const mapStyleId = MAP_STYLES[State.settings.mapStyle].id;
-                        const tileUrl = `https://api.mapbox.com/styles/v1/mapbox/${mapStyleId}/tiles/512/{z}/{x}/{y}?access_token=${MAPBOX_ACCESS_TOKEN}`;
-                        L.tileLayer(tileUrl, { maxZoom: 19, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
+                        L.tileLayer(MAP_STYLE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
                         const territoryLayer = L.geoJSON(post.territory_captured, { style: { color: post.user_color, weight: 2, opacity: 0.8, fillColor: post.user_color, fillOpacity: 0.5 } }).addTo(miniMap);
                         miniMap.fitBounds(territoryLayer.getBounds(), { padding: [10, 10] });
                     }
@@ -1154,17 +1069,9 @@
                 const avatar = post.user_avatar_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${post.user_name.charAt(0)}`;
                 const formattedArea = UI.formatArea(post.area_captured);
                 const userHasLiked = likes.some(like => like.user_id === State.telegramUser.id);
-                const isOwner = post.user_id === State.telegramUser.id;
-
+                
                 return `
-                    <div class="card-bg rounded-2xl shadow-lg overflow-hidden relative" id="post-${post.id}">
-                        ${isOwner ? `
-                        <button onclick="Feed.confirmDeletePost(${post.id})" class="absolute top-2 right-2 z-10 p-2 rounded-full bg-white/70 backdrop-blur-sm hover:bg-red-100">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
-                            </svg>
-                        </button>
-                        ` : ''}
+                    <div class="card-bg rounded-2xl shadow-lg overflow-hidden" id="post-${post.id}">
                         <div class="p-4">
                             <div class="flex items-center space-x-3">
                                 <img src="${avatar}" class="w-10 h-10 rounded-full cursor-pointer" alt="avatar" onclick="UI.showUserDetailModal(${post.user_id})">
@@ -1275,21 +1182,6 @@
                     countSpan.textContent = currentCount;
                     State.tg.showAlert(`Не удалось обработать лайк.`);
                 }
-            },
-
-            confirmDeletePost(postId) {
-                State.tg.showConfirm("Вы уверены, что хотите удалить этот пост? Это действие необратимо.", async (ok) => {
-                    if (ok) {
-                        State.tg.HapticFeedback.impactOccurred('heavy');
-                        try {
-                            await SupabaseModule.deletePost(postId);
-                            State.tg.HapticFeedback.notificationOccurred('success');
-                            // Лента обновится автоматически через real-time
-                        } catch(e) {
-                            State.tg.HapticFeedback.notificationOccurred('error');
-                        }
-                    }
-                });
             },
 
             // --- Логика комментариев ---
@@ -1419,7 +1311,7 @@
                 State.tg.onEvent('mainButtonClicked', this.handleMainButton);
                 
                 State.tg.SettingsButton.show();
-                State.tg.onEvent('settingsButtonClicked', () => UI.showBottomSheet('settings-modal'));
+                State.tg.onEvent('settingsButtonClicked', this.showSettings);
 
                 State.tg.onEvent('qrTextReceived', (eventData) => {
                     State.tg.closeScanQrPopup();
@@ -1453,7 +1345,7 @@
                     tg_main_btn.show();
                 } else if (viewId === 'profile-view') {
                     tg_main_btn.setText('Редактировать статус');
-                    tg_main_btn.setParams({ color: State.tg.themeParams.button_color, text_color: State.tg.themeParams.button_text_color });
+                    tg_main_btn.setParams({ color: 'var(--button-color)', text_color: 'var(--button-text-color)' });
                     tg_main_btn.show();
                 } else {
                     tg_main_btn.hide();
@@ -1482,8 +1374,16 @@
             handleBackButton() {
                 if (State.activeModal) {
                     UI.hideModal(State.activeModal);
-                    UI.hideBottomSheet(State.activeModal);
+                    UI.hideBottomSheet(State.activeModal); // Попытается скрыть и то, и другое
                 }
+            },
+
+            showSettings() {
+                State.tg.showPopup({
+                    title: 'Настройки',
+                    message: 'Здесь вы сможете изменить тему карты, единицы измерения и другие параметры. Эта функция в разработке.',
+                    buttons: [{type: 'ok', text: 'Понятно'}]
+                });
             },
 
             showQrScanner() {
@@ -1511,8 +1411,9 @@
             
             showDonation() {
                 State.tg.HapticFeedback.impactOccurred('light');
-                const invoiceLink = ''; // Вставьте реальную ссылку на инвойс
-                if(!invoiceLink) {
+                // Замените на реальную ссылку на инвойс от @BotFather
+                const invoiceLink = '...'; // Например: 'https://t.me/invoice/example_invoice'
+                if(invoiceLink === '...') {
                     State.tg.showAlert('Функция доната в данный момент не настроена.');
                     return;
                 }
@@ -1547,13 +1448,12 @@
                 } else {
                     document.getElementById('initial-loader').classList.add('hidden');
                     document.getElementById('auth-screen').classList.remove('hidden');
-                    // TODO: Добавить логику для входа через виджет
+                    // Логика для входа через виджет, если приложение открыто в браузере
                 }
             },
 
             async initializeWithUser() {
                 try {
-                    await this.loadSettings();
                     await MapModule.requestAndWatchGeo();
                     
                     SupabaseModule.init();
@@ -1562,7 +1462,7 @@
                     MapModule.init();
                     UI.updateProfileUI(State.currentUserProfile);
                     UI.updateLeaderboard(State.allProfilesData);
-                    MapModule.drawMapLayers();
+                    MapModule.drawAllUserTerritories();
                     Feed.renderAllFeeds();
                     SupabaseModule.listenToChanges();
 
@@ -1576,6 +1476,7 @@
                     });
 
                     if (State.deepLinkedUserId) {
+                        // Задержка для гарантии рендера
                         setTimeout(() => UI.showUserDetailModal(State.deepLinkedUserId), 500);
                         State.deepLinkedUserId = null;
                     }
@@ -1622,33 +1523,6 @@
                 }
                 const h = hash % 360;
                 return `hsl(${h}, 80%, 65%)`;
-            },
-            
-            loadSettings() {
-                return new Promise(resolve => {
-                    State.tg.CloudStorage.getItem('settings', (err, value) => {
-                        if (value) {
-                            try {
-                                const parsedSettings = JSON.parse(value);
-                                State.settings = { ...State.settings, ...parsedSettings };
-                            } catch (e) {
-                                console.error("Could not parse settings from cloud storage", e);
-                            }
-                        }
-                        resolve();
-                    });
-                });
-            },
-
-            saveSettings() {
-                State.tg.CloudStorage.setItem('settings', JSON.stringify(State.settings), (err) => {
-                    if (err) console.error("Could not save settings to cloud storage", err);
-                });
-            },
-
-            changeMapStyle(styleKey) {
-                MapModule.changeMapStyle(styleKey);
-                State.tg.HapticFeedback.selectionChanged();
             },
 
             // --- Публичные методы для вызова из HTML ---
