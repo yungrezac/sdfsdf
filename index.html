@@ -824,14 +824,14 @@
                 <div id="detail-comments-section" class="mt-4">
                     <h3 class="text-xl font-bold px-4">Комментарии</h3>
                     <div id="detail-comments-list" class="p-4 space-y-4">
-                         <p class="text-center text-gray-500">Загрузка комментариев...</p>
+                          <p class="text-center text-gray-500">Загрузка комментариев...</p>
                     </div>
                 </div>
                 <div id="detail-comment-input-form" class="flex-shrink-0 p-2 border-t" style="background-color: var(--secondary-bg-color); border-color: var(--bg-color);">
                      <div id="detail-reply-indicator" class="hidden text-xs px-2 pb-1 flex justify-between items-center" style="color: var(--hint-color);">
-                        <span id="detail-reply-indicator-text"></span>
-                        <button onclick="cancelDetailReply()" class="font-bold text-xl">&times;</button>
-                    </div>
+                         <span id="detail-reply-indicator-text"></span>
+                         <button onclick="cancelDetailReply()" class="font-bold text-xl">&times;</button>
+                     </div>
                     <div class="flex items-center space-x-2">
                         <textarea id="detail-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
                         <button onclick="postDetailComment()" class="flex-shrink-0 text-white rounded-full p-2 hover:opacity-80 disabled:opacity-50" style="background-color: var(--button-color);">
@@ -842,7 +842,7 @@
             `;
 
             if (type === 'spot') {
-                const { data: spot, error } = await supabase.from('spots').select('*, profiles(name, photo_url)').eq('id', id).single();
+                const { data: spot, error } = await supabase.from('spots').select('*, profiles(name, photo_url), location_wkt:location::text').eq('id', id).single();
                 if (error || !spot) {
                     body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали спота.</p>`;
                     return;
@@ -865,7 +865,7 @@
                 `;
                 loadAndRenderComments(type, id, 'detail-comments-list');
             } else if (type === 'route') {
-                const { data: route, error } = await supabase.from('routes').select('*, profiles(name, photo_url)').eq('id', id).single();
+                const { data: route, error } = await supabase.from('routes').select('*, profiles(name, photo_url), path_wkt:path::text').eq('id', id).single();
                 if (error || !route) {
                     body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали маршрута.</p>`;
                     return;
@@ -888,10 +888,11 @@
                 `;
                 setTimeout(() => {
                     const mapContainer = document.getElementById('detail-mini-map');
-                    if (mapContainer && !mapContainer._leaflet_id && route.path) {
+                    const routeGeoJson = parseWKT(route.path_wkt);
+                    if (mapContainer && !mapContainer._leaflet_id && routeGeoJson) {
                         const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
                         L.tileLayer(MAP_TILE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
-                        const routeLayer = L.geoJSON(route.path, { style: { color: '#ff7800', weight: 3 } }).addTo(miniMap);
+                        const routeLayer = L.geoJSON(routeGeoJson, { style: { color: '#ff7800', weight: 3 } }).addTo(miniMap);
                         miniMap.fitBounds(routeLayer.getBounds(), { padding: [10, 10] });
                     }
                 }, 100);
@@ -900,8 +901,8 @@
                 const [profileRes, postsRes, spotsRes, routesRes] = await Promise.all([
                     supabase.from('profiles').select('*').eq('id', id).single(),
                     supabase.from('posts').select('*').eq('user_id', id).order('created_at', { ascending: false }),
-                    supabase.from('spots').select('*').eq('user_id', id).order('created_at', { ascending: false }),
-                    supabase.from('routes').select('*').eq('user_id', id).order('created_at', { ascending: false })
+                    supabase.from('spots').select('*, location_wkt:location::text').eq('user_id', id).order('created_at', { ascending: false }),
+                    supabase.from('routes').select('*, path_wkt:path::text').eq('user_id', id).order('created_at', { ascending: false })
                 ]);
 
                 if (profileRes.error) {
@@ -989,16 +990,16 @@
         }
         function generateMiniSpotHTML(spot) {
              return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="navigateToMapObject('spot', ${spot.id})">
-                        <p class="font-semibold">${spot.name}</p>
-                        <p class="text-sm text-gray-600 truncate">${spot.description}</p>
-                        <p class="text-xs text-gray-400">${new Date(spot.created_at).toLocaleDateString()}</p>
-                    </div>`;
+                         <p class="font-semibold">${spot.name}</p>
+                         <p class="text-sm text-gray-600 truncate">${spot.description}</p>
+                         <p class="text-xs text-gray-400">${new Date(spot.created_at).toLocaleDateString()}</p>
+                     </div>`;
         }
         function generateMiniRouteHTML(route) {
              return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="navigateToMapObject('route', ${route.id})">
-                        <p class="font-semibold">${route.name}</p>
-                        <p class="text-xs text-gray-400">${new Date(route.created_at).toLocaleDateString()}</p>
-                    </div>`;
+                         <p class="font-semibold">${route.name}</p>
+                         <p class="text-xs text-gray-400">${new Date(route.created_at).toLocaleDateString()}</p>
+                     </div>`;
         }
 
         // MODIFIED: Navigate to map object and set mode
@@ -1010,17 +1011,16 @@
             let target;
             if (type === 'spot') {
                 target = allSpots.find(s => s.id === id);
-                if (target && target.location && Array.isArray(target.location.coordinates) && target.location.coordinates.length >= 2) {
-                    const coords = target.location.coordinates;
+                const geoJson = parseWKT(target?.location_wkt);
+                if (geoJson) {
+                    const coords = geoJson.coordinates;
                     map.flyTo([coords[1], coords[0]], 17);
                 }
             } else if (type === 'route') {
                 target = allRoutes.find(r => r.id === id);
-                if (target && target.path && Array.isArray(target.path.coordinates)) {
-                    const coords = target.path.coordinates
-                        .filter(p => Array.isArray(p) && p.length >= 2)
-                        .map(p => [p[1], p[0]]);
-                    
+                const geoJson = parseWKT(target?.path_wkt);
+                if (geoJson) {
+                    const coords = geoJson.coordinates.map(p => [p[1], p[0]]);
                     if (coords.length >= 2) {
                         const polyline = L.polyline(coords);
                         map.flyToBounds(polyline.getBounds(), { padding: [50, 50] });
@@ -1028,6 +1028,47 @@
                 }
             }
         }
+
+        /**
+         * NEW: Parses a WKT (Well-Known Text) string into a GeoJSON object.
+         * Handles POINT and LINESTRING. Returns null for other types or invalid input.
+         * @param {string} wkt The WKT string from the database.
+         * @returns {object|null} A GeoJSON geometry object or null.
+         */
+        function parseWKT(wkt) {
+            if (!wkt || typeof wkt !== 'string') return null;
+            
+            try {
+                const typeMatch = wkt.match(/^([A-Z]+)\s*\((.*)\)$/);
+                if (!typeMatch) return null;
+
+                const type = typeMatch[1].toUpperCase();
+                const content = typeMatch[2];
+
+                if (type === 'POINT') {
+                    const coords = content.split(' ').map(Number);
+                    return { type: 'Point', coordinates: [coords[0], coords[1]] };
+                }
+
+                if (type === 'LINESTRING') {
+                    const coords = content.split(',').map(pair => pair.trim().split(' ').map(Number));
+                    return { type: 'LineString', coordinates: coords };
+                }
+                
+                // This simple parser doesn't handle Polygon, MultiPolygon, etc.
+                // It will return null for those, preventing crashes.
+                if (type.includes('POLYGON')) {
+                    console.warn("WKT Parser: Polygons are not fully supported by this simple parser and may not display.");
+                    return null;
+                }
+
+            } catch (e) {
+                console.error("Failed to parse WKT:", wkt, e);
+                return null;
+            }
+            return null;
+        }
+
 
         // --- ОСНОВНАЯ ЛОГИКА И ИНИЦИАЛИЗАЦИЯ ---
         async function main() {
@@ -1151,7 +1192,7 @@
         }
         function stopRun() {
              tg.showConfirm("Завершить пробежку и захватить территорию?", (ok) => {
-                 if (ok) processStop();
+                  if (ok) processStop();
              });
         }
         function processStop() {
@@ -1170,7 +1211,7 @@
         // СПОТЫ
         function handleMapClickForSpot(e) {
             const { lat, lng } = e.latlng;
-            // FIX: Use WKT format for PostGIS geography type
+            // Используем WKT формат для PostGIS
             const locationWKT = `POINT(${lng} ${lat})`;
             tg.showConfirm("Создать новый спот в этом месте?", (ok) => {
                 if (ok) {
@@ -1211,16 +1252,29 @@
             }
         }
         
-        // FIX: Refactored to use L.geoJSON for robustness
+        // MODIFIED: Handles parsed GeoJSON
         function addSpotToMap(spot) {
             try {
-                if (!spot || !spot.location || spot.location.type !== 'Point') {
-                    // console.warn('Skipping invalid spot data (structure):', spot);
+                // Пытаемся использовать GeoJSON напрямую, если оно есть (для обратной совместимости или будущих улучшений)
+                let geoJsonPoint = spot.location;
+
+                // Если location - это не объект, а строка WKT, парсим ее
+                if (typeof spot.location_wkt === 'string') {
+                    geoJsonPoint = parseWKT(spot.location_wkt);
+                } else if (typeof spot.location === 'string') {
+                    // Обработка случая, если поле называется location, но содержит WKT
+                    geoJsonPoint = parseWKT(spot.location);
+                }
+
+                if (!geoJsonPoint || geoJsonPoint.type !== 'Point') {
+                    // console.warn('Skipping invalid spot data (structure or parse fail):', spot);
                     return;
                 }
-                const spotLayer = L.geoJSON(spot.location, {
+
+                const spotLayer = L.geoJSON(geoJsonPoint, {
                     pointToLayer: (feature, latlng) => L.marker(latlng)
                 }).on('click', () => showDetailModal('spot', spot.id));
+                
                 spotMarkersLayer.addLayer(spotLayer);
             } catch (e) {
                 console.error(`Failed to process and add spot ${spot.id} to map.`, e, spot);
@@ -1256,7 +1310,7 @@
                 return;
             }
             
-            // FIX: Convert coordinates to WKT format for PostGIS
+            // Конвертируем координаты в WKT формат
             const pathCoordinates = currentRunPath.map(p => `${p[1]} ${p[0]}`).join(', ');
             const pathWKT = `LINESTRING(${pathCoordinates})`;
             showCreationModal('route', { path: pathWKT });
@@ -1284,14 +1338,22 @@
             }
         }
         
-        // FIX: Refactored to use L.geoJSON for robustness
+        // MODIFIED: Handles parsed GeoJSON
         function addRouteToMap(route) {
             try {
-                if (!route || !route.path || route.path.type !== 'LineString' || !Array.isArray(route.path.coordinates) || route.path.coordinates.length < 2) {
-                    // console.warn('Skipping invalid route data (structure):', route);
+                let geoJsonLine = route.path;
+
+                if (typeof route.path_wkt === 'string') {
+                    geoJsonLine = parseWKT(route.path_wkt);
+                } else if (typeof route.path === 'string') {
+                    geoJsonLine = parseWKT(route.path);
+                }
+
+                if (!geoJsonLine || geoJsonLine.type !== 'LineString' || !Array.isArray(geoJsonLine.coordinates) || geoJsonLine.coordinates.length < 2) {
+                    // console.warn('Skipping invalid route data (structure or parse fail):', route);
                     return;
                 }
-                const routeLayer = L.geoJSON(route.path, {
+                const routeLayer = L.geoJSON(geoJsonLine, {
                     style: { color: '#ff7800', weight: 3 }
                 }).on('click', () => showDetailModal('route', route.id));
                 routePolylinesLayer.addLayer(routeLayer);
@@ -1301,18 +1363,21 @@
         }
 
         // --- ЗАГРУЗКА ДАННЫХ ---
+        // MODIFIED: Fetch geometry data as WKT (Well-Known Text) for client-side parsing.
         async function loadInitialMapData() {
-            const { data: spots, error: spotsError } = await supabase.from('spots').select('*');
-            if (spotsError) console.error("Ошибка загрузки спотов:", spotsError);
-            else {
+            const { data: spots, error: spotsError } = await supabase.from('spots').select('*, location_wkt:location::text');
+            if (spotsError) {
+                console.error("Ошибка загрузки спотов:", spotsError);
+            } else {
                 allSpots = spots;
                 spotMarkersLayer.clearLayers();
                 allSpots.forEach(addSpotToMap);
             }
 
-            const { data: routes, error: routesError } = await supabase.from('routes').select('*');
-            if (routesError) console.error("Ошибка загрузки маршрутов:", routesError);
-            else {
+            const { data: routes, error: routesError } = await supabase.from('routes').select('*, path_wkt:path::text');
+            if (routesError) {
+                console.error("Ошибка загрузки маршрутов:", routesError);
+            } else {
                 allRoutes = routes;
                 routePolylinesLayer.clearLayers();
                 allRoutes.forEach(addRouteToMap);
@@ -1448,7 +1513,7 @@
              document.documentElement.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
              tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
              tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
-         }
+           }
 
         function requestAndWatchGeo() {
             loaderText.textContent = 'Определение местоположения...';
@@ -1647,7 +1712,9 @@
 
 
         async function fetchAllProfilesAndDraw() {
-            let { data: profiles, error } = await supabase.from('profiles').select('*');
+            // MODIFIED: Fetch territory as WKT. Note: our simple parser won't handle these polygons,
+            // so territories loaded from DB might not show, but newly captured ones will.
+            let { data: profiles, error } = await supabase.from('profiles').select('*, territory_wkt:territory::text');
             if (error) { console.error("Error fetching profiles:", error); return; }
             allProfilesData = profiles;
             
@@ -1656,13 +1723,15 @@
 
             profiles.forEach(profile => {
                 if (profile.id === telegramUser.id) {
-                    userTerritory = profile.territory;
+                    // Try to parse WKT if available, otherwise use the (likely broken) territory object
+                    userTerritory = parseWKT(profile.territory_wkt) || profile.territory;
                     userColor = profile.color;
                     refreshAllStats();
                 }
                 const userLayerGroup = L.layerGroup();
-                if (profile.territory) {
-                    L.geoJSON(profile.territory, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } }).addTo(userLayerGroup);
+                const territoryGeoJson = parseWKT(profile.territory_wkt);
+                if (territoryGeoJson) {
+                    L.geoJSON(territoryGeoJson, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } }).addTo(userLayerGroup);
                 }
                 userLayerGroup.addTo(territoriesLayerGroup);
                 allUserLayers[profile.id] = userLayerGroup;
@@ -1691,7 +1760,17 @@
         }
 
         function refreshAllStats() {
-            let area = userTerritory ? turf.area(userTerritory) : 0;
+            let area = 0;
+            if (userTerritory) {
+                try {
+                    // Turf.area expects a GeoJSON object
+                    area = turf.area(userTerritory);
+                } catch(e) {
+                    // This might happen if userTerritory is not valid GeoJSON after a failed parse
+                    console.warn("Could not calculate area for user territory", e);
+                    area = 0;
+                }
+            }
             if (isNaN(area)) area = 0;
             const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
             profileAreaDisplay.textContent = formattedArea;
@@ -1818,14 +1897,14 @@
         }
 
         async function loadAndRenderComments(type, id, containerId) {
-             const container = document.getElementById(containerId);
-             if (!container) return;
-             container.innerHTML = '<p class="text-center text-gray-500">Загрузка комментариев...</p>';
-             
-             const { data: comments, error } = await fetchComments(type, id);
-             if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
+              const container = document.getElementById(containerId);
+              if (!container) return;
+              container.innerHTML = '<p class="text-center text-gray-500">Загрузка комментариев...</p>';
+              
+              const { data: comments, error } = await fetchComments(type, id);
+              if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
 
-             renderCommentTree(comments, container, 'detail');
+              renderCommentTree(comments, container, 'detail');
         }
 
         function renderCommentTree(comments, container, context = 'post') {
@@ -1948,8 +2027,8 @@
 
             const [postsRes, spotsRes, routesRes] = await Promise.all([
                 supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-                supabase.from('spots').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-                supabase.from('routes').select('*').eq('user_id', userId).order('created_at', { ascending: false })
+                supabase.from('spots').select('*, location_wkt:location::text').eq('user_id', userId).order('created_at', { ascending: false }),
+                supabase.from('routes').select('*, path_wkt:path::text').eq('user_id', userId).order('created_at', { ascending: false })
             ]);
 
             // Process Posts
