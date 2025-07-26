@@ -275,7 +275,6 @@
         let supabase;
         let telegramUser = null;
         let isRunning = false;
-        let geoWatchId = null;
         let currentRunPath = [];
         let currentPathPolyline = null;
         let userTerritory = null;
@@ -609,7 +608,7 @@
              if (loginAnimationInterval) clearInterval(loginAnimationInterval);
              
              try {
-                await requestAndWatchGeo();
+                await initGeolocation();
                 
                 const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
                 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
@@ -719,49 +718,41 @@
         }
         
         // --- Логика бега и территории ---
-        function requestAndWatchGeo() {
+        function initGeolocation() {
             return new Promise((resolve, reject) => {
-                if (geoWatchId) {
+                tg.onEvent('locationChanged', (locationData) => {
+                    const latLng = [locationData.latitude, locationData.longitude];
+                    lastKnownLocation = latLng;
+                    localStorage.setItem('lastKnownLocation', JSON.stringify(latLng));
+
+                    if (!initialLocationSet) {
+                        map.flyTo(latLng, 16);
+                        initialLocationSet = true;
+                    }
+
+                    updateCurrentUserMarker(latLng);
+
+                    if (isRunning) {
+                        currentRunPath.push([locationData.longitude, locationData.latitude]);
+                        if (currentPathPolyline) {
+                            currentPathPolyline.addLatLng(latLng);
+                        }
+                    }
+                });
+
+                if (tg.LocationManager.isAccessGranted) {
+                    tg.LocationManager.start();
                     resolve();
-                    return;
+                } else {
+                    tg.LocationManager.requestAccess({ type: 'live_location' }, (granted) => {
+                        if (granted) {
+                            tg.LocationManager.start();
+                            resolve();
+                        } else {
+                            reject(new Error("Location access denied by user."));
+                        }
+                    });
                 }
-                
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        geoWatchId = navigator.geolocation.watchPosition(
-                            (position) => {
-                                const { latitude, longitude } = position.coords;
-                                const latLng = [latitude, longitude];
-                                lastKnownLocation = latLng;
-                                localStorage.setItem('lastKnownLocation', JSON.stringify(latLng));
-
-                                if (!initialLocationSet) {
-                                    map.flyTo(latLng, 16);
-                                    initialLocationSet = true;
-                                }
-
-                                updateCurrentUserMarker(latLng);
-
-                                if (isRunning) {
-                                    currentRunPath.push([longitude, latitude]);
-                                    if (currentPathPolyline) {
-                                        currentPathPolyline.addLatLng(latLng);
-                                    }
-                                }
-                            },
-                            (err) => {
-                                console.error("Geolocation watch error:", err);
-                                tg.showAlert("Потерян доступ к геолокации.");
-                            },
-                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                        );
-                        resolve();
-                    },
-                    (err) => {
-                        reject(err);
-                    },
-                    { enableHighAccuracy: true }
-                );
             });
         }
 
@@ -777,7 +768,6 @@
             updateMainButton();
             
             if (telegramUser?.is_premium) {
-                // ID кастомного эмодзи бегущего человечка
                 tg.setEmojiStatus({ emoji_id: '5368324170671202286' });
             }
 
