@@ -546,7 +546,7 @@
         // Состояние режимов
         let currentMode = 'capture'; // 'capture', 'spots', 'routes'
         let isRunning = false; // Для режимов 'capture' и 'routes'
-        let geoWatchId = null;
+        let geoWatchInterval = null; // ID интервала для отслеживания геолокации
         let lastKnownLocation = null;
         
         // Данные режимов
@@ -981,13 +981,13 @@
                          <p class="font-semibold">${spot.name}</p>
                          <p class="text-sm text-gray-600 truncate">${spot.description}</p>
                          <p class="text-xs text-gray-400">${new Date(spot.created_at).toLocaleDateString()}</p>
-                     </div>`;
+                    </div>`;
         }
         function generateMiniRouteHTML(route) {
              return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="navigateToMapObject('route', ${route.id})">
                          <p class="font-semibold">${route.name}</p>
                          <p class="text-xs text-gray-400">${new Date(route.created_at).toLocaleDateString()}</p>
-                     </div>`;
+                    </div>`;
         }
 
         function navigateToMapObject(type, id) {
@@ -1076,14 +1076,15 @@
                 }
                 telegramUser = tg.initDataUnsafe.user;
 
-                const initialPosition = await requestAndWatchGeo();
+                // [ИЗМЕНЕНО] Получаем геолокацию через Telegram API
+                const initialCoords = await requestAndWatchGeo();
                 
                 loaderText.textContent = 'Подключение к базе данных...';
                 
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 
                 loaderText.textContent = 'Загрузка данных...';
-                initMap(initialPosition.coords);
+                initMap(initialCoords); // Используем полученные координаты
                 await upsertUserProfile();
                 updateUI();
                 
@@ -1107,9 +1108,10 @@
                 console.error("Критическая ошибка инициализации:", error);
                 let title = "Ошибка инициализации";
                 let message = "Не удалось запустить приложение. Пожалуйста, попробуйте перезагрузить его.";
-                if (error.code === 1) { // Geolocation permission denied
-                    title = "Доступ к геолокации необходим";
-                    message = "Для работы TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение в настройках и перезапустите приложение.";
+                
+                if (error.message === 'GEOLOCATION_DENIED') {
+                     title = "Доступ к геолокации необходим";
+                     message = "Для работы TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение в профиле бота и перезапустите приложение.";
                 } else if (error.message) {
                     message = error.message;
                 }
@@ -1181,7 +1183,12 @@
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
             currentPathPolyline = L.polyline([], { color: 'var(--destructive-color)', weight: 5, opacity: 0.9 }).addTo(map);
             currentPathPolyline.addLatLng(lastKnownLocation);
+
+            // [ИЗМЕНЕНО] Запускаем интервал для отслеживания геолокации
+            if (geoWatchInterval) clearInterval(geoWatchInterval);
+            geoWatchInterval = setInterval(trackUserPosition, 5000); // Запрашиваем позицию каждые 5 секунд
         }
+
         function stopRun() {
              tg.showConfirm("Завершить пробежку и захватить территорию?", (ok) => {
                    if (ok) processStop();
@@ -1189,6 +1196,12 @@
         }
         function processStop() {
             isRunning = false;
+            // [ИЗМЕНЕНО] Останавливаем интервал отслеживания
+            if (geoWatchInterval) {
+                clearInterval(geoWatchInterval);
+                geoWatchInterval = null;
+            }
+
             tg.HapticFeedback.notificationOccurred('success');
             tg.isClosingConfirmationEnabled = false;
             updateMainActionButton();
@@ -1284,10 +1297,20 @@
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
             currentPathPolyline = L.polyline([], { color: 'var(--button-color)', weight: 5, opacity: 0.9 }).addTo(map);
             currentPathPolyline.addLatLng(lastKnownLocation);
+
+            // [ИЗМЕНЕНО] Запускаем интервал для отслеживания геолокации
+            if (geoWatchInterval) clearInterval(geoWatchInterval);
+            geoWatchInterval = setInterval(trackUserPosition, 5000);
         }
 
         function stopRouteRecording() {
             isRunning = false;
+             // [ИЗМЕНЕНО] Останавливаем интервал отслеживания
+            if (geoWatchInterval) {
+                clearInterval(geoWatchInterval);
+                geoWatchInterval = null;
+            }
+
             tg.HapticFeedback.notificationOccurred('success');
             tg.isClosingConfirmationEnabled = false;
             updateMainActionButton();
@@ -1499,43 +1522,54 @@
              tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
         }
 
-        function requestAndWatchGeo() {
-            loaderText.textContent = 'Определение местоположения...';
+        // [ИЗМЕНЕНО] Новая функция для запроса геолокации через Telegram API
+        function telegramRequestLocation() {
             return new Promise((resolve, reject) => {
-                if (!navigator.geolocation) {
-                    return reject(new Error("Геолокация не поддерживается вашим устройством."));
-                }
-                navigator.geolocation.getCurrentPosition(
-                    (initialPosition) => {
-                        const { latitude, longitude } = initialPosition.coords;
-                        lastKnownLocation = [latitude, longitude];
-                        
-                        geoWatchId = navigator.geolocation.watchPosition(
-                            (position) => {
-                                const { latitude, longitude } = position.coords;
-                                lastKnownLocation = [latitude, longitude];
-                                updateCurrentUserMarker(lastKnownLocation);
-
-                                if (isRunning && currentPathPolyline) {
-                                    const newPoint = (currentMode === 'capture') 
-                                        ? [longitude, latitude]
-                                        : [latitude, longitude];
-                                    currentRunPath.push(newPoint);
-                                    currentPathPolyline.addLatLng([latitude, longitude]);
-                                }
-                            },
-                            (err) => {
-                                console.error("Ошибка отслеживания геолокации:", err);
-                                tg.showAlert("Потерян доступ к геолокации.");
-                            },
-                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                        );
-                        resolve(initialPosition);
-                    },
-                    (err) => { reject(err); },
-                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-                );
+                tg.requestGeoLocation((location) => {
+                    if (location) {
+                        resolve({ coords: location });
+                    } else {
+                        // Пользователь отклонил запрос или произошла ошибка
+                        reject(new Error('GEOLOCATION_DENIED'));
+                    }
+                });
             });
+        }
+
+        // [ИЗМЕНЕНО] Функция для отслеживания позиции во время бега
+        async function trackUserPosition() {
+            try {
+                const position = await telegramRequestLocation();
+                const { latitude, longitude } = position.coords;
+                lastKnownLocation = [latitude, longitude];
+                updateCurrentUserMarker(lastKnownLocation);
+
+                if (isRunning && currentPathPolyline) {
+                    const newPoint = (currentMode === 'capture') 
+                        ? [longitude, latitude] 
+                        : [latitude, longitude];
+                    currentRunPath.push(newPoint);
+                    currentPathPolyline.addLatLng([latitude, longitude]);
+                }
+            } catch (error) {
+                console.error("Ошибка отслеживания геолокации:", error);
+                // Можно остановить бег, если пользователь отозвал разрешение
+                if (isRunning) {
+                    tg.showAlert("Потерян доступ к геолокации. Пробежка остановлена.");
+                    processStop();
+                }
+            }
+        }
+
+        // [ИЗМЕНЕНО] Запрашиваем геолокацию один раз при запуске
+        async function requestAndWatchGeo() {
+            loaderText.textContent = 'Запрос доступа к местоположению...';
+            // Запрашиваем геолокацию при запуске
+            const initialPosition = await telegramRequestLocation();
+            const { latitude, longitude } = initialPosition.coords;
+            lastKnownLocation = [latitude, longitude];
+            // Отслеживание (watch) теперь будет запускаться только при старте пробежки
+            return initialPosition;
         }
         
         async function upsertUserProfile() {
