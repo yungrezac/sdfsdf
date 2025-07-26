@@ -1196,6 +1196,7 @@
             });
         }
 
+        // ** MODIFIED: Использует RPC для вставки **
         async function saveSpot() {
             const { location } = currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
@@ -1215,8 +1216,12 @@
                 photoUrl = urlData.publicUrl;
             }
             
-            const { error } = await supabase.from('spots').insert({
-                name, description, photo_url: photoUrl, location, user_id: telegramUser.id
+            const { error } = await supabase.rpc('create_spot', {
+                user_id_in: telegramUser.id,
+                name_in: name,
+                description_in: description,
+                photo_url_in: photoUrl,
+                location_wkt_in: location // 'location' - это WKT строка
             });
 
             if (error) {
@@ -1283,6 +1288,7 @@
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
 
+        // ** MODIFIED: Использует RPC для вставки **
         async function saveRoute() {
             const { path } = currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
@@ -1290,8 +1296,11 @@
             
             if (!name) { tg.showAlert("Название обязательно."); return; }
 
-            const { error } = await supabase.from('routes').insert({
-                name, description, path, user_id: telegramUser.id
+            const { error } = await supabase.rpc('create_route', {
+                user_id_in: telegramUser.id,
+                name_in: name,
+                description_in: description,
+                path_wkt_in: path // 'path' - это WKT строка
             });
 
             if (error) {
@@ -1507,13 +1516,12 @@
             });
         }
         
-        // ** MODIFIED: Использует telegramUser.id (BIGINT) **
         async function upsertUserProfile() {
             if (!telegramUser) throw new Error("Пользователь Telegram не определен для upsertUserProfile.");
 
             const { data, error } = await supabase.from('profiles').select('*').eq('id', telegramUser.id).single();
             
-            if (error && error.code !== 'PGRST116') { // PGRST116: row not found
+            if (error && error.code !== 'PGRST116') {
                 console.error("Ошибка получения профиля:", error); 
                 throw error; 
             } 
@@ -1522,7 +1530,6 @@
                 userColor = data.color;
                 userTerritory = data.territory;
             } else {
-                // Профиль не найден, создаем новый
                 userColor = generateColorFromId(telegramUser.id);
                 const { error: insertError } = await supabase.from('profiles').insert({ 
                     id: telegramUser.id, 
