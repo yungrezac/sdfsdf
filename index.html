@@ -152,13 +152,12 @@
     <!-- Начальный загрузчик -->
     <div id="initial-loader" class="fixed inset-0 flex flex-col items-center justify-center z-50">
         <svg class="animate-spin h-10 w-10 mb-4" style="color: var(--button-color);" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-        <p class="text-lg font-semibold" style="color: var(--text-color);">Загрузка TerraRun...</p>
+        <p id="loader-text" class="text-lg font-semibold" style="color: var(--text-color);">Загрузка TerraRun...</p>
     </div>
 
-    <!-- Экран-заглушка / Вход -->
-    <div id="auth-screen" class="fixed inset-0 flex items-center justify-center p-4 z-40 hidden">
-        <div id="login-map-bg" class="absolute inset-0 z-10 filter blur-sm brightness-90"></div>
-        <div id="auth-content" class="z-20 text-center card-bg p-8 rounded-2xl shadow-lg">
+    <!-- Экран-заглушка / Ошибка -->
+    <div id="fallback-screen" class="fixed inset-0 flex items-center justify-center p-4 z-40 hidden">
+        <div id="fallback-content" class="text-center card-bg p-8 rounded-2xl shadow-lg max-w-sm">
             <!-- Содержимое будет сгенерировано JS -->
         </div>
     </div>
@@ -173,11 +172,11 @@
             </button>
             <div id="run-info" class="fixed top-4 left-0 right-0 p-4 z-20 pointer-events-none">
                  <div class="max-w-md mx-auto card-bg backdrop-blur-md rounded-2xl shadow-xl p-3 flex items-center justify-center fade-in">
-                    <div class="text-center">
-                        <span id="username-display" class="font-bold text-lg">TerraRun</span>
-                        <span id="area-display" class="text-sm block" style="color: var(--hint-color);">Площадь: 0 м²</span>
-                    </div>
-                </div>
+                     <div class="text-center">
+                         <span id="username-display" class="font-bold text-lg">TerraRun</span>
+                         <span id="area-display" class="text-sm block" style="color: var(--hint-color);">Площадь: 0 м²</span>
+                     </div>
+                 </div>
             </div>
         </div>
 
@@ -319,7 +318,13 @@
 
 
     <script type="module">
-        // --- Глобальные переменные ---
+        // --- КОНФИГУРАЦИЯ И КОНСТАНТЫ ---
+        const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
+        const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
+        const MAP_TILE_URL = 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}';
+
+        // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И СОСТОЯНИЕ ---
         const tg = window.Telegram.WebApp;
         let map;
         let detailMap = null;
@@ -334,18 +339,17 @@
         let currentUserMarker = null;
         let allUserLayers = {};
         let allProfilesData = [];
-        let loginAnimationInterval = null;
         let lastCaptureData = null;
         let currentReplyTarget = { postId: null, parentCommentId: null };
-        let initialLocationSet = false;
         let lastKnownLocation = null;
         let deepLinkedUserId = null;
 
 
-        // --- Элементы DOM ---
+        // --- ЭЛЕМЕНТЫ DOM ---
         const initialLoader = document.getElementById('initial-loader');
-        const authScreen = document.getElementById('auth-screen');
-        const authContent = document.getElementById('auth-content');
+        const loaderText = document.getElementById('loader-text');
+        const fallbackScreen = document.getElementById('fallback-screen');
+        const fallbackContent = document.getElementById('fallback-content');
         const appContainer = document.getElementById('app-container');
         const bottomNavbar = document.getElementById('bottom-navbar');
         const areaDisplay = document.getElementById('area-display');
@@ -379,7 +383,7 @@
         const editStatusBtn = document.getElementById('edit-status-btn');
         const showQrBtn = document.getElementById('show-qr-btn');
 
-        // --- Функции UI ---
+        // --- ФУНКЦИИ UI ---
         function showView(viewId) {
             tg.HapticFeedback.selectionChanged();
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -420,7 +424,7 @@
             }
         }
         
-        // --- Логика модальных окон ---
+        // --- ЛОГИКА МОДАЛЬНЫХ ОКОН ---
         let touchStartY = 0;
         let currentY = 0;
         let isDragging = false;
@@ -496,8 +500,7 @@
             setTimeout(() => {
                 if (detailMap) detailMap.remove();
                 detailMap = L.map('detail-map', { zoomControl: false, attributionControl: false });
-                const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-                L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token={accessToken}', { maxZoom: 19, accessToken: mapboxAccessToken }).addTo(detailMap);
+                L.tileLayer(MAP_TILE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(detailMap);
                 
                 if (profile.territory) {
                     const territoryLayer = L.geoJSON(profile.territory, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.5 } }).addTo(detailMap);
@@ -537,214 +540,151 @@
             lastCaptureData = null;
         }
 
-        // --- Логика анимации входа ---
-        function startLoginAnimation() {
-            const loginMap = L.map('login-map-bg', {
-                zoomControl: false, attributionControl: false, dragging: false,
-                scrollWheelZoom: false, doubleClickZoom: false,
-            }).setView([55.75, 37.61], 10);
-
-            const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-            L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}', {
-                maxZoom: 19, tileSize: 512, zoomOffset: -1, accessToken: mapboxAccessToken
-            }).addTo(loginMap);
-            
-            const animationLayers = L.layerGroup().addTo(loginMap);
-            let animationTerritories = [];
-            const randomAvatars = [
-                'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=100&auto=format&fit=crop',
-                'https://images.unsplash.com/photo-1527980965255-d3b416303d12?q=80&w=100&auto=format&fit=crop',
-                'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=100&auto=format&fit=crop',
-                'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=100&auto=format&fit=crop',
-                'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=100&auto=format&fit=crop'
-            ];
-            let availableAvatars = [...randomAvatars];
-
-            function getUniqueAvatar() {
-                if(availableAvatars.length === 0) {
-                    availableAvatars = [...randomAvatars];
-                }
-                const index = Math.floor(Math.random() * availableAvatars.length);
-                return availableAvatars.splice(index, 1)[0];
-            }
-
-            loginAnimationInterval = setInterval(() => {
-                const bounds = loginMap.getBounds();
-                if (!bounds.isValid()) return;
-
-                const centerPoint = [
-                    bounds.getWest() + Math.random() * (bounds.getEast() - bounds.getWest()),
-                    bounds.getSouth() + Math.random() * (bounds.getNorth() - bounds.getSouth())
-                ];
-
-                const radius = (Math.random() * 0.05) + 0.02;
-                const points = 10 + Math.floor(Math.random() * 10);
-                const path = [];
-                for (let i = 0; i < points; i++) {
-                    const angle = (i / points) * 360;
-                    const distance = radius * (0.8 + Math.random() * 0.4);
-                    const destination = turf.destination(centerPoint, distance, {units: 'degrees'});
-                    path.push(destination.geometry.coordinates);
-                }
-                path.push(path[0]);
-
-                const color = `hsl(${Math.random() * 360}, 80%, 65%)`;
-                const polyline = L.polyline([], { color: color, weight: 4 }).addTo(animationLayers);
-                
-                let i = 0;
-                function draw() {
-                    if (i < path.length) {
-                        polyline.addLatLng([path[i][1], path[i][0]]);
-                        i++;
-                        setTimeout(draw, 150);
-                    } else {
-                        const coordinates = polyline.toGeoJSON().geometry.coordinates;
-                        if (coordinates.length < 4) {
-                            loginMap.removeLayer(polyline);
-                            return;
-                        }
-                        const newPolygonGeoJSON = turf.polygon([coordinates]);
-                        
-                        animationTerritories.forEach(existing => {
-                            if (existing.geojson) {
-                                try {
-                                    const intersection = turf.intersect(existing.geojson, newPolygonGeoJSON);
-                                    if (intersection) {
-                                        const remaining = turf.difference(existing.geojson, newPolygonGeoJSON);
-                                        loginMap.removeLayer(existing.layer);
-                                        if (existing.avatar) loginMap.removeLayer(existing.avatar);
-
-                                        if (remaining) {
-                                            existing.geojson = remaining;
-                                            existing.layer = L.geoJSON(remaining, { style: { color: existing.color, weight: 2, opacity: 0.8, fillColor: existing.color, fillOpacity: 0.4 } }).addTo(animationLayers);
-                                            const newCenter = turf.centerOfMass(remaining);
-                                            existing.avatar = L.marker([newCenter.geometry.coordinates[1], newCenter.geometry.coordinates[0]], { icon: existing.icon }).addTo(animationLayers);
-                                        } else {
-                                            existing.geojson = null;
-                                        }
-                                    }
-                                } catch (e) {
-                                    console.warn("Turf operation failed in animation, skipping.", e);
-                                }
-                            }
-                        });
-                        
-                        const polygonLayer = L.geoJSON(newPolygonGeoJSON, { style: { color: color, weight: 2, opacity: 0.8, fillColor: color, fillOpacity: 0.4 } }).addTo(animationLayers);
-                        
-                        const center = turf.centerOfMass(newPolygonGeoJSON);
-                        const avatarUrl = getUniqueAvatar();
-                        const icon = L.divIcon({
-                            html: `<div class="avatar-marker" style="background-image: url(${avatarUrl}); width: 32px; height: 32px; border-color: ${color};"></div>`,
-                            className: '', iconSize: [32, 32], iconAnchor: [16, 16]
-                        });
-                        const avatarMarker = L.marker([center.geometry.coordinates[1], center.geometry.coordinates[0]], { icon: icon }).addTo(animationLayers);
-
-                        animationTerritories.push({ geojson: newPolygonGeoJSON, layer: polygonLayer, color: color, avatar: avatarMarker, icon: icon });
-
-                        setTimeout(() => loginMap.removeLayer(polyline), 500);
-                    }
-                }
-                draw();
-            }, 4000);
-        }
+        // --- ОСНОВНАЯ ЛОГИКА И ИНИЦИАЛИЗАЦИЯ ---
         
-        // --- Основная логика ---
-        async function startApp() {
-            tg.ready();
-            tg.expand();
-            applyTheme(tg.themeParams);
-            setupEventListeners();
-            
-            // Handle deep linking
-            const startParam = tg.initDataUnsafe.start_param;
-            if (startParam && startParam.startsWith('user')) {
-                deepLinkedUserId = parseInt(startParam.substring(4), 10);
-            }
-
-            // Load last view from Cloud Storage
-            tg.CloudStorage.getItem('lastView', (err, value) => {
-                if (value) {
-                    showView(value);
-                }
-            });
-
-            if (tg.initDataUnsafe?.user) {
-                telegramUser = tg.initDataUnsafe.user;
-                await initializeWithUser();
-            } else {
-                initialLoader.classList.add('hidden');
-                authScreen.classList.remove('hidden');
-                startLoginAnimation();
-                showAuthWidget();
-            }
-        }
-        
-        function showAuthWidget() {
-            authContent.innerHTML = `
-                <h1 class="text-2xl font-bold mb-4">Добро пожаловать в TerraRun!</h1>
-                <p class="mb-6" style="color: var(--hint-color);">Это приложение работает только внутри Telegram.</p>
-                <p class="text-sm" style="color: var(--hint-color);">Пожалуйста, откройте @TerraRunBot и нажмите "Начать".</p>
+        /**
+         * Показывает экран-заглушку с сообщением.
+         * @param {string} title - Заголовок сообщения.
+         * @param {string} message - Текст сообщения.
+         * @param {boolean} showRetryButton - Показывать ли кнопку "Попробовать снова".
+         */
+        function showFallbackScreen(title, message, showRetryButton = false) {
+            fallbackContent.innerHTML = `
+                <h1 class="text-2xl font-bold mb-4 ${showRetryButton ? 'text-red-500' : ''}">${title}</h1>
+                <p class="mb-6" style="color: var(--hint-color);">${message}</p>
+                ${showRetryButton ? `<button onclick="window.location.reload()" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Попробовать снова</button>` : ''}
             `;
+            initialLoader.classList.add('hidden');
+            fallbackScreen.classList.remove('hidden');
         }
 
-        async function initializeWithUser() {
-             if (loginAnimationInterval) clearInterval(loginAnimationInterval);
-             
-             // Запрашиваем геолокацию ПЕРЕД инициализацией остального
-             try {
-                 await requestAndWatchGeo();
-                
-                 const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
-                 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
-                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                
-                 await setupUser();
+        /**
+         * Запрашивает геолокацию и запускает постоянное отслеживание.
+         * Возвращает Promise, который разрешается с первой полученной позицией.
+         */
+        function requestAndWatchGeo() {
+            loaderText.textContent = 'Определение местоположения...';
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    return reject(new Error("Геолокация не поддерживается вашим устройством."));
+                }
 
-             } catch (error) {
-                 console.error("Geolocation permission denied:", error);
-                 initialLoader.classList.add('hidden');
-                 authScreen.classList.remove('hidden');
-                 authContent.innerHTML = `
-                     <h1 class="text-2xl font-bold mb-4 text-red-500">Доступ к геолокации необходим</h1>
-                     <p class="mb-6" style="color: var(--hint-color);">Для работы приложения TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение в настройках браузера или Telegram и перезапустите приложение.</p>
-                     <button onclick="requestAndWatchGeo().then(initializeWithUser).catch(() => {})" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Попробовать снова</button>
-                 `;
-             }
+                // Сначала получаем текущую позицию
+                navigator.geolocation.getCurrentPosition(
+                    (initialPosition) => {
+                        const { latitude, longitude } = initialPosition.coords;
+                        lastKnownLocation = [latitude, longitude];
+                        
+                        // Запускаем постоянное отслеживание
+                        geoWatchId = navigator.geolocation.watchPosition(
+                            (position) => {
+                                const { latitude, longitude } = position.coords;
+                                lastKnownLocation = [latitude, longitude];
+                                updateCurrentUserMarker(lastKnownLocation);
+
+                                if (isRunning) {
+                                    currentRunPath.push([longitude, latitude]);
+                                    if (currentPathPolyline) {
+                                        currentPathPolyline.addLatLng(lastKnownLocation);
+                                    }
+                                }
+                            },
+                            (err) => {
+                                console.error("Ошибка отслеживания геолокации:", err);
+                                tg.showAlert("Потерян доступ к геолокации.");
+                            },
+                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                        );
+                        
+                        // Возвращаем первую позицию для инициализации карты
+                        resolve(initialPosition);
+                    },
+                    (err) => {
+                        reject(err); // Отклоняем Promise, если первая попытка неудачна
+                    },
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                );
+            });
         }
-        
-        async function setupUser() {
+
+        /**
+         * Главная функция инициализации приложения.
+         */
+        async function main() {
             try {
-                await upsertUserProfile();
-                initMap();
-                updateUI();
-                listenToAllProfiles();
-                listenToPosts();
-                
-                setTimeout(() => {
-                    if (!localStorage.getItem('attachmentPromptSeen')) {
-                        tg.showConfirm("Для удобного доступа, хотите добавить это приложение в меню вложений?", (ok) => {
-                            if (ok) {
-                                tg.showAlert("Отлично! Нажмите на имя бота вверху экрана, а затем выберите 'Добавить в меню вложений'.");
-                            }
-                            localStorage.setItem('attachmentPromptSeen', 'true');
-                        });
-                    }
-                }, 3000);
+                tg.ready();
+                tg.expand();
+                applyTheme(tg.themeParams);
+                setupStaticEventListeners();
 
+                // 1. Проверяем пользователя Telegram
+                if (!tg.initDataUnsafe?.user) {
+                    showFallbackScreen('Требуется Telegram', 'Это приложение предназначено для работы исключительно внутри Telegram.', false);
+                    return;
+                }
+                telegramUser = tg.initDataUnsafe.user;
+
+                // 2. Запрашиваем геолокацию (критически важный шаг)
+                const initialPosition = await requestAndWatchGeo();
+                
+                // 3. Если геолокация получена, инициализируем все остальное
+                loaderText.textContent = 'Загрузка данных...';
+                
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                
+                initMap(initialPosition.coords);
+                await upsertUserProfile();
+                updateUI();
+                
+                // 4. Загружаем данные и подписываемся на обновления
+                await Promise.all([
+                    fetchAllProfilesAndDraw(),
+                    renderFeed()
+                ]);
+
+                listenToRealtimeChanges();
+                setupDynamicEventListeners();
+
+                // 5. Показываем приложение
                 initialLoader.classList.add('hidden');
-                authScreen.style.display = 'none';
                 appContainer.classList.remove('hidden');
                 bottomNavbar.classList.remove('hidden');
+
+                // 6. Обрабатываем deep link, если он есть
+                handleDeepLink();
+                
+                // 7. Показываем подсказку про меню вложений
+                showAttachmentPrompt();
+
             } catch (error) {
-                console.error("Error during user setup:", error);
-                initialLoader.classList.add('hidden');
-                authScreen.classList.remove('hidden');
-                authContent.innerHTML = `
-                    <h1 class="text-2xl font-bold text-red-600 mb-4">Ошибка</h1>
-                    <p class="text-gray-600">Произошла ошибка при настройке вашего профиля. Пожалуйста, попробуйте перезапустить приложение.</p>
-                    <p class="text-xs text-gray-400 mt-4">${error.message}</p>
-                `;
+                console.error("Критическая ошибка инициализации:", error);
+                let title = "Ошибка инициализации";
+                let message = "Не удалось запустить приложение. Пожалуйста, попробуйте перезагрузить его.";
+
+                if (error.code === 1) { // PERMISSION_DENIED
+                    title = "Доступ к геолокации необходим";
+                    message = "Для работы TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение в настройках и перезапустите приложение.";
+                } else if (error.message) {
+                    message = error.message;
+                }
+                showFallbackScreen(title, message, true);
             }
+        }
+
+        function initMap(coords) {
+            if (map) return;
+            const latLng = [coords.latitude, coords.longitude];
+            map = L.map('map', { zoomControl: false, attributionControl: false }).setView(latLng, 16);
+            
+            L.tileLayer(MAP_TILE_URL, {
+                maxZoom: 19,
+                tileSize: 512,
+                zoomOffset: -1,
+                accessToken: MAPBOX_ACCESS_TOKEN
+            }).addTo(map);
+            
+            updateCurrentUserMarker(latLng);
+            setTimeout(() => map?.invalidateSize(), 100);
         }
 
         function updateUI() {
@@ -756,28 +696,14 @@
                 profileAvatarImg.src = telegramUser.photo_url;
             } else {
                 const initial = name.charAt(0).toUpperCase();
-                profileAvatarImg.src = `https://placehold.co/80x80/E2E8F0/4A5563?text=${initial}`;
+                profileAvatarImg.src = `https://placehold.co/80x80/E2E8F0/4A5568?text=${initial}`;
             }
             profileAvatarWrapper.style.borderColor = userColor;
             refreshAllStats();
         }
-
-        function initMap() {
-            if (map) return;
-            map = L.map('map', { zoomControl: false, attributionControl: false }).setView([55.75, 37.61], 13);
-            
-            const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-            L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}', {
-                maxZoom: 19,
-                tileSize: 512,
-                zoomOffset: -1,
-                accessToken: mapboxAccessToken
-            }).addTo(map);
-            
-            setTimeout(() => map?.invalidateSize(), 100);
-        }
-
+        
         function updateCurrentUserMarker(latLng) {
+            if (!map) return;
             const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E2E8F0/4A5568?text=${telegramUser.first_name.charAt(0)}`;
             const icon = L.divIcon({
                 html: `<div class="avatar-marker current-user-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${userColor};"></div>`,
@@ -793,54 +719,9 @@
             }
         }
         
-        // --- Логика бега и территории ---
-        function requestAndWatchGeo() {
-            return new Promise((resolve, reject) => {
-                if (geoWatchId) {
-                    resolve();
-                    return;
-                }
-                
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        geoWatchId = navigator.geolocation.watchPosition(
-                            (position) => {
-                                const { latitude, longitude } = position.coords;
-                                const latLng = [latitude, longitude];
-                                lastKnownLocation = latLng;
-
-                                if (!initialLocationSet) {
-                                    map.flyTo(latLng, 16);
-                                    initialLocationSet = true;
-                                }
-
-                                updateCurrentUserMarker(latLng);
-
-                                if (isRunning) {
-                                    currentRunPath.push([longitude, latitude]);
-                                    if (currentPathPolyline) {
-                                        currentPathPolyline.addLatLng(latLng);
-                                    }
-                                }
-                            },
-                            (err) => {
-                                console.error("Geolocation watch error:", err);
-                                tg.showAlert("Потерян доступ к геолокации.");
-                            },
-                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                        );
-                        resolve();
-                    },
-                    (err) => {
-                        reject(err);
-                    },
-                    { enableHighAccuracy: true }
-                );
-            });
-        }
-
+        // --- ЛОГИКА БЕГА И ТЕРРИТОРИИ ---
         function startRun() {
-            if (!initialLocationSet) {
+            if (!lastKnownLocation) {
                 tg.showAlert("Сначала определите свое местоположение. Если вы отказали в доступе, перезапустите приложение.");
                 return;
             }
@@ -850,9 +731,10 @@
             tg.isClosingConfirmationEnabled = true;
             updateStartStopButton();
             
-            currentRunPath = [];
+            currentRunPath = [ [lastKnownLocation[1], lastKnownLocation[0]] ]; // Начинаем с текущей точки
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
             currentPathPolyline = L.polyline([], { color: 'var(--destructive-color)', weight: 5, opacity: 0.9 }).addTo(map);
+            currentPathPolyline.addLatLng(lastKnownLocation);
         }
 
         function stopRun() {
@@ -874,7 +756,7 @@
             if (currentRunPath.length > 3) {
                 processRunPath();
             } else {
-                tg.showAlert('Слишком короткий маршрут.');
+                tg.showAlert('Слишком короткий маршрут для захвата.');
             }
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
@@ -884,8 +766,8 @@
             const startPoint = currentRunPath[0];
             const endPoint = currentRunPath[currentRunPath.length - 1];
             const distance = turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' });
-            if (distance > 50) {
-                tg.showAlert('Маршрут не замкнут. Вернитесь к точке старта для захвата.');
+            if (distance > 50) { // 50 метров - допустимая погрешность для замыкания
+                tg.showAlert('Маршрут не замкнут. Вернитесь к точке старта (в радиус 50м) для захвата.');
                 return;
             }
             currentRunPath.push(startPoint);
@@ -894,14 +776,17 @@
             const polygonized = turf.polygonize(line);
 
             if (polygonized.features.length === 0) {
-                tg.showAlert('Не удалось сформировать замкнутую территорию. Попробуйте снова.');
+                tg.showAlert('Не удалось сформировать замкнутую территорию. Вероятно, маршрут пересекал сам себя. Попробуйте снова.');
                 return;
             }
 
             let newCapture = polygonized.features[0];
             if (polygonized.features.length > 1) {
-                for (let i = 1; i < polygonized.features.length; i++) {
-                    newCapture = turf.union(newCapture, polygonized.features[i]);
+                try {
+                    newCapture = turf.union(...polygonized.features);
+                } catch (e) {
+                     console.error("Turf union error on polygonize:", e);
+                     tg.showAlert("Не удалось объединить сложные части маршрута. Захвачена самая большая часть.");
                 }
             }
             
@@ -921,21 +806,23 @@
                 const affectedUsersUpdates = [];
                 for (const profile of allProfilesData) {
                     if (profile.id !== telegramUser.id && profile.territory) {
-                        const intersection = turf.intersect(profile.territory, newTotalTerritory);
-                        if (intersection) {
-                            const remainingTerritory = turf.difference(profile.territory, newTotalTerritory);
-                            let finalTerritory = null;
-                            let finalArea = 0;
-                            if (remainingTerritory) {
-                                try {
+                        try {
+                            const intersection = turf.intersect(profile.territory, newTotalTerritory);
+                            if (intersection) {
+                                const remainingTerritory = turf.difference(profile.territory, newTotalTerritory);
+                                let finalTerritory = null;
+                                let finalArea = 0;
+                                if (remainingTerritory) {
                                     const area = turf.area(remainingTerritory);
-                                    if (area > 1) {
+                                    if (area > 1) { // Не сохраняем "пыль"
                                         finalTerritory = remainingTerritory;
                                         finalArea = area;
                                     }
-                                } catch (e) { /* Ignore invalid geometry */ }
+                                }
+                                affectedUsersUpdates.push({ id: profile.id, territory: finalTerritory, area: finalArea });
                             }
-                            affectedUsersUpdates.push({ id: profile.id, territory: finalTerritory, area: finalArea });
+                        } catch (e) {
+                           console.warn(`Could not process territory difference for user ${profile.id}`, e);
                         }
                     }
                 }
@@ -953,12 +840,12 @@
                 showCreatePostModal(newCapture);
             } catch (error) {
                 console.error("Ошибка в updateTerritory:", error);
-                tg.showAlert("Ошибка обработки территории. Форма слишком сложная.");
+                tg.showAlert("Ошибка обработки территории. Возможно, форма слишком сложная или некорректная.");
                 tg.HapticFeedback.notificationOccurred('error');
             }
         }
         
-        // --- Supabase ---
+        // --- SUPABASE ---
         async function upsertUserProfile() {
             const { data, error } = await supabase
                 .from('profiles')
@@ -966,7 +853,7 @@
                 .eq('id', telegramUser.id)
                 .single();
 
-            if (error && error.code !== 'PGRST116') {
+            if (error && error.code !== 'PGRST116') { // PGRST116 - 'not found'
                 console.error('Error fetching profile:', error); throw error;
             } 
             
@@ -986,7 +873,15 @@
 
         async function saveUserData(newData = {}) {
             if (!telegramUser) return;
-            const area = userTerritory ? turf.area(userTerritory) : 0;
+            let area = 0;
+            if (userTerritory) {
+                try {
+                    area = turf.area(userTerritory);
+                } catch (e) {
+                    console.error("Error calculating area:", e);
+                    area = 0;
+                }
+            }
             
             const userData = { 
                 id: telegramUser.id, 
@@ -1063,11 +958,25 @@
             }
         }
 
-        function listenToAllProfiles() {
-            fetchAllProfilesAndDraw();
-            supabase.channel('public:profiles')
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => fetchAllProfilesAndDraw())
-              .subscribe();
+        function listenToRealtimeChanges() {
+             supabase.channel('public:profiles')
+               .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, fetchAllProfilesAndDraw)
+               .subscribe();
+            
+             supabase.channel('public:posts_activity')
+               .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, renderFeed)
+               .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, renderFeed)
+               .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload) => {
+                   const modal = document.getElementById('comments-modal');
+                   if (!modal.classList.contains('hidden')) {
+                       const postId = payload.new?.post_id || payload.old?.post_id;
+                       if(postId && postId === currentReplyTarget.postId) {
+                           showCommentsModal(postId);
+                       }
+                   }
+                   renderFeed();
+               })
+               .subscribe();
         }
 
         async function fetchAllProfilesAndDraw() {
@@ -1082,6 +991,13 @@
             allUserLayers = {};
 
             profiles.forEach(profile => {
+                if (profile.id === telegramUser.id) {
+                    // Обновляем данные текущего пользователя
+                    userTerritory = profile.territory;
+                    userColor = profile.color;
+                    refreshAllStats();
+                }
+
                 const isCurrentUser = profile.id === telegramUser.id;
                 const userLayerGroup = L.layerGroup();
 
@@ -1091,24 +1007,28 @@
                     }).addTo(userLayerGroup);
 
                     if (profile.territory.geometry.coordinates.length > 0 && profile.territory.geometry.coordinates[0].length > 0) {
-                        const perimeterCoords = profile.territory.geometry.coordinates[0].map(p => [p[1], p[0]]);
-                        const label = L.polyline(perimeterCoords, {opacity: 0});
-                        label.setText(`\u25BA ${profile.name} `, {
-                            repeat: true, center: true,
-                            attributes: { 'font-weight': 'bold', 'font-size': '14', 'fill': '#000', 'text-shadow': '1px 1px 1px #fff, -1px -1px 1px #fff, 1px -1px 1px #fff, -1px 1px 1px #fff' }
-                        });
-                        label.addTo(userLayerGroup);
+                        try {
+                            const perimeterCoords = profile.territory.geometry.coordinates[0].map(p => [p[1], p[0]]);
+                            const label = L.polyline(perimeterCoords, {opacity: 0});
+                            label.setText(`\u25BA ${profile.name} `, {
+                                repeat: true, center: true,
+                                attributes: { 'font-weight': 'bold', 'font-size': '14', 'fill': '#000', 'text-shadow': '1px 1px 1px #fff, -1px -1px 1px #fff, 1px -1px 1px #fff, -1px 1px 1px #fff' }
+                            });
+                            label.addTo(userLayerGroup);
+                        } catch(e) { console.warn("Could not draw text path for user", profile.id, e); }
                     }
                 }
 
                 if (!isCurrentUser && profile.territory) {
-                    const center = turf.centerOfMass(profile.territory);
-                    const avatarUrl = profile.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
-                    const icon = L.divIcon({
-                        html: `<div class="avatar-marker" style="background-image: url(${avatarUrl}); width: 32px; height: 32px; border-color: ${profile.color};"></div>`,
-                        className: '', iconSize: [32, 32], iconAnchor: [16, 16]
-                    });
-                    L.marker([center.geometry.coordinates[1], center.geometry.coordinates[0]], { icon: icon }).addTo(userLayerGroup);
+                    try {
+                        const center = turf.centerOfMass(profile.territory);
+                        const avatarUrl = profile.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
+                        const icon = L.divIcon({
+                            html: `<div class="avatar-marker" style="background-image: url(${avatarUrl}); width: 32px; height: 32px; border-color: ${profile.color};"></div>`,
+                            className: '', iconSize: [32, 32], iconAnchor: [16, 16]
+                        });
+                        L.marker([center.geometry.coordinates[1], center.geometry.coordinates[0]], { icon: icon }).addTo(userLayerGroup);
+                    } catch(e) { console.warn("Could not draw avatar for user", profile.id, e); }
                 }
                 
                 userLayerGroup.addTo(map);
@@ -1116,12 +1036,6 @@
             });
             
             updateLeaderboard(profiles);
-
-            // Handle deep link after data is loaded
-            if (deepLinkedUserId) {
-                showUserDetailModal(deepLinkedUserId);
-                deepLinkedUserId = null; // Reset after use
-            }
         }
         
         function updateLeaderboard(profiles) {
@@ -1139,13 +1053,13 @@
                     : `${Math.round(area)} м²`;
 
                 return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showUserDetailModal(${u.id})">
-                        <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
-                        <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
-                        <div class="flex-grow">
-                            <p class="font-bold">${displayName}</p>
-                            <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
-                        </div>
-                    </div>`
+                            <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
+                            <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
+                            <div class="flex-grow">
+                                <p class="font-bold">${displayName}</p>
+                                <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
+                            </div>
+                        </div>`
             }).join('');
         }
 
@@ -1168,25 +1082,7 @@
             profileAreaDisplay.textContent = formattedArea;
         }
 
-        // --- Лента, Лайки, Комментарии ---
-
-        function listenToPosts() {
-            renderFeed();
-            supabase.channel('public:posts_activity')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, renderFeed)
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, renderFeed)
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload) => {
-                    const modal = document.getElementById('comments-modal');
-                    if (!modal.classList.contains('hidden')) {
-                       const postId = payload.new?.post_id || payload.old?.post_id;
-                       if(postId && postId === currentReplyTarget.postId) {
-                           showCommentsModal(postId);
-                       }
-                    }
-                    renderFeed();
-                })
-                .subscribe();
-        }
+        // --- ЛЕНТА, ЛАЙКИ, КОММЕНТАРИИ ---
 
         async function renderFeed() {
             const { data: posts, error: postsError } = await supabase
@@ -1236,8 +1132,7 @@
                 const mapContainer = document.getElementById(`mini-map-${post.id}`);
                 if (mapContainer && !mapContainer._leaflet_id) {
                     const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
-                    const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-                    L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token={accessToken}', { maxZoom: 19, accessToken: mapboxAccessToken }).addTo(miniMap);
+                    L.tileLayer(MAP_TILE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
                     const territoryLayer = L.geoJSON(post.territory_captured, { style: { color: post.user_color, weight: 2, opacity: 0.8, fillColor: post.user_color, fillOpacity: 0.5 } }).addTo(miniMap);
                     miniMap.fitBounds(territoryLayer.getBounds(), { padding: [10, 10] });
                 }
@@ -1260,7 +1155,7 @@
                                 <p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p>
                             </div>
                         </div>
-                        <p class="mt-4">${post.title}</p>
+                        <p class="mt-4">${post.title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
                     </div>
                     ${post.photo_url ? `<img src="${post.photo_url}" class="w-full h-64 object-cover" alt="Post photo">` : ''}
                     <div id="mini-map-${post.id}" class="h-48 w-full mini-map"></div>
@@ -1330,7 +1225,7 @@
                 console.error("Ошибка лайка:", error);
                 buttonElement.classList.toggle('liked');
                 countSpan.textContent = currentCount;
-                tg.showAlert(`Не удалось обработать лайк. Код ошибки: ${error.code}. Подробности в консоли.`);
+                tg.showAlert(`Не удалось обработать лайк. Ошибка: ${error.message}`);
             }
         }
         
@@ -1380,7 +1275,7 @@
 
             } catch (error) {
                 console.error('Ошибка отправки комментария:', error);
-                tg.showAlert(`Не удалось отправить комментарий. Код ошибки: ${error.code}. Подробности в консоли.`);
+                tg.showAlert(`Не удалось отправить комментарий. Ошибка: ${error.message}`);
             } finally {
                 buttonElement.disabled = false;
             }
@@ -1433,7 +1328,7 @@
 
             } catch(error) {
                  console.error("Ошибка загрузки комментариев:", error); 
-                 modalBody.innerHTML = '<p class="text-center text-red-500 p-4">Ошибка загрузки комментариев. Проверьте RLS-политики для таблиц `comments` и `profiles`.</p>';
+                 modalBody.innerHTML = `<p class="text-center text-red-500 p-4">Ошибка загрузки комментариев. ${error.message}</p>`;
             }
         }
 
@@ -1458,7 +1353,6 @@
             tg.HapticFeedback.impactOccurred('light');
             const deepLink = `https://t.me/TerraRunBot/app?startapp=user${telegramUser.id}`;
             
-            // Создаем временный контейнер для QR-кода, чтобы он сгенерировался до показа popup
             const tempQrContainer = document.createElement('div');
             tempQrContainer.style.display = 'none';
             document.body.appendChild(tempQrContainer);
@@ -1471,7 +1365,6 @@
                 correctLevel : QRCode.CorrectLevel.H
             });
             
-            // Ждем, пока QR-код сгенерируется в виде canvas или img
             setTimeout(() => {
                 const qrImage = tempQrContainer.querySelector('img') || tempQrContainer.querySelector('canvas');
                 const qrHtml = qrImage ? `<div style="display: flex; justify-content: center; padding: 1rem;">${qrImage.outerHTML}</div>` : '';
@@ -1487,7 +1380,7 @@
 
         async function editStatus() {
             tg.HapticFeedback.impactOccurred('light');
-            tg.showPrompt('Введите ваш новый статус', 'Сохранить', (newStatus) => {
+            tg.showPrompt('Введите ваш новый статус', (newStatus) => {
                 if (newStatus && newStatus.trim().length > 0) {
                     const trimmedStatus = newStatus.trim().slice(0, 50); // Ограничение длины
                     profileStatus.textContent = trimmedStatus;
@@ -1504,7 +1397,7 @@
         }
 
 
-        // --- Интеграция с Telegram API ---
+        // --- ИНТЕГРАЦИЯ С TELEGRAM API ---
         function applyTheme(themeParams) {
             document.documentElement.style.setProperty('--bg-color', themeParams.bg_color || '#f3f4f6');
             document.documentElement.style.setProperty('--secondary-bg-color', themeParams.secondary_bg_color || '#ffffff');
@@ -1513,7 +1406,6 @@
             document.documentElement.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
             document.documentElement.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
             
-            // Устанавливаем цвет хедера для бесшовной интеграции
             tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
             tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
         }
@@ -1529,8 +1421,35 @@
                 stopIcon.classList.add('hidden');
             }
         }
+        
+        function handleDeepLink() {
+             const startParam = tg.initDataUnsafe.start_param;
+             if (startParam && startParam.startsWith('user')) {
+                 deepLinkedUserId = parseInt(startParam.substring(4), 10);
+                 if (!isNaN(deepLinkedUserId)) {
+                    showUserDetailModal(deepLinkedUserId);
+                    deepLinkedUserId = null; // Reset after use
+                 }
+             }
+        }
+        
+        function showAttachmentPrompt() {
+            setTimeout(() => {
+                tg.CloudStorage.getItem('attachmentPromptSeen', (err, value) => {
+                    if (!value) {
+                        tg.showConfirm("Хотите добавить это приложение в меню вложений для быстрого доступа?", (ok) => {
+                            if (ok) {
+                                tg.showAlert("Отлично! Нажмите на имя бота вверху экрана, а затем выберите 'Добавить в меню вложений'.");
+                            }
+                            tg.CloudStorage.setItem('attachmentPromptSeen', 'true');
+                        });
+                    }
+                });
+            }, 5000);
+        }
 
-        function setupEventListeners() {
+        // Устанавливаем обработчики, которые не зависят от данных
+        function setupStaticEventListeners() {
             tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
             
             tg.onEvent('backButtonClicked', () => {
@@ -1541,7 +1460,6 @@
                 }
             });
 
-            // Показываем и настраиваем кнопку Настроек
             tg.SettingsButton.show();
             tg.onEvent('settingsButtonClicked', () => {
                 tg.showPopup({
@@ -1551,17 +1469,14 @@
                 });
             });
 
-            // Обработчик сканирования QR-кода
             tg.onEvent('qrTextReceived', (eventData) => {
                 tg.closeScanQrPopup();
                 const url = eventData.data;
                 try {
-                    // Пытаемся распарсить URL и найти параметр startapp
-                    const urlPattern = /startapp=(user\d+)/;
+                    const urlPattern = /startapp=user(\d+)/;
                     const match = url.match(urlPattern);
                     if (match && match[1]) {
-                        const startParam = match[1];
-                        const userId = parseInt(startParam.substring(4), 10);
+                        const userId = parseInt(match[1], 10);
                         if (!isNaN(userId)) {
                             showUserDetailModal(userId);
                         } else {
@@ -1576,87 +1491,97 @@
             });
         }
 
-
-        // --- Обработчики событий ---
-        recenterBtn.addEventListener('click', () => {
-             tg.HapticFeedback.impactOccurred('medium');
-            if (lastKnownLocation) {
-                map.flyTo(lastKnownLocation, 16);
-            } else {
-                tg.showAlert("Определяем ваше местоположение...");
-                requestAndWatchGeo().catch(() => {
-                    tg.showAlert("Не удалось получить доступ к геолокации. Пожалуйста, проверьте разрешения для Telegram.");
-                });
-            }
-        });
-        
-        scanQrBtn.addEventListener('click', () => {
-            tg.HapticFeedback.impactOccurred('light');
-            tg.showScanQrPopup({
-                text: 'Наведите на QR-код другого игрока'
-            });
-        });
-
-        startStopBtn.addEventListener('click', () => {
-            if (isRunning) {
-                stopRun();
-            } else {
-                startRun();
-            }
-        });
-
-        inviteFriendBtn.addEventListener('click', () => {
-            tg.HapticFeedback.impactOccurred('light');
-            tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(`https://t.me/TerraRunBot/app`)}&text=${encodeURIComponent(`Присоединяйся ко мне в TerraRun и давай захватывать территории вместе!`)}`);
-        });
-
-        donateBtn.addEventListener('click', () => {
-            tg.HapticFeedback.impactOccurred('light');
-            // Это демонстрационный инвойс. Замените `invoice_link` на реальную ссылку, полученную от вашего платежного провайдера.
-            // Для теста можно использовать @TestBot -> Start -> Payments
-            tg.openInvoice('...', (status) => { // Вставьте реальную ссылку на инвойс
-                if (status === 'paid') {
-                    tg.HapticFeedback.notificationOccurred('success');
-                    tg.showAlert('Спасибо за вашу поддержку!');
-                } else if (status === 'failed') {
-                    tg.HapticFeedback.notificationOccurred('error');
-                    tg.showAlert('Не удалось обработать платеж.');
+        // Устанавливаем обработчики, которые зависят от данных и состояния
+        function setupDynamicEventListeners() {
+            recenterBtn.addEventListener('click', () => {
+                 tg.HapticFeedback.impactOccurred('medium');
+                if (lastKnownLocation) {
+                    map.flyTo(lastKnownLocation, 16);
+                } else {
+                    tg.showAlert("Определяем ваше местоположение...");
                 }
             });
-        });
+            
+            scanQrBtn.addEventListener('click', () => {
+                tg.HapticFeedback.impactOccurred('light');
+                tg.showScanQrPopup({
+                    text: 'Наведите на QR-код другого игрока'
+                });
+            });
 
-        editStatusBtn.addEventListener('click', editStatus);
-        showQrBtn.addEventListener('click', showMyQrCode);
+            startStopBtn.addEventListener('click', () => {
+                if (isRunning) {
+                    stopRun();
+                } else {
+                    startRun();
+                }
+            });
 
-        userDetailModal.addEventListener('click', (e) => {
-            if (e.target.id === 'user-detail-modal') {
-                hideUserDetailModal();
-            }
-        });
-        document.getElementById('comments-modal').addEventListener('click', (e) => {
-            if (e.target.id === 'comments-modal') {
-                hideCommentsModal();
-            }
-        });
-        savePostBtn.addEventListener('click', handlePostSubmission);
-        cancelPostBtn.addEventListener('click', hideCreatePostModal);
+            inviteFriendBtn.addEventListener('click', () => {
+                tg.HapticFeedback.impactOccurred('light');
+                tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(`https://t.me/TerraRunBot/app`)}&text=${encodeURIComponent(`Присоединяйся ко мне в TerraRun и давай захватывать территории вместе!`)}`);
+            });
+
+            donateBtn.addEventListener('click', () => {
+                tg.HapticFeedback.impactOccurred('light');
+                // Демо-инвойс. Замените на реальную ссылку от платежного провайдера.
+                // Можно получить в @BotFather -> /mybots -> Payments -> выбрать провайдера
+                const demoInvoiceLink = '...'; // <-- ВСТАВЬТЕ ССЫЛКУ СЮДА
+                if (!demoInvoiceLink || demoInvoiceLink === '...') {
+                    tg.showAlert('Функция поддержки временно недоступна.');
+                    return;
+                }
+                tg.openInvoice(demoInvoiceLink, (status) => {
+                    if (status === 'paid') {
+                        tg.HapticFeedback.notificationOccurred('success');
+                        tg.showAlert('Спасибо за вашу поддержку!');
+                    } else if (status === 'failed') {
+                        tg.HapticFeedback.notificationOccurred('error');
+                        tg.showAlert('Не удалось обработать платеж.');
+                    }
+                });
+            });
+
+            editStatusBtn.addEventListener('click', editStatus);
+            showQrBtn.addEventListener('click', showMyQrCode);
+
+            userDetailModal.addEventListener('click', (e) => {
+                if (e.target.id === 'user-detail-modal') {
+                    hideUserDetailModal();
+                }
+            });
+            document.getElementById('comments-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'comments-modal') {
+                    hideCommentsModal();
+                }
+            });
+            savePostBtn.addEventListener('click', handlePostSubmission);
+            cancelPostBtn.addEventListener('click', hideCreatePostModal);
+            
+            const postPhotoLabel = document.getElementById('post-photo-input-label');
+            postPhotoLabel.addEventListener('click', () => postPhotoInput.click());
+            postPhotoInput.addEventListener('change', () => {
+                const file = postPhotoInput.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        postPhotoPreview.src = e.target.result;
+                        postPhotoPreview.classList.remove('hidden');
+                        postPhotoIcon.classList.add('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Восстанавливаем последнюю открытую вкладку
+            tg.CloudStorage.getItem('lastView', (err, value) => {
+                if (value) {
+                    showView(value);
+                }
+            });
+        }
         
-        const postPhotoLabel = document.getElementById('post-photo-input-label');
-        postPhotoLabel.addEventListener('click', () => postPhotoInput.click());
-        postPhotoInput.addEventListener('change', () => {
-            const file = postPhotoInput.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    postPhotoPreview.src = e.target.result;
-                    postPhotoPreview.classList.remove('hidden');
-                    postPhotoIcon.classList.add('hidden');
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-        
-        // --- Глобальные функции для HTML ---
+        // --- ПРИВЯЗКА ГЛОБАЛЬНЫХ ФУНКЦИЙ И ЗАПУСК ---
         window.showView = showView;
         window.showUserDetailModal = showUserDetailModal;
         window.hideUserDetailModal = hideUserDetailModal;
@@ -1670,11 +1595,9 @@
         window.handleTouchStart = handleTouchStart;
         window.handleTouchMove = handleTouchMove;
         window.handleTouchEnd = handleTouchEnd;
-        window.requestAndWatchGeo = requestAndWatchGeo;
-        window.initializeWithUser = initializeWithUser;
 
         // Запускаем приложение
-        document.addEventListener('DOMContentLoaded', startApp);
+        document.addEventListener('DOMContentLoaded', main);
     </script>
 
 </body>
