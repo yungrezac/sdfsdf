@@ -1410,17 +1410,14 @@
                     hideUserDetailModal();
                 }
             });
-            // События activated/deactivated для управления geoWatchId при необходимости в будущем
             tg.onEvent('activated', () => {
                 console.log('App activated');
                 if (!geoWatchId) {
-                    // Попытка восстановить отслеживание, если оно было потеряно
                     requestAndWatchGeo().catch(() => {});
                 }
             });
             tg.onEvent('deactivated', () => {
                 console.log('App deactivated');
-                // Мы не останавливаем geoWatchId, чтобы отслеживание продолжалось
             });
         }
 
