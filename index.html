@@ -303,6 +303,20 @@
         <div id="fallback-content" class="text-center card-bg p-8 rounded-2xl shadow-lg max-w-sm"></div>
     </div>
 
+    <!-- NEW: Модальное окно приветствия и запроса геолокации -->
+    <div id="welcome-modal" class="modal-overlay justify-center items-center p-4">
+        <div class="card-bg rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center space-y-4">
+            <h2 class="text-2xl font-bold">Добро пожаловать в TerraRun!</h2>
+            <p style="color: var(--hint-color);">
+                Чтобы начать захватывать территории, нам нужен доступ к вашему местоположению. 
+                Мы будем использовать его только для отображения вас на карте и записи маршрутов.
+            </p>
+            <button id="request-geo-btn" class="w-full text-white font-bold py-3 px-4 rounded-full transition-all" style="background-color: var(--button-color); color: var(--button-text-color);">
+                Разрешить доступ к гео
+            </button>
+        </div>
+    </div>
+
     <!-- Основной контейнер приложения -->
     <div id="app-container" class="hidden">
         <!-- Вид 1: Карта -->
@@ -580,6 +594,8 @@
         const modeSwitcher = document.getElementById('mode-switcher');
         
         // Модальные окна
+        const welcomeModal = document.getElementById('welcome-modal');
+        const requestGeoBtn = document.getElementById('request-geo-btn');
         const editModal = document.getElementById('edit-modal');
         const detailModal = document.getElementById('detail-modal');
         const commentsModal = document.getElementById('comments-modal');
@@ -1076,6 +1092,34 @@
                 }
                 telegramUser = tg.initDataUnsafe.user;
 
+                // [MODIFIED] Проверяем, показывалось ли уже приветствие
+                tg.CloudStorage.getItem('welcome_shown', async (error, value) => {
+                    if (error) {
+                        console.error("Ошибка чтения CloudStorage:", error);
+                        // Продолжаем без модального окна в случае ошибки
+                        await initializeMainApp();
+                        return;
+                    }
+
+                    if (value !== 'true') {
+                        // Показываем модальное окно, если пользователь зашел впервые
+                        welcomeModal.classList.add('visible');
+                        initialLoader.classList.add('hidden'); // Скрываем основной загрузчик
+                    } else {
+                        // Сразу инициализируем приложение, если модальное окно уже было показано
+                        await initializeMainApp();
+                    }
+                });
+
+            } catch (error) {
+                 console.error("Критическая ошибка на старте:", error);
+                 showFallbackScreen("Критическая ошибка", "Не удалось запустить приложение.", true);
+            }
+        }
+
+        // [NEW] Функция для основной инициализации приложения
+        async function initializeMainApp() {
+            try {
                 const initialPosition = await requestAndWatchGeo();
                 
                 loaderText.textContent = 'Подключение к базе данных...';
@@ -1102,7 +1146,6 @@
                 bottomNavbar.classList.remove('hidden');
                 
                 setMode('capture');
-
             } catch (error) {
                 console.error("Критическая ошибка инициализации:", error);
                 let title = "Ошибка инициализации";
@@ -1116,6 +1159,7 @@
                 showFallbackScreen(title, message, true);
             }
         }
+
 
         function initMap(coords) {
             if (map) return;
@@ -1475,6 +1519,22 @@
                 } else if (action === 'comment' || action === 'show-post-comments') {
                     showPostComments(id);
                 }
+            });
+
+            // [NEW] Обработчик для кнопки в модальном окне приветствия
+            requestGeoBtn.addEventListener('click', () => {
+                welcomeModal.classList.remove('visible');
+                initialLoader.classList.remove('hidden');
+                
+                // Сохраняем в CloudStorage, что окно было показано
+                tg.CloudStorage.setItem('welcome_shown', 'true', (error, success) => {
+                    if (error) {
+                        console.error("Ошибка сохранения в CloudStorage:", error);
+                    }
+                });
+
+                // Запускаем основную инициализацию приложения
+                initializeMainApp();
             });
         }
         
