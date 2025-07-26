@@ -956,7 +956,8 @@
         }
 
         function generateMiniPostHTML(post) {
-            return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="showPostComments(${post.id})">
+            // FIX: Use data attributes for event delegation
+            return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" data-action="show-post-comments" data-id="${post.id}">
                         <p class="font-semibold">${post.title}</p>
                         <p class="text-xs text-gray-400">${new Date(post.created_at).toLocaleDateString()}</p>
                     </div>`;
@@ -1356,6 +1357,37 @@
             
             showQrBtn.addEventListener('click', () => { /* TODO: Implement */ });
             donateBtn.addEventListener('click', () => { /* TODO: Implement */ });
+
+            // FIX: Use event delegation for dynamic content
+            feedContainer.addEventListener('click', (event) => {
+                const button = event.target.closest('button[data-action]');
+                if (!button) return;
+
+                const action = button.dataset.action;
+                const postId = button.dataset.postId;
+
+                if (!action || !postId) return;
+
+                if (action === 'like') {
+                    toggleLike(button, postId);
+                } else if (action === 'comment') {
+                    showPostComments(postId);
+                }
+            });
+
+            detailModal.addEventListener('click', (event) => {
+                const target = event.target.closest('[data-action]');
+                if (!target) return;
+                
+                const action = target.dataset.action;
+                const id = target.dataset.id;
+
+                if (!action || !id) return;
+
+                if (action === 'show-post-comments') {
+                    showPostComments(id);
+                }
+            });
         }
         
         // --- ПОЛНЫЕ РЕАЛИЗАЦИИ ВОССТАНОВЛЕННЫХ ФУНКЦИЙ ---
@@ -1643,7 +1675,7 @@
             const avatar = post.user_avatar_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${post.user_name.charAt(0)}`;
             const area = post.area_captured || 0;
             const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
-            const userHasLiked = likes.some(like => like.user_id === telegramUser.id);
+            const userHasLiked = telegramUser && likes.some(like => like.user_id === telegramUser.id);
             return `<div class="card-bg rounded-2xl shadow-lg overflow-hidden" id="post-${post.id}">
                         <div class="p-4">
                             <div class="flex items-center space-x-3 cursor-pointer" onclick="showDetailModal('user', ${post.user_id})"><img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar"><div><p class="font-bold">${post.user_name}</p><p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p></div></div>
@@ -1655,11 +1687,11 @@
                         <div class="p-4">
                             ${post.area_captured ? `<p class="font-semibold">Захвачено: <span class="font-bold" style="color: var(--button-color);">${formattedArea}</span></p>` : ''}
                             <div class="flex items-center space-x-6 mt-3" style="color: var(--hint-color);">
-                                <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" onclick="toggleLike(this, ${post.id})">
+                                <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" data-action="like" data-post-id="${post.id}">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>
                                     <span data-likes-count>${likes.length}</span>
                                 </button>
-                                <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="showPostComments(${post.id})">
+                                <button class="flex items-center space-x-1 hover:text-blue-500 transition" data-action="comment" data-post-id="${post.id}">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                                     <span>${comments.length}</span>
                                 </button>
