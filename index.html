@@ -107,6 +107,12 @@
             fill: #ef4444;
             color: #ef4444;
         }
+        .btn-gradient {
+            background-image: linear-gradient(to right, #3b82f6, #60a5fa);
+        }
+        .btn-gradient-red {
+             background-image: linear-gradient(to right, #ef4444, #f87171);
+        }
     </style>
 </head>
 <body class="font-sans antialiased overflow-hidden">
@@ -127,12 +133,15 @@
             <button id="recenter-btn" class="z-20 fixed top-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             </button>
-            <div id="run-info" class="fixed bottom-24 left-0 right-0 p-4 z-20">
-                 <div class="max-w-md mx-auto card-bg backdrop-blur-md rounded-2xl shadow-xl p-4 flex items-center justify-center fade-in">
-                    <div class="text-center">
+            <div id="run-controls" class="fixed bottom-24 left-0 right-0 p-4 z-20">
+                <div class="max-w-md mx-auto card-bg backdrop-blur-md rounded-2xl shadow-xl p-4 flex items-center justify-between fade-in">
+                    <div class="flex flex-col">
                         <span id="username-display" class="font-bold text-lg">TerraRun</span>
-                        <span id="area-display" class="text-sm block" style="color: var(--hint-color);">Площадь: 0 м²</span>
+                        <span id="area-display" class="text-sm" style="color: var(--hint-color);">Площадь: 0 м²</span>
                     </div>
+                    <button id="toggle-run-btn" class="btn-gradient text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300">
+                        Старт
+                    </button>
                 </div>
             </div>
         </div>
@@ -308,6 +317,7 @@
         const savePostLoader = document.getElementById('save-post-loader');
         const feedContainer = document.getElementById('feed-container');
         const profileFeedContainer = document.getElementById('profile-feed-container');
+        const toggleRunBtn = document.getElementById('toggle-run-btn');
 
         // --- Функции UI ---
         function showView(viewId) {
@@ -316,12 +326,6 @@
             document.getElementById(viewId).classList.add('active');
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             document.querySelector(`button[onclick="showView('${viewId}')"]`).classList.add('active');
-            
-            if (viewId === 'map-view') {
-                tg.MainButton.show();
-            } else {
-                tg.MainButton.hide();
-            }
         }
 
         function showMessage(message) {
@@ -575,7 +579,6 @@
             tg.ready();
             tg.expand();
             applyTheme(tg.themeParams);
-            setupMainButton();
             setupEventListeners();
             
             if (tg.initDataUnsafe?.user) {
@@ -605,7 +608,6 @@
         async function initializeWithUser() {
              if (loginAnimationInterval) clearInterval(loginAnimationInterval);
              
-             // Запрашиваем геолокацию ПЕРЕД инициализацией остального
              try {
                 await requestAndWatchGeo();
                 
@@ -620,7 +622,7 @@
                 authContent.innerHTML = `
                     <h1 class="text-2xl font-bold mb-4 text-red-500">Доступ к геолокации необходим</h1>
                     <p class="mb-6" style="color: var(--hint-color);">Для работы приложения TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение.</p>
-                    <button onclick="requestAndWatchGeo().then(initializeWithUser).catch(() => {})" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Предоставить доступ</button>
+                    <button onclick="initializeWithUser()" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Предоставить доступ</button>
                 `;
              }
         }
@@ -774,6 +776,11 @@
             tg.isClosingConfirmationEnabled = true;
             updateMainButton();
             
+            if (telegramUser?.is_premium) {
+                // ID кастомного эмодзи бегущего человечка
+                tg.setEmojiStatus({ emoji_id: '5368324170671202286' });
+            }
+
             currentRunPath = [];
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
             currentPathPolyline = L.polyline([], { color: '#ef4444', weight: 5, opacity: 0.9 }).addTo(map);
@@ -798,6 +805,10 @@
             tg.HapticFeedback.notificationOccurred('success');
             tg.isClosingConfirmationEnabled = false;
             updateMainButton();
+
+            if (telegramUser?.is_premium) {
+                tg.setEmojiStatus(); // Сбрасываем статус
+            }
 
             if (currentRunPath.length > 3) {
                 processRunPath();
@@ -1378,34 +1389,6 @@
             document.documentElement.style.setProperty('--hint-color', themeParams.hint_color || '#6b7280');
             document.documentElement.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
             document.documentElement.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
-        }
-
-        function setupMainButton() {
-            tg.MainButton.setText("Старт");
-            tg.MainButton.onClick(() => {
-                if (isRunning) {
-                    stopRun();
-                } else {
-                    startRun();
-                }
-            });
-            tg.MainButton.show();
-        }
-        
-        function updateMainButton() {
-             if (isRunning) {
-                tg.MainButton.setText("Стоп");
-                tg.MainButton.setParams({
-                    color: '#ef4444',
-                    text_color: '#ffffff'
-                });
-            } else {
-                tg.MainButton.setText("Старт");
-                tg.MainButton.setParams({
-                    color: tg.themeParams.button_color || '#3b82f6',
-                    text_color: tg.themeParams.button_text_color || '#ffffff'
-                });
-            }
         }
 
         function setupEventListeners() {
