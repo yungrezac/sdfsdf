@@ -542,7 +542,6 @@
         let map;
         let supabase;
         let telegramUser = null;
-        let supabaseUser = null; // ** NEW: Для хранения пользователя Supabase (с UUID)
         
         // Состояние режимов
         let currentMode = 'capture'; // 'capture', 'spots', 'routes'
@@ -615,9 +614,6 @@
             if (isMapView) {
                 setTimeout(() => map?.invalidateSize(), 100);
             }
-            
-            // CloudStorage is not reliable for critical data, but okay for UI state
-            // tg.CloudStorage.setItem('lastView', viewId);
         }
 
         function setMode(newMode) {
@@ -637,12 +633,10 @@
 
             map.off('click');
             
-            // Скрываем все слои
             if (map.hasLayer(territoriesLayerGroup)) map.removeLayer(territoriesLayerGroup);
             if (map.hasLayer(spotMarkersLayer)) map.removeLayer(spotMarkersLayer);
             if (map.hasLayer(routePolylinesLayer)) map.removeLayer(routePolylinesLayer);
 
-            // Показываем нужный слой и настраиваем интерактивность
             switch (newMode) {
                 case 'capture':
                     map.addLayer(territoriesLayerGroup);
@@ -707,7 +701,6 @@
         }
         
         function generateColorFromId(id) {
-            // Using UUID string for hash generation
             const strId = String(id);
             let hash = 0;
             for (let i = 0; i < strId.length; i++) {
@@ -851,7 +844,7 @@
                         ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-64 object-cover" alt="Spot photo">` : ''}
                         <div class="px-4">
                             <h2 class="text-3xl font-bold">${spot.name}</h2>
-                            <div class="flex items-center space-x-3 mt-2 cursor-pointer" onclick="showDetailModal('user', '${spot.user_id}')">
+                            <div class="flex items-center space-x-3 mt-2 cursor-pointer" onclick="showDetailModal('user', ${spot.user_id})">
                                 <img src="${avatar}" class="w-8 h-8 rounded-full" alt="author avatar">
                                 <span class="font-semibold text-sm">Автор: ${author.name}</span>
                             </div>
@@ -874,7 +867,7 @@
                         <div id="detail-mini-map" class="h-64 w-full bg-gray-200"></div>
                         <div class="px-4">
                             <h2 class="text-3xl font-bold">${route.name}</h2>
-                            <div class="flex items-center space-x-3 mt-2 cursor-pointer" onclick="showDetailModal('user', '${route.user_id}')">
+                            <div class="flex items-center space-x-3 mt-2 cursor-pointer" onclick="showDetailModal('user', ${route.user_id})">
                                 <img src="${avatar}" class="w-8 h-8 rounded-full" alt="author avatar">
                                 <span class="font-semibold text-sm">Автор: ${author.name}</span>
                             </div>
@@ -1075,31 +1068,6 @@
                 
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 
-                // ** NEW: Аутентификация в Supabase **
-                loaderText.textContent = 'Аутентификация...';
-                const { data: { user }, error: authError } = await supabase.auth.signInWithPassword({
-                    email: `user_${telegramUser.id}@terrarun.app`,
-                    password: `secret_pass_for_${telegramUser.id}`
-                });
-
-                if (authError && authError.message.includes('Invalid login credentials')) {
-                    // Пользователь не найден, регистрируем
-                    const { data: { user: newUser }, error: signUpError } = await supabase.auth.signUp({
-                        email: `user_${telegramUser.id}@terrarun.app`,
-                        password: `secret_pass_for_${telegramUser.id}`
-                    });
-                    if (signUpError) throw new Error(`Ошибка регистрации в Supabase: ${signUpError.message}`);
-                    supabaseUser = newUser;
-                } else if (authError) {
-                    throw new Error(`Ошибка входа в Supabase: ${authError.message}`);
-                } else {
-                    supabaseUser = user;
-                }
-
-                if (!supabaseUser) {
-                    throw new Error('Не удалось получить пользователя Supabase.');
-                }
-                
                 loaderText.textContent = 'Загрузка данных...';
                 initMap(initialPosition.coords);
                 await upsertUserProfile();
@@ -1240,7 +1208,7 @@
             
             let photoUrl = null;
             if (file) {
-                const filePath = `${supabaseUser.id}/spots/${Date.now()}_${file.name}`;
+                const filePath = `${telegramUser.id}/spots/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
                 if (error) { console.error("Ошибка загрузки фото:", error); tg.showAlert("Ошибка загрузки фото."); return; }
                 const { data: urlData } = supabase.storage.from('photo').getPublicUrl(data.path);
@@ -1248,7 +1216,7 @@
             }
             
             const { error } = await supabase.from('spots').insert({
-                name, description, photo_url: photoUrl, location, user_id: supabaseUser.id
+                name, description, photo_url: photoUrl, location, user_id: telegramUser.id
             });
 
             if (error) {
@@ -1323,7 +1291,7 @@
             if (!name) { tg.showAlert("Название обязательно."); return; }
 
             const { error } = await supabase.from('routes').insert({
-                name, description, path, user_id: supabaseUser.id
+                name, description, path, user_id: telegramUser.id
             });
 
             if (error) {
@@ -1539,11 +1507,11 @@
             });
         }
         
-        // ** MODIFIED: Использует supabaseUser.id (UUID) **
+        // ** MODIFIED: Использует telegramUser.id (BIGINT) **
         async function upsertUserProfile() {
-            if (!supabaseUser) throw new Error("Пользователь Supabase не аутентифицирован для upsertUserProfile.");
+            if (!telegramUser) throw new Error("Пользователь Telegram не определен для upsertUserProfile.");
 
-            const { data, error } = await supabase.from('profiles').select('*').eq('id', supabaseUser.id).single();
+            const { data, error } = await supabase.from('profiles').select('*').eq('id', telegramUser.id).single();
             
             if (error && error.code !== 'PGRST116') { // PGRST116: row not found
                 console.error("Ошибка получения профиля:", error); 
@@ -1555,9 +1523,9 @@
                 userTerritory = data.territory;
             } else {
                 // Профиль не найден, создаем новый
-                userColor = generateColorFromId(supabaseUser.id);
+                userColor = generateColorFromId(telegramUser.id);
                 const { error: insertError } = await supabase.from('profiles').insert({ 
-                    id: supabaseUser.id, 
+                    id: telegramUser.id, 
                     name: telegramUser.first_name, 
                     color: userColor, 
                     area: 0, 
@@ -1614,7 +1582,7 @@
 
         async function saveUserData() {
             let area = userTerritory ? turf.area(userTerritory) : 0;
-            const userData = { id: supabaseUser.id, name: telegramUser.first_name, photo_url: telegramUser.photo_url || null, color: userColor, territory: userTerritory, area: area, updated_at: new Date().toISOString() };
+            const userData = { id: telegramUser.id, name: telegramUser.first_name, photo_url: telegramUser.photo_url || null, color: userColor, territory: userTerritory, area: area, updated_at: new Date().toISOString() };
             const { error } = await supabase.from('profiles').upsert(userData);
             if (error) console.error('Error saving user data:', error);
         }
@@ -1628,14 +1596,14 @@
             let photoUrl = null;
             const file = document.getElementById('edit-modal-photo-input').files[0];
             if (file) {
-                const filePath = `${supabaseUser.id}/${Date.now()}_${file.name}`;
+                const filePath = `${telegramUser.id}/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
                 if (error) { console.error("Error uploading photo:", error); tg.showAlert("Не удалось загрузить фото."); return; }
                 photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
             }
 
             const postData = {
-                user_id: supabaseUser.id,
+                user_id: telegramUser.id,
                 title: title,
                 description: null,
                 photo_url: photoUrl,
@@ -1666,14 +1634,14 @@
             let photoUrl = null;
             const file = document.getElementById('simple-post-photo-input').files[0];
             if (file) {
-                const filePath = `${supabaseUser.id}/posts/${Date.now()}_${file.name}`;
+                const filePath = `${telegramUser.id}/posts/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
                 if (error) { console.error("Error uploading photo:", error); tg.showAlert("Не удалось загрузить фото."); return; }
                 photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
             }
 
             const postData = {
-                user_id: supabaseUser.id,
+                user_id: telegramUser.id,
                 title: description.substring(0, 50) + (description.length > 50 ? '...' : ''),
                 description: description,
                 photo_url: photoUrl,
@@ -1702,7 +1670,7 @@
             allUserLayers = {};
 
             profiles.forEach(profile => {
-                if (supabaseUser && profile.id === supabaseUser.id) {
+                if (telegramUser && profile.id === telegramUser.id) {
                     userTerritory = parseWKT(profile.territory_wkt) || profile.territory;
                     userColor = profile.color;
                     refreshAllStats();
@@ -1721,13 +1689,13 @@
         function updateLeaderboard(profiles) {
             profiles.sort((a, b) => (b.area || 0) - (a.area || 0));
             leaderboardDiv.innerHTML = profiles.map((u, index) => {
-                const isCurrentUser = supabaseUser && u.id === supabaseUser.id;
+                const isCurrentUser = telegramUser && u.id === telegramUser.id;
                 const name = u.name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
                 const displayName = isCurrentUser ? `${name} (Вы)` : name;
                 const avatar = u.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${name.charAt(0)}`;
                 const area = u.area || 0;
                 const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
-                return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showDetailModal('user', '${u.id}')">
+                return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showDetailModal('user', ${u.id})">
                             <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
                             <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
                             <div class="flex-grow">
@@ -1787,10 +1755,10 @@
             const avatar = post.user_avatar_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${post.user_name.charAt(0)}`;
             const area = post.area_captured || 0;
             const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
-            const userHasLiked = supabaseUser && likes.some(like => like.user_id === supabaseUser.id);
+            const userHasLiked = telegramUser && likes.some(like => like.user_id === telegramUser.id);
             return `<div class="card-bg rounded-2xl shadow-lg overflow-hidden" id="post-${post.id}">
                         <div class="p-4">
-                            <div class="flex items-center space-x-3 cursor-pointer" onclick="showDetailModal('user', '${post.user_id}')"><img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar"><div><p class="font-bold">${post.user_name}</p><p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p></div></div>
+                            <div class="flex items-center space-x-3 cursor-pointer" onclick="showDetailModal('user', ${post.user_id})"><img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar"><div><p class="font-bold">${post.user_name}</p><p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p></div></div>
                             <p class="mt-4 font-semibold">${post.title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
                             ${post.description ? `<p class="mt-2 text-sm" style="color: var(--text-color);">${post.description.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>` : ''}
                         </div>
@@ -1813,7 +1781,7 @@
         }
 
         async function toggleLike(buttonElement, postId) {
-            if (!supabaseUser) {
+            if (!telegramUser) {
                 tg.showAlert('Пользователь не определен. Попробуйте перезагрузить приложение.');
                 return;
             }
@@ -1828,9 +1796,9 @@
 
             try {
                 if (hasLiked) {
-                    await supabase.from('likes').delete().match({ post_id: postId, user_id: supabaseUser.id });
+                    await supabase.from('likes').delete().match({ post_id: postId, user_id: telegramUser.id });
                 } else {
-                    await supabase.from('likes').insert({ post_id: postId, user_id: supabaseUser.id });
+                    await supabase.from('likes').insert({ post_id: postId, user_id: telegramUser.id });
                 }
             } catch (error) {
                 console.error("Ошибка лайка:", error);
@@ -1929,14 +1897,14 @@
 
         async function postComment() {
             const { type, id, parentCommentId } = currentReplyTarget;
-            if (!id || !supabaseUser) return;
+            if (!id || !telegramUser) return;
             const inputElement = document.getElementById('main-comment-input');
             const content = inputElement.value.trim();
             if (!content) return;
             
             const commentData = { 
                 post_id: id,
-                user_id: supabaseUser.id, 
+                user_id: telegramUser.id, 
                 parent_comment_id: parentCommentId, 
                 content: content 
             };
@@ -1958,7 +1926,7 @@
 
         async function postDetailComment() {
             const { type, id, replyTo } = currentDetailContext;
-            if (!id || !supabaseUser) return;
+            if (!id || !telegramUser) return;
             const inputElement = document.getElementById('detail-comment-input');
             const content = inputElement.value.trim();
             if (!content) return;
@@ -1966,7 +1934,7 @@
             const parentCommentId = replyTo ? replyTo.parentCommentId : null;
 
             const commentData = {
-                user_id: supabaseUser.id,
+                user_id: telegramUser.id,
                 parent_comment_id: parentCommentId,
                 content: content
             };
@@ -1997,8 +1965,8 @@
         }
 
         async function renderMyProfileContent() {
-            if (!supabaseUser) return;
-            const userId = supabaseUser.id;
+            if (!telegramUser) return;
+            const userId = telegramUser.id;
 
             const [postsRes, spotsRes, routesRes] = await Promise.all([
                 supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
