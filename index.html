@@ -585,37 +585,45 @@
         let currentReplyTarget = { type: null, id: null, parentCommentId: null };
         
         // --- ЭЛЕМЕНТЫ DOM ---
-        const initialLoader = document.getElementById('initial-loader');
-        const loaderText = document.getElementById('loader-text');
-        const fallbackScreen = document.getElementById('fallback-screen');
-        const fallbackContent = document.getElementById('fallback-content');
-        const appContainer = document.getElementById('app-container');
-        const bottomNavbar = document.getElementById('bottom-navbar');
-        const mainActionBtn = document.getElementById('main-action-btn');
-        const modeSwitcher = document.getElementById('mode-switcher');
-        
-        // Модальные окна
-        const welcomeModal = document.getElementById('welcome-modal');
-        const requestGeoBtn = document.getElementById('request-geo-btn');
-        const editModal = document.getElementById('edit-modal');
-        const detailModal = document.getElementById('detail-modal');
-        const commentsModal = document.getElementById('comments-modal');
-        const simplePostModal = document.getElementById('simple-post-modal');
-        const creationModal = document.getElementById('creation-modal');
+        // [FIXED] Changed to `let` and will be initialized after DOM load
+        let initialLoader, loaderText, fallbackScreen, fallbackContent, appContainer,
+            bottomNavbar, mainActionBtn, modeSwitcher, welcomeModal, requestGeoBtn,
+            editModal, detailModal, commentsModal, simplePostModal, creationModal,
+            leaderboardDiv, feedContainer, profileName, profileAreaDisplay,
+            profileAvatarImg, profileAvatarWrapper, recenterBtn, scanQrBtn,
+            inviteFriendBtn, donateBtn, showQrBtn, createSimplePostBtn, shareProfileBtn;
 
-        const leaderboardDiv = document.getElementById('leaderboard');
-        const feedContainer = document.getElementById('feed-container');
-        const profileName = document.getElementById('profile-name');
-        const profileAreaDisplay = document.getElementById('profile-area');
-        const profileAvatarImg = document.getElementById('profile-avatar-img');
-        const profileAvatarWrapper = document.getElementById('profile-avatar-wrapper');
-        const recenterBtn = document.getElementById('recenter-btn');
-        const scanQrBtn = document.getElementById('scan-qr-btn');
-        const inviteFriendBtn = document.getElementById('invite-friend-btn');
-        const donateBtn = document.getElementById('donate-btn');
-        const showQrBtn = document.getElementById('show-qr-btn');
-        const createSimplePostBtn = document.getElementById('create-simple-post-btn');
-        const shareProfileBtn = document.getElementById('share-profile-btn');
+        // [NEW] Function to cache all DOM elements
+        function cacheDOMElements() {
+            initialLoader = document.getElementById('initial-loader');
+            loaderText = document.getElementById('loader-text');
+            fallbackScreen = document.getElementById('fallback-screen');
+            fallbackContent = document.getElementById('fallback-content');
+            appContainer = document.getElementById('app-container');
+            bottomNavbar = document.getElementById('bottom-navbar');
+            mainActionBtn = document.getElementById('main-action-btn');
+            modeSwitcher = document.getElementById('mode-switcher');
+            welcomeModal = document.getElementById('welcome-modal');
+            requestGeoBtn = document.getElementById('request-geo-btn');
+            editModal = document.getElementById('edit-modal');
+            detailModal = document.getElementById('detail-modal');
+            commentsModal = document.getElementById('comments-modal');
+            simplePostModal = document.getElementById('simple-post-modal');
+            creationModal = document.getElementById('creation-modal');
+            leaderboardDiv = document.getElementById('leaderboard');
+            feedContainer = document.getElementById('feed-container');
+            profileName = document.getElementById('profile-name');
+            profileAreaDisplay = document.getElementById('profile-area');
+            profileAvatarImg = document.getElementById('profile-avatar-img');
+            profileAvatarWrapper = document.getElementById('profile-avatar-wrapper');
+            recenterBtn = document.getElementById('recenter-btn');
+            scanQrBtn = document.getElementById('scan-qr-btn');
+            inviteFriendBtn = document.getElementById('invite-friend-btn');
+            donateBtn = document.getElementById('donate-btn');
+            showQrBtn = document.getElementById('show-qr-btn');
+            createSimplePostBtn = document.getElementById('create-simple-post-btn');
+            shareProfileBtn = document.getElementById('share-profile-btn');
+        }
 
 
         // --- ФУНКЦИИ UI ---
@@ -1122,6 +1130,9 @@
         
         async function main() {
             try {
+                // [FIXED] Cache DOM elements first, after DOM is loaded
+                cacheDOMElements();
+
                 tg.ready();
                 tg.expand();
                 applyTheme(tg.themeParams);
