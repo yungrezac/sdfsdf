@@ -256,7 +256,7 @@
                 <button id="mode-routes" class="mode-btn">Маршруты</button>
             </div>
 
-            <button id="recenter-btn" class="z-20 fixed top-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg">
+            <button id="recenter-btn" class="z-20 fixed top-20 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             </button>
         </div>
@@ -425,6 +425,7 @@
         let allUserLayers = {};
         let allSpots = [];
         let allRoutes = [];
+        let territoriesLayerGroup = L.layerGroup();
         let spotMarkersLayer = L.layerGroup();
         let routePolylinesLayer = L.layerGroup();
 
@@ -495,13 +496,22 @@
 
             map.off('click');
             
+            // Скрываем все слои
+            if (map.hasLayer(territoriesLayerGroup)) map.removeLayer(territoriesLayerGroup);
+            if (map.hasLayer(spotMarkersLayer)) map.removeLayer(spotMarkersLayer);
+            if (map.hasLayer(routePolylinesLayer)) map.removeLayer(routePolylinesLayer);
+
+            // Показываем нужный слой и настраиваем интерактивность
             switch (newMode) {
                 case 'capture':
+                    map.addLayer(territoriesLayerGroup);
                     break;
                 case 'spots':
+                    map.addLayer(spotMarkersLayer);
                     map.on('click', handleMapClickForSpot);
                     break;
                 case 'routes':
+                    map.addLayer(routePolylinesLayer);
                     break;
             }
             updateMainActionButton();
@@ -748,9 +758,6 @@
                 accessToken: MAPBOX_ACCESS_TOKEN
             }).addTo(map);
             
-            spotMarkersLayer.addTo(map);
-            routePolylinesLayer.addTo(map);
-
             updateCurrentUserMarker(latLng);
             setTimeout(() => map?.invalidateSize(), 100);
         }
@@ -1161,10 +1168,10 @@
             let { data: profiles, error } = await supabase.from('profiles').select('*');
             if (error) { console.error("Error fetching profiles:", error); return; }
             allProfilesData = profiles;
-            for (const userId in allUserLayers) {
-                if (allUserLayers[userId]) map.removeLayer(allUserLayers[userId]);
-            }
+            
+            territoriesLayerGroup.clearLayers();
             allUserLayers = {};
+
             profiles.forEach(profile => {
                 if (profile.id === telegramUser.id) {
                     userTerritory = profile.territory;
@@ -1175,7 +1182,7 @@
                 if (profile.territory) {
                     L.geoJSON(profile.territory, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } }).addTo(userLayerGroup);
                 }
-                userLayerGroup.addTo(map);
+                userLayerGroup.addTo(territoriesLayerGroup);
                 allUserLayers[profile.id] = userLayerGroup;
             });
             updateLeaderboard(profiles);
