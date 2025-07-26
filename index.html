@@ -1568,22 +1568,12 @@
             loaderText.textContent = 'Инициализация геолокации...';
 
             return new Promise((resolve, reject) => {
-                // Проверяем, поддерживает ли клиент LocationManager (Bot API 8.0+)
-                if (!tg.locationManager || !tg.isVersionAtLeast('8.0')) {
-                    const errorMsg = "Ваша версия Telegram не поддерживает постоянный доступ к геолокации. Пожалуйста, обновите приложение.";
-                    console.error(errorMsg);
-                    return reject(new Error(errorMsg));
-                }
-
-                // Инициализируем LocationManager
-                tg.locationManager.init();
-
                 const startBrowserWatching = (initialPosition) => {
                     loaderText.textContent = 'Отслеживание местоположения...';
                     
                     if (!navigator.geolocation || !navigator.geolocation.watchPosition) {
                         console.warn("Браузер не поддерживает непрерывное отслеживание геолокации. Будет использоваться только начальная позиция.");
-                        resolve(initialPosition); // Возвращаем хотя бы одну точку
+                        resolve(initialPosition);
                         return;
                     }
 
@@ -1609,28 +1599,73 @@
                     
                     resolve(initialPosition);
                 };
-
-                const locationCallback = (locationData) => {
-                    if (locationData) {
-                        const initialPosition = {
-                            coords: {
-                                latitude: locationData.latitude,
-                                longitude: locationData.longitude,
-                                altitude: locationData.altitude,
-                                speed: locationData.speed,
-                                course: locationData.course,
-                                horizontal_accuracy: locationData.horizontal_accuracy,
-                            }
-                        };
-                        lastKnownLocation = [locationData.latitude, locationData.longitude];
-                        startBrowserWatching(initialPosition);
-                    } else {
-                        reject({ code: 1, message: "Доступ к геолокации не предоставлен." });
-                    }
+                
+                const handleSuccess = (position) => {
+                     const initialPosition = {
+                        coords: {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            altitude: position.coords.altitude,
+                            speed: position.coords.speed,
+                            course: position.coords.course,
+                            horizontal_accuracy: position.coords.horizontal_accuracy,
+                        }
+                    };
+                    lastKnownLocation = [position.coords.latitude, position.coords.longitude];
+                    startBrowserWatching(initialPosition);
                 };
                 
-                loaderText.textContent = 'Запрос доступа к геолокации...';
-                tg.locationManager.getLocation(locationCallback);
+                const handleError = (error) => {
+                    console.error("Geolocation error:", error);
+                    reject({ code: 1, message: "Не удалось получить доступ к геолокации. Проверьте настройки вашего устройства и разрешения для Telegram." });
+                };
+
+                // --- Fallback Logic ---
+                
+                // 1. Try modern LocationManager (Bot API 8.0+)
+                if (tg.locationManager && tg.isVersionAtLeast('8.0')) {
+                    loaderText.textContent = 'Запрос доступа к геолокации...';
+                    tg.locationManager.init();
+                    tg.locationManager.getLocation((locationData) => {
+                        if (locationData) {
+                            handleSuccess({ coords: locationData });
+                        } else {
+                            handleError(new Error("Пользователь отклонил запрос геолокации в Telegram."));
+                        }
+                    });
+                } 
+                // 2. Fallback to older event-based request (using requestLocation)
+                else if (tg.requestLocation) {
+                     loaderText.textContent = 'Запрос доступа к геолокации...';
+                     const locationHandler = (data) => {
+                         tg.offEvent('locationReceived', locationHandler);
+                         if (data && data.latitude && data.longitude) {
+                             handleSuccess({ coords: data });
+                         } else {
+                             handleError(new Error("Не удалось получить геолокацию от Telegram."));
+                         }
+                     };
+                     tg.onEvent('locationReceived', locationHandler);
+                     tg.requestLocation((accessGranted) => {
+                         if (!accessGranted) {
+                             tg.offEvent('locationReceived', locationHandler);
+                             handleError(new Error("Пользователь отклонил запрос геолокации в Telegram."));
+                         }
+                     });
+                }
+                // 3. Last resort: standard browser API
+                else if (navigator.geolocation) {
+                     loaderText.textContent = 'Запрос доступа к геолокации...';
+                     navigator.geolocation.getCurrentPosition(handleSuccess, handleError, {
+                         enableHighAccuracy: true,
+                         timeout: 15000,
+                         maximumAge: 0
+                     });
+                } 
+                // 4. If nothing works
+                else {
+                    handleError(new Error("Геолокация не поддерживается на вашем устройстве."));
+                }
             });
         }
         
