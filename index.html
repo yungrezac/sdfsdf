@@ -1458,6 +1458,22 @@
                     hideSimplePostModal();
                 }
             });
+
+            // [MOVED & FIXED] Обработчик для кнопки в модальном окне приветствия
+            requestGeoBtn.addEventListener('click', () => {
+                welcomeModal.classList.remove('visible');
+                initialLoader.classList.remove('hidden');
+                
+                // Сохраняем в CloudStorage, что окно было показано
+                tg.CloudStorage.setItem('welcome_shown', 'true', (error, success) => {
+                    if (error) {
+                        console.error("Ошибка сохранения в CloudStorage:", error);
+                    }
+                });
+
+                // Запускаем основную инициализацию приложения
+                initializeMainApp();
+            });
         }
 
         function setupDynamicEventListeners() {
@@ -1519,22 +1535,6 @@
                 } else if (action === 'comment' || action === 'show-post-comments') {
                     showPostComments(id);
                 }
-            });
-
-            // [NEW] Обработчик для кнопки в модальном окне приветствия
-            requestGeoBtn.addEventListener('click', () => {
-                welcomeModal.classList.remove('visible');
-                initialLoader.classList.remove('hidden');
-                
-                // Сохраняем в CloudStorage, что окно было показано
-                tg.CloudStorage.setItem('welcome_shown', 'true', (error, success) => {
-                    if (error) {
-                        console.error("Ошибка сохранения в CloudStorage:", error);
-                    }
-                });
-
-                // Запускаем основную инициализацию приложения
-                initializeMainApp();
             });
         }
         
