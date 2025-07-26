@@ -1,1503 +1,1498 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>TerraRun | Захват Территории</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>TerraRun | Захват Территории</title>
 
-        <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Подключение Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Подключение Leaflet JS и CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-        <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></script>
-    
-        <script src="https://unpkg.com/leaflet-textpath/leaflet.textpath.js"></script>
-    
-        <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
-        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Подключение Turf.js для гео-анализа -->
+    <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></script>
+    
+    <!-- Подключение плагина Leaflet.TextPath для текста вдоль линии -->
+    <script src="https://unpkg.com/leaflet-textpath/leaflet.textpath.js"></script>
+    
+    <!-- Подключение Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Подключение Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <style>
-        :root {
-            --bg-color: #f3f4f6;
-            --secondary-bg-color: #ffffff;
-            --text-color: #1f2937;
-            --hint-color: #6b7280;
-            --button-color: #3b82f6;
-            --button-text-color: #ffffff;
-        }
+    <style>
+        :root {
+            --bg-color: #f3f4f6;
+            --secondary-bg-color: #ffffff;
+            --text-color: #1f2937;
+            --hint-color: #6b7280;
+            --button-color: #3b82f6;
+            --button-text-color: #ffffff;
+        }
 
-        body {
-            overscroll-behavior: none;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            transition: background-color 0.3s, color 0.3s;
-        }
-        #map, .mini-map {
-            z-index: 10;
-            background-color: var(--bg-color);
-        }
-        #map {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 80px;
-        }
-        .view {
-            display: none;
-            height: calc(100vh - 80px);
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            transition: opacity 0.3s ease-in-out;
-            background-color: var(--bg-color);
-        }
-        .view.active {
-            display: block;
-        }
-        .nav-btn.active svg, .nav-btn.active span {
-            color: var(--button-color);
-        }
-        .nav-btn span {
-             color: var(--hint-color);
-        }
-        .nav-btn.active span {
-            color: var(--button-color);
-        }
-        .card-bg {
-            background-color: var(--secondary-bg-color);
-        }
-        #bottom-navbar {
-            background-color: color-mix(in srgb, var(--secondary-bg-color) 80%, transparent);
-        }
-        .fade-in {
-            animation: fadeIn 0.5s ease-in-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .avatar-marker {
-            border-radius: 50%;
-            border: 3px solid white;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.4);
-            background-size: cover;
-            background-position: center;
-            transition: transform 0.2s ease-in-out;
-        }
-        .avatar-marker:hover {
-            transform: scale(1.1);
-        }
-        .current-user-marker {
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 rgba(59, 130, 246, 0.7); }
-            70% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 15px rgba(59, 130, 246, 0); }
-            100% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 rgba(59, 130, 246, 0); }
-        }
-        .like-btn.liked svg {
-            fill: #ef4444;
-            color: #ef4444;
-        }
-        .btn-gradient {
-            background-image: linear-gradient(to right, #3b82f6, #60a5fa);
-        }
-        .btn-gradient-red {
-             background-image: linear-gradient(to right, #ef4444, #f87171);
-        }
-    </style>
+        body {
+            overscroll-behavior: none;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        #map, .mini-map {
+            z-index: 10;
+            background-color: var(--bg-color);
+        }
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 80px;
+        }
+        .view {
+            display: none;
+            height: calc(100vh - 80px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            transition: opacity 0.3s ease-in-out;
+            background-color: var(--bg-color);
+        }
+        .view.active {
+            display: block;
+        }
+        .nav-btn.active svg, .nav-btn.active span {
+            color: var(--button-color);
+        }
+        .nav-btn span {
+             color: var(--hint-color);
+        }
+        .nav-btn.active span {
+            color: var(--button-color);
+        }
+        .card-bg {
+            background-color: var(--secondary-bg-color);
+        }
+        #bottom-navbar {
+            background-color: color-mix(in srgb, var(--secondary-bg-color) 80%, transparent);
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .avatar-marker {
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.4);
+            background-size: cover;
+            background-position: center;
+            transition: transform 0.2s ease-in-out;
+        }
+        .avatar-marker:hover {
+            transform: scale(1.1);
+        }
+        .current-user-marker {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 15px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+        .like-btn.liked svg {
+            fill: #ef4444;
+            color: #ef4444;
+        }
+        .btn-gradient {
+            background-image: linear-gradient(to right, #3b82f6, #60a5fa);
+        }
+        .btn-gradient-red {
+             background-image: linear-gradient(to right, #ef4444, #f87171);
+        }
+    </style>
 </head>
 <body class="font-sans antialiased overflow-hidden">
 
-        <div id="auth-screen" class="fixed inset-0 flex items-center justify-center p-4 z-50">
-        <div id="login-map-bg" class="absolute inset-0 z-10 filter blur-sm brightness-90"></div>
-        <div id="auth-content" class="z-20 text-center card-bg p-8 rounded-2xl shadow-lg">
-                    </div>
-    </div>
-
-        <div id="app-container" class="hidden">
-                <div id="map-view" class="view active">
-            <div id="map"></div>
-            <button id="recenter-btn" class="z-20 fixed top-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            </button>
-            <div id="run-controls" class="fixed bottom-24 left-0 right-0 p-4 z-20">
-                <div class="max-w-md mx-auto card-bg backdrop-blur-md rounded-2xl shadow-xl p-4 flex items-center justify-between fade-in">
-                    <div class="flex flex-col">
-                        <span id="username-display" class="font-bold text-lg">TerraRun</span>
-                        <span id="area-display" class="text-sm" style="color: var(--hint-color);">Площадь: 0 м²</span>
-                    </div>
-                    <button id="toggle-run-btn" class="btn-gradient text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300">
-                        Старт
-                    </button>
-                </div>
-            </div>
-        </div>
-
-                <div id="feed-view" class="view p-4 fade-in">
-            <h1 class="text-3xl font-bold mb-6 px-2">Лента</h1>
-            <div id="feed-container" class="space-y-4"></div>
-        </div>
-
-                <div id="top-view" class="view p-4 fade-in">
-            <h1 class="text-3xl font-bold mb-6 px-2">Топ Бегунов</h1>
-            <div id="leaderboard" class="space-y-3"></div>
-        </div>
-
-                <div id="profile-view" class="view p-4 fade-in">
-            <h1 class="text-3xl font-bold mb-6 px-2">Профиль</h1>
-            <div class="card-bg rounded-2xl shadow-lg p-6 space-y-6">
-                <div class="flex items-center space-x-4">
-                    <div id="profile-avatar-wrapper" class="w-20 h-20 rounded-full border-4 flex-shrink-0">
-                        <img src="https://placehold.co/80x80/E2E8F0/4A5568?text=?" id="profile-avatar-img" class="w-full h-full rounded-full object-cover" alt="avatar">
-                    </div>
-                    <div>
-                        <h2 id="profile-name" class="text-2xl font-bold">Загрузка...</h2>
-                        <p style="color: var(--hint-color);">Энтузиаст захвата территорий</p>
-                    </div>
-                </div>
-                <div class="rounded-lg p-4 text-center" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent)">
-                    <p class="text-sm" style="color: var(--button-color)">Общая площадь</p>
-                    <p id="profile-area" class="text-3xl font-bold" style="color: var(--button-color)">0 м²</p>
-                </div>
-            </div>
-            <h2 class="text-2xl font-bold my-6 px-2">Мои посты</h2>
-            <div id="profile-feed-container" class="space-y-4"></div>
-        </div>
-    </div>
-
-        <nav id="bottom-navbar" class="hidden fixed bottom-0 left-0 right-0 h-20 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] flex justify-around items-center z-30">
-        <button class="nav-btn active flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('map-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg><span>Карта</span></button>
-        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('feed-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3h2m0 0h2" /></svg><span>Лента</span></button>
-        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('top-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg><span>Топ</span></button>
-        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('profile-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg><span>Профиль</span></button>
-    </nav>
-    
-        <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center hidden z-50"><div class="card-bg rounded-2xl shadow-2xl p-8 text-center max-w-sm w-full fade-in"><p id="modal-message" class="text-lg mb-6"></p><button onclick="closeModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-full transition-all">OK</button></div></div>
-
-        <div id="create-post-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center hidden z-50 p-4">
-        <div class="card-bg rounded-2xl shadow-2xl p-6 w-full max-w-md fade-in space-y-4">
-            <h2 class="text-2xl font-bold">Новое достижение!</h2>
-            <p style="color: var(--hint-color);">Дайте название вашей новой территории и поделитесь с другими.</p>
-            <div>
-                <label for="post-title" class="block text-sm font-medium">Название</label>
-                <input type="text" id="post-title" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Например, 'Утренний захват парка'">
-            </div>
-            <div>
-                 <label for="post-photo-input" class="block text-sm font-medium">Фото</label>
-                 <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                     <div class="space-y-1 text-center">
-                         <img id="post-photo-preview" src="" alt="Предпросмотр фото" class="hidden mx-auto h-24 w-auto mb-4 rounded">
-                         <svg id="post-photo-icon" class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                         <div class="flex text-sm text-gray-600">
-                             <label for="post-photo-input" class="relative cursor-pointer rounded-md font-medium" style="color: var(--button-color)">
-                                 <span>Загрузите файл</span>
-                                 <input id="post-photo-input" name="post-photo-input" type="file" class="sr-only" accept="image/*">
-                             </label>
-                             <p class="pl-1">или перетащите</p>
-                         </div>
-                         <p class="text-xs text-gray-500">PNG, JPG, GIF до 10MB</p>
-                     </div>
-                 </div>
-            </div>
-            <div class="flex justify-end space-x-3">
-                <button id="cancel-post-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full transition-all">Пропустить</button>
-                <button id="save-post-btn" class="text-white font-bold py-2 px-4 rounded-full transition-all flex items-center justify-center" style="background-color: var(--button-color); color: var(--button-text-color)">
-                    <span id="save-post-text">Опубликовать</span>
-                    <svg id="save-post-loader" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                </button>
-            </div>
-        </div>
-    </div>
-
-        <div id="user-detail-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-end z-40 opacity-0 hidden transition-opacity duration-300">
-        <div id="user-detail-content" class="w-full h-3/4 card-bg rounded-t-2xl shadow-2xl p-4 flex flex-col transform translate-y-full transition-transform duration-300 ease-in-out">
-            <div class="w-full flex justify-center mb-2 flex-shrink-0" ontouchstart="handleTouchStart(event)" ontouchmove="handleTouchMove(event)" ontouchend="handleTouchEnd()">
-                <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
-            </div>
-            <div id="user-detail-header" class="flex items-center space-x-4 mb-4 flex-shrink-0"></div>
-            <div id="detail-map" class="w-full flex-grow bg-gray-200 rounded-lg mb-4"></div>
-            <div id="user-detail-stats" class="text-center flex-shrink-0"></div>
-             <button id="share-profile-btn" class="mt-4 w-full text-white font-bold py-3 px-4 rounded-full transition-all" style="background-color: var(--button-color); color: var(--button-text-color)">Поделиться профилем</button>
-        </div>
-    </div>
-    
-        <div id="comments-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-end z-40 opacity-0 hidden transition-opacity duration-300">
-        <div id="comments-modal-content" class="w-full h-3/4 card-bg rounded-t-2xl shadow-2xl flex flex-col transform translate-y-full transition-transform duration-300 ease-in-out">
-            <div class="w-full flex justify-center py-3 flex-shrink-0 cursor-grab" onclick="hideCommentsModal()">
-                <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
-            </div>
-            <div id="comments-modal-body" class="flex-grow overflow-y-auto p-4">
-                            </div>
-                        <div id="comment-input-container" class="flex-shrink-0 p-2 border-t border-gray-200 bg-white">
-                 <div id="reply-indicator" class="hidden text-xs text-gray-500 px-2 pb-1 flex justify-between items-center">
-                    <span id="reply-indicator-text"></span>
-                    <button onclick="cancelReply()" class="font-bold text-xl">&times;</button>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <textarea id="main-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
-                    <button id="main-comment-send-btn" onclick="postComment()" class="flex-shrink-0 bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600 disabled:bg-gray-400">
-                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    <script type="module">
-        // --- Глобальные переменные ---
-        const tg = window.Telegram.WebApp;
-        let map;
-        let detailMap = null;
-        let supabase;
-        let telegramUser = null;
-        let isRunning = false;
-        let geoWatchId = null;
-        let currentRunPath = [];
-        let currentPathPolyline = null;
-        let userTerritory = null;
-        let userColor = '#3b82f6';
-        let currentUserMarker = null;
-        let allUserLayers = {};
-        let allProfilesData = [];
-        let loginAnimationInterval = null;
-        let lastCaptureData = null;
-        let currentReplyTarget = { postId: null, parentCommentId: null };
-        let initialLocationSet = false;
-        let lastKnownLocation = null;
-
-        // --- Элементы DOM ---
-        const authScreen = document.getElementById('auth-screen');
-        const authContent = document.getElementById('auth-content');
-        const appContainer = document.getElementById('app-container');
-        const bottomNavbar = document.getElementById('bottom-navbar');
-        const areaDisplay = document.getElementById('area-display');
-        const usernameDisplay = document.getElementById('username-display');
-        const profileAreaDisplay = document.getElementById('profile-area');
-        const profileName = document.getElementById('profile-name');
-        const profileAvatarImg = document.getElementById('profile-avatar-img');
-        const profileAvatarWrapper = document.getElementById('profile-avatar-wrapper');
-        const leaderboardDiv = document.getElementById('leaderboard');
-        const modal = document.getElementById('message-modal');
-        const modalMessage = document.getElementById('modal-message');
-        const recenterBtn = document.getElementById('recenter-btn');
-        const userDetailModal = document.getElementById('user-detail-modal');
-        const userDetailContent = document.getElementById('user-detail-content');
-        const createPostModal = document.getElementById('create-post-modal');
-        const savePostBtn = document.getElementById('save-post-btn');
-        const cancelPostBtn = document.getElementById('cancel-post-btn');
-        const postTitleInput = document.getElementById('post-title');
-        const postPhotoInput = document.getElementById('post-photo-input');
-        const postPhotoPreview = document.getElementById('post-photo-preview');
-        const postPhotoIcon = document.getElementById('post-photo-icon');
-        const savePostText = document.getElementById('save-post-text');
-        const savePostLoader = document.getElementById('save-post-loader');
-        const feedContainer = document.getElementById('feed-container');
-        const profileFeedContainer = document.getElementById('profile-feed-container');
-        const toggleRunBtn = document.getElementById('toggle-run-btn');
-
-        // --- Функции UI ---
-        function showView(viewId) {
-            tg.HapticFeedback.impactOccurred('light');
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById(viewId).classList.add('active');
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.querySelector(`button[onclick="showView('${viewId}')"]`).classList.add('active');
-        }
-
-        function showMessage(message) {
-            modalMessage.textContent = message;
-            modal.classList.remove('hidden');
-        }
-        function closeModal() {
-            modal.classList.add('hidden');
-        }
-
-        function generateColorFromId(id) {
-            const strId = String(id);
-            let hash = 0;
-            for (let i = 0; i < strId.length; i++) {
-                hash = strId.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            const h = hash % 360;
-            return `hsl(${h}, 80%, 65%)`;
-        }
-        
-        function focusOnUser(userId) {
-            showView('map-view');
-            const userLayerGroup = allUserLayers[userId];
-            if (userLayerGroup && map && userLayerGroup.getLayers().length > 0) {
-                setTimeout(() => {
-                    map.flyToBounds(userLayerGroup.getBounds(), { padding: [50, 50], duration: 1, maxZoom: 16 });
-                }, 100);
-            } else {
-                showMessage("У этого пользователя еще нет захваченных территорий.");
-            }
-        }
-        
-        // --- Логика модальных окон ---
-        let touchStartY = 0;
-        let currentY = 0;
-        let isDragging = false;
-
-        function handleTouchStart(e) {
-            isDragging = true;
-            touchStartY = e.touches[0].clientY;
-            userDetailContent.style.transition = 'none';
-        }
-
-        function handleTouchMove(e) {
-            if (!isDragging) return;
-            currentY = e.touches[0].clientY;
-            const deltaY = currentY - touchStartY;
-            if (deltaY > 0) {
-                userDetailContent.style.transform = `translateY(${deltaY}px)`;
-            }
-        }
-
-        function handleTouchEnd() {
-            if (!isDragging) return;
-            isDragging = false;
-            userDetailContent.style.transition = 'transform 0.3s ease-in-out';
-            const deltaY = currentY - touchStartY;
-
-            if (deltaY > userDetailContent.clientHeight * 0.3) {
-                hideUserDetailModal();
-            } else {
-                userDetailContent.style.transform = '';
-            }
-        }
-
-        async function showUserDetailModal(userId) {
-            const profile = allProfilesData.find(p => p.id === userId);
-            if (!profile) {
-                showMessage("Профиль пользователя не найден.");
-                return;
-            }
-
-            tg.HapticFeedback.impactOccurred('medium');
-            tg.BackButton.show();
-
-            const userDetailHeader = document.getElementById('user-detail-header');
-            const avatar = profile.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
-            userDetailHeader.innerHTML = `<img src="${avatar}" class="w-16 h-16 rounded-full" alt="avatar"><div><p class="text-2xl font-bold">${profile.name}</p><p class="text-sm" style="color: var(--hint-color);">Завоеватель</p></div>`;
-            
-            const userDetailStats = document.getElementById('user-detail-stats');
-            const area = profile.area || 0;
-            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
-            userDetailStats.innerHTML = `<p class="text-sm" style="color: var(--hint-color);">Общая площадь</p><p class="text-4xl font-bold">${formattedArea}</p>`;
-            
-            const shareBtn = document.getElementById('share-profile-btn');
-            shareBtn.onclick = () => shareProfile(profile.id, profile.name);
-
-            userDetailContent.style.transform = '';
-            userDetailModal.classList.remove('hidden');
-            setTimeout(() => {
-                userDetailModal.classList.remove('opacity-0');
-                userDetailContent.classList.remove('translate-y-full');
-            }, 10);
-
-            setTimeout(() => {
-                if (detailMap) detailMap.remove();
-                detailMap = L.map('detail-map', { zoomControl: false, attributionControl: false });
-                const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-                L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token={accessToken}', { maxZoom: 19, accessToken: mapboxAccessToken }).addTo(detailMap);
-                
-                if (profile.territory) {
-                    const territoryLayer = L.geoJSON(profile.territory, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.5 } }).addTo(detailMap);
-                    detailMap.fitBounds(territoryLayer.getBounds(), { padding: [20, 20], maxZoom: 16 });
-                } else {
-                    detailMap.setView([55.75, 37.61], 5);
-                }
-            }, 300);
-        }
-
-        function hideUserDetailModal() {
-            tg.BackButton.hide();
-            userDetailModal.classList.add('opacity-0');
-            userDetailContent.classList.add('translate-y-full');
-            setTimeout(() => {
-                userDetailModal.classList.add('hidden');
-                if (detailMap) {
-                    detailMap.remove();
-                    detailMap = null;
-                }
-                document.getElementById('detail-map').innerHTML = '';
-            }, 300);
-        }
-
-        function showCreatePostModal(newCapture) {
-            lastCaptureData = newCapture;
-            postTitleInput.value = '';
-            postPhotoInput.value = '';
-            postPhotoPreview.classList.add('hidden');
-            postPhotoIcon.classList.remove('hidden');
-            createPostModal.classList.remove('hidden');
-        }
-
-        function hideCreatePostModal() {
-            createPostModal.classList.add('hidden');
-            lastCaptureData = null;
-        }
-
-        // --- Логика анимации входа ---
-        function startLoginAnimation() {
-            const loginMap = L.map('login-map-bg', {
-                zoomControl: false, attributionControl: false, dragging: false,
-                scrollWheelZoom: false, doubleClickZoom: false,
-            }).setView([55.75, 37.61], 10);
-
-            const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-            L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}', {
-                maxZoom: 19, tileSize: 512, zoomOffset: -1, accessToken: mapboxAccessToken
-            }).addTo(loginMap);
-            
-            const animationLayers = L.layerGroup().addTo(loginMap);
-            let animationTerritories = [];
-            const randomAvatars = [
-                'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=100&auto=format&fit=crop',
-                'https://images.unsplash.com/photo-1527980965255-d3b416303d12?q=80&w=100&auto=format&fit=crop',
-                'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=100&auto=format&fit=crop',
-                'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=100&auto=format&fit=crop',
-                'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=100&auto=format&fit=crop'
-            ];
-            let availableAvatars = [...randomAvatars];
-
-            function getUniqueAvatar() {
-                if(availableAvatars.length === 0) {
-                    availableAvatars = [...randomAvatars];
-                }
-                const index = Math.floor(Math.random() * availableAvatars.length);
-                return availableAvatars.splice(index, 1)[0];
-            }
-
-            loginAnimationInterval = setInterval(() => {
-                const bounds = loginMap.getBounds();
-                if (!bounds.isValid()) return;
-
-                const centerPoint = [
-                    bounds.getWest() + Math.random() * (bounds.getEast() - bounds.getWest()),
-                    bounds.getSouth() + Math.random() * (bounds.getNorth() - bounds.getSouth())
-                ];
-
-                const radius = (Math.random() * 0.05) + 0.02;
-                const points = 10 + Math.floor(Math.random() * 10);
-                const path = [];
-                for (let i = 0; i < points; i++) {
-                    const angle = (i / points) * 360;
-                    const distance = radius * (0.8 + Math.random() * 0.4);
-                    const destination = turf.destination(centerPoint, distance, {units: 'degrees'});
-                    path.push(destination.geometry.coordinates);
-                }
-                path.push(path[0]);
-
-                const color = `hsl(${Math.random() * 360}, 80%, 65%)`;
-                const polyline = L.polyline([], { color: color, weight: 4 }).addTo(animationLayers);
-                
-                let i = 0;
-                function draw() {
-                    if (i < path.length) {
-                        polyline.addLatLng([path[i][1], path[i][0]]);
-                        i++;
-                        setTimeout(draw, 150);
-                    } else {
-                        const coordinates = polyline.toGeoJSON().geometry.coordinates;
-          _x000D_
-                        if (coordinates.length < 4) {
-                            loginMap.removeLayer(polyline);
-                            return;
-                        }
-                        const newPolygonGeoJSON = turf.polygon([coordinates]);
-                        
-                        animationTerritories.forEach(existing => {
-                            if (existing.geojson) {
-                                try {
-                                    const intersection = turf.intersect(existing.geojson, newPolygonGeoJSON);
-                                    if (intersection) {
-                                        const remaining = turf.difference(existing.geojson, newPolygonGeoJSON);
-                                        loginMap.removeLayer(existing.layer);
-                                        if (existing.avatar) loginMap.removeLayer(existing.avatar);
-
-                                        if (remaining) {
-                                            existing.geojson = remaining;
-                                            existing.layer = L.geoJSON(remaining, { style: { color: existing.color, weight: 2, opacity: 0.8, fillColor: existing.color, fillOpacity: 0.4 } }).addTo(animationLayers);
-                                            const newCenter = turf.centerOfMass(remaining);
-                                            existing.avatar = L.marker([newCenter.geometry.coordinates[1], newCenter.geometry.coordinates[0]], { icon: existing.icon }).addTo(animationLayers);
-                                        } else {
-                                            existing.geojson = null;
-                                        }
-                                    }
-                                } catch (e) {
-                                    console.warn("Turf operation failed in animation, skipping.", e);
-                                }
-                            }
-                        });
-                        
-                        const polygonLayer = L.geoJSON(newPolygonGeoJSON, { style: { color: color, weight: 2, opacity: 0.8, fillColor: color, fillOpacity: 0.4 } }).addTo(animationLayers);
-                        
-                        const center = turf.centerOfMass(newPolygonGeoJSON);
-                        const avatarUrl = getUniqueAvatar();
-                        const icon = L.divIcon({
-                            html: `<div class="avatar-marker" style="background-image: url(${avatarUrl}); width: 32px; height: 32px; border-color: ${color};"></div>`,
-                            className: '', iconSize: [32, 32], iconAnchor: [16, 16]
-                        });
-                        const avatarMarker = L.marker([center.geometry.coordinates[1], center.geometry.coordinates[0]], { icon: icon }).addTo(animationLayers);
-
-                        animationTerritories.push({ geojson: newPolygonGeoJSON, layer: polygonLayer, color: color, avatar: avatarMarker, icon: icon });
-
-                        setTimeout(() => loginMap.removeLayer(polyline), 500);
-                    }
-                }
-                draw();
-            }, 4000);
-        }
-        
-        // --- Основная логика ---
-        async function startApp() {
-            tg.ready();
-            tg.expand();
-            applyTheme(tg.themeParams);
-            setupEventListeners();
-            
-            if (tg.initDataUnsafe?.user) {
-                telegramUser = tg.initDataUnsafe.user;
-                await initializeWithUser();
-            } else {
-                startLoginAnimation();
-                showAuthWidget();
-            }
-        }
-        
-        function showAuthWidget() {
-            authContent.innerHTML = `
-                <h1 class="text-2xl font-bold mb-4">Добро пожаловать в TerraRun!</h1>
-                <p class="mb-6" style="color: var(--hint-color);">Войдите через Telegram, чтобы начать.</p>
-            `;
-            const script = document.createElement('script');
-            script.async = true;
-            script.src = 'https://telegram.org/js/telegram-widget.js?22';
-            script.setAttribute('data-telegram-login', 'TerraRunbot');
-            script.setAttribute('data-size', 'large');
-            script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-            script.setAttribute('data-request-access', 'write');
-            authContent.appendChild(script);
-        }
-
-        async function initializeWithUser() {
-             if (loginAnimationInterval) clearInterval(loginAnimationInterval);
-             
-             try {
-                await requestAndWatchGeo();
-                
-                const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
-                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                
-                await setupUser();
-
-             } catch (error) {
-                console.error("Geolocation permission denied:", error);
-                authContent.innerHTML = `
-                    <h1 class="text-2xl font-bold mb-4 text-red-500">Доступ к геолокации необходим</h1>
-                    <p class="mb-6" style="color: var(--hint-color);">Для работы приложения TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение.</p>
-                    <button onclick="initializeWithUser()" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Предоставить доступ</button>
-                `;
-             }
-        }
-        
-        async function setupUser() {
-            try {
-                await upsertUserProfile();
-                initMap();
-                updateUI();
-                listenToAllProfiles();
-                listenToPosts();
-                
-                setTimeout(() => {
-                    if (!localStorage.getItem('attachmentPromptSeen')) {
-                        tg.showConfirm("Для удобного доступа, хотите добавить это приложение в меню вложений?", (ok) => {
-                            if (ok) {
-                                tg.showAlert("Отлично! Нажмите на имя бота вверху экрана, а затем выберите 'Добавить в меню вложений'.");
-                            }
-                            localStorage.setItem('attachmentPromptSeen', 'true');
-                        });
-                    }
-                }, 3000);
-
-                authScreen.style.display = 'none';
-                appContainer.classList.remove('hidden');
-                bottomNavbar.classList.remove('hidden');
-            } catch (error) {
-                console.error("Error during user setup:", error);
-                authContent.innerHTML = `
-                    <h1 class="text-2xl font-bold text-red-600 mb-4">Ошибка</h1>
-                    <p class="text-gray-600">Произошла ошибка при настройке вашего профиля. Пожалуйста, попробуйте перезапустить приложение.</p>
-                    <p class="text-xs text-gray-400 mt-4">${error.message}</p>
-                `;
-            }
-        }
-
-        function updateUI() {
-            const name = telegramUser.first_name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            profileName.textContent = name;
-            usernameDisplay.textContent = name;
-            
-            if (telegramUser.photo_url) {
-                profileAvatarImg.src = telegramUser.photo_url;
-            } else {
-                const initial = name.charAt(0).toUpperCase();
-                profileAvatarImg.src = `https://placehold.co/80x80/E2E8F0/4A5568?text=${initial}`;
-            }
-            profileAvatarWrapper.style.borderColor = userColor;
-            refreshAllStats();
-        }
-
-        function initMap() {
-            if (map) return;
-            
-            let initialView = [55.75, 37.61];
-            let initialZoom = 13;
-            const savedLocation = localStorage.getItem('lastKnownLocation');
-            if (savedLocation) {
-                try {
-                    initialView = JSON.parse(savedLocation);
-                    initialZoom = 16; 
-                } catch (e) {
-                    console.error("Failed to parse saved location", e);
-                }
-            }
-
-            map = L.map('map', { zoomControl: false, attributionControl: false }).setView(initialView, initialZoom);
-            
-            const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-            L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}', {
-                maxZoom: 19,
-                tileSize: 512,
-                zoomOffset: -1,
-                accessToken: mapboxAccessToken
-            }).addTo(map);
-            
-            setTimeout(() => map?.invalidateSize(), 100);
-        }
-
-        function updateCurrentUserMarker(latLng) {
-            const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E2E8F0/4A5568?text=${telegramUser.first_name.charAt(0)}`;
-            const icon = L.divIcon({
-                html: `<div class="avatar-marker current-user-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${userColor};"></div>`,
-                className: '',
-                iconSize: [40, 40],
-                iconAnchor: [20, 20]
-            });
-            
-            if (currentUserMarker) {
-                currentUserMarker.setLatLng(latLng);
-            } else {
-                currentUserMarker = L.marker(latLng, { icon: icon, zIndexOffset: 1000 }).addTo(map);
-            }
-        }
-        
-        // --- Логика бега и территории ---
-        function requestAndWatchGeo() {
-            return new Promise((resolve, reject) => {
-                if (geoWatchId) {
-                    resolve();
-                    return;
-                }
-                
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        geoWatchId = navigator.geolocation.watchPosition(
-                            (position) => {
-                                const { latitude, longitude } = position.coords;
-                                const latLng = [latitude, longitude];
-                                lastKnownLocation = latLng;
-                                localStorage.setItem('lastKnownLocation', JSON.stringify(latLng));
-
-                                if (!initialLocationSet) {
-                                    map.flyTo(latLng, 16);
-                                    initialLocationSet = true;
-                                }
-
-                                updateCurrentUserMarker(latLng);
-
-                                if (isRunning) {
-                                    currentRunPath.push([longitude, latitude]);
-                                    if (currentPathPolyline) {
-                                        currentPathPolyline.addLatLng(latLng);
-                                    }
-                                }
-                            },
-                            (err) => {
-                                console.error("Geolocation watch error:", err);
-                                tg.showAlert("Потерян доступ к геолокации.");
-                            },
-                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                        );
-                        resolve();
-                    },
-                    (err) => {
-                        reject(err);
-                    },
-                    { enableHighAccuracy: true }
-                );
-            });
-        }
-
-        function startRun() {
-            if (!initialLocationSet) {
-                 tg.showAlert("Сначала определите свое местоположение. Если вы отказали в доступе, перезапустите приложение.");
-                 return;
-            }
-
-            isRunning = true;
-            tg.HapticFeedback.impactOccurred('heavy');
-            tg.isClosingConfirmationEnabled = true;
-            updateMainButton();
-            
-            if (telegramUser?.is_premium) {
-                // ID кастомного эмодзи бегущего человечка
-                tg.setEmojiStatus({ emoji_id: '5368324170671202286' });
-            }
-
-            currentRunPath = [];
-            if (currentPathPolyline) map.removeLayer(currentPathPolyline);
-            currentPathPolyline = L.polyline([], { color: '#ef4444', weight: 5, opacity: 0.9 }).addTo(map);
-        }
-
-        function stopRun(confirm = true) {
-            if (!isRunning) return;
-
-            if (confirm) {
-                tg.showConfirm("Завершить пробежку и захватить территорию?", (ok) => {
-                    if (ok) {
-                        processStop();
-                    }
-                });
-            } else {
-                processStop();
-            }
-        }
-        
-        function processStop() {
-            isRunning = false;
-            tg.HapticFeedback.notificationOccurred('success');
-            tg.isClosingConfirmationEnabled = false;
-            updateMainButton();
-
-            if (telegramUser?.is_premium) {
-                tg.setEmojiStatus(); // Сбрасываем статус
-            }
-
-            if (currentRunPath.length > 3) {
-                processRunPath();
-            } else {
-                showMessage('Слишком короткий маршрут.');
-            }
-            if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
-        }
-
-
-        function processRunPath() {
-            const startPoint = currentRunPath[0];
-            const endPoint = currentRunPath[currentRunPath.length - 1];
-            const distance = turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' });
-            if (distance > 50) {
-                showMessage('Маршрут не замкнут. Вернитесь к точке старта для захвата.');
-                return;
-            }
-            currentRunPath.push(startPoint);
-
-            const line = turf.lineString(currentRunPath);
-            const polygonized = turf.polygonize(line);
-
-            if (polygonized.features.length === 0) {
-                showMessage('Не удалось сформировать замкнутую территорию. Попробуйте снова.');
-                return;
-            }
-
-            let newCapture = polygonized.features[0];
-            if (polygonized.features.length > 1) {
-                for (let i = 1; i < polygonized.features.length; i++) {
-                    newCapture = turf.union(newCapture, polygonized.features[i]);
-                }
-            }
-            
-            updateTerritory(newCapture);
-        }
-        
-        async function updateTerritory(newCapture) {
-            try {
-                let combinedTerritory;
-                if (!userTerritory) {
-                    combinedTerritory = newCapture;
-                } else {
-                    combinedTerritory = turf.union(userTerritory, newCapture);
-                }
-                const newTotalTerritory = turf.cleanCoords(combinedTerritory);
-
-                const affectedUsersUpdates = [];
-                for (const profile of allProfilesData) {
-                    if (profile.id !== telegramUser.id && profile.territory) {
-                        const intersection = turf.intersect(profile.territory, newTotalTerritory);
-                        if (intersection) {
-                            const remainingTerritory = turf.difference(profile.territory, newTotalTerritory);
-                            let finalTerritory = null;
-                            let finalArea = 0;
-                            if (remainingTerritory) {
-                                try {
-                                    const area = turf.area(remainingTerritory);
-                                    if (area > 1) {
-                                        finalTerritory = remainingTerritory;
-                                        finalArea = area;
-                                    }
-                                } catch (e) { /* Ignore invalid geometry */ }
-                            }
-                            affectedUsersUpdates.push({ id: profile.id, territory: finalTerritory, area: finalArea });
-                        }
-                    }
-                }
-
-                userTerritory = newTotalTerritory;
-                await saveUserData();
-
-                if (affectedUsersUpdates.length > 0) {
-                    const { error } = await supabase.from('profiles').upsert(affectedUsersUpdates);
-                    if (error) console.error("Error updating territories of other users:", error);
-                }
-
-                refreshAllStats();
-                tg.HapticFeedback.notificationOccurred('success');
-                showCreatePostModal(newCapture);
-            } catch (error) {
-                console.error("Ошибка в updateTerritory:", error);
-                showMessage("Ошибка обработки территории. Форма слишком сложная.");
-                tg.HapticFeedback.notificationOccurred('error');
-            }
-        }
-        
-        // --- Supabase ---
-        async function upsertUserProfile() {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', telegramUser.id)
-                .single();
-
-            if (error && error.code !== 'PGRST116') {
-                console.error('Error fetching profile:', error); throw error;
-            } 
-            
-            if (data) {
-                userColor = data.color;
-                userTerritory = data.territory;
-            } else {
-                userColor = generateColorFromId(telegramUser.id);
-                const { error: insertError } = await supabase
-                    .from('profiles')
-                    .insert({ id: telegramUser.id, name: telegramUser.first_name, color: userColor, area: 0, photo_url: telegramUser.photo_url || null, territory: null });
-                if (insertError) throw insertError;
-            }
-        }
-
-        async function saveUserData() {
-            if (!telegramUser) return;
-            const area = userTerritory ? turf.area(userTerritory) : 0;
-            
-            const { error } = await supabase
-                .from('profiles')
-                .upsert({ 
-                    id: telegramUser.id, 
-                    name: telegramUser.first_name,
-                    photo_url: telegramUser.photo_url || null,
-                    color: userColor,
-                    territory: userTerritory, 
-                    area: area, 
-                    updated_at: new Date().toISOString() 
-                });
-
-            if (error) {
-                console.error('Error saving user data (upsert):', error);
-                tg.HapticFeedback.notificationOccurred('error');
-                showMessage("Ошибка сохранения прогресса.");
-            }
-        }
-
-        async function handlePostSubmission() {
-            const title = postTitleInput.value.trim();
-            if (!title) {
-                showMessage("Пожалуйста, введите название.");
-                return;
-            }
-            if (!lastCaptureData) return;
-
-            savePostBtn.disabled = true;
-            savePostText.classList.add('hidden');
-            savePostLoader.classList.remove('hidden');
-
-            let photoUrl = null;
-            const file = postPhotoInput.files[0];
-            if (file) {
-                const filePath = `${telegramUser.id}/${Date.now()}_${file.name}`;
-                const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                if (error) {
-                    console.error("Error uploading photo:", error);
-                    showMessage("Не удалось загрузить фото.");
-                    savePostBtn.disabled = false;
-                    savePostText.classList.remove('hidden');
-                    savePostLoader.classList.add('hidden');
-                    return;
-                }
-                const { data: urlData } = supabase.storage.from('photo').getPublicUrl(data.path);
-                photoUrl = urlData.publicUrl;
-            }
-
-            const areaCaptured = turf.area(lastCaptureData);
-            
-            const { error: postError } = await supabase.from('posts').insert({
-                user_id: telegramUser.id,
-                title: title,
-                photo_url: photoUrl,
-                territory_captured: lastCaptureData,
-                area_captured: areaCaptured,
-                user_name: telegramUser.first_name,
-                user_avatar_url: telegramUser.photo_url,
-                user_color: userColor
-            });
-            
-            savePostBtn.disabled = false;
-            savePostText.classList.remove('hidden');
-            savePostLoader.classList.add('hidden');
-
-            if (postError) {
-                console.error("Error saving post:", postError);
-                showMessage("Не удалось сохранить пост.");
-            } else {
-                showMessage("Пост успешно опубликован!");
-                hideCreatePostModal();
-            }
-        }
-
-        function listenToAllProfiles() {
-            fetchAllProfilesAndDraw();
-            supabase.channel('public:profiles')
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => fetchAllProfilesAndDraw())
-              .subscribe();
-        }
-
-        async function fetchAllProfilesAndDraw() {
-            let { data: profiles, error } = await supabase.from('profiles').select('*');
-            if (error) { console.error("Error fetching profiles:", error); return; }
-            
-            allProfilesData = profiles; 
-
-            for (const userId in allUserLayers) {
-                if (allUserLayers[userId]) map.removeLayer(allUserLayers[userId]);
-            }
-            allUserLayers = {};
-
-            profiles.forEach(profile => {
-                const isCurrentUser = profile.id === telegramUser.id;
-                const userLayerGroup = L.layerGroup();
-
-                if (profile.territory) {
-                    L.geoJSON(profile.territory, { 
-                        style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } 
-                    }).addTo(userLayerGroup);
-
-                    if (profile.territory.geometry.coordinates.length > 0 && profile.territory.geometry.coordinates[0].length > 0) {
-                        const perimeterCoords = profile.territory.geometry.coordinates[0].map(p => [p[1], p[0]]);
-                        const label = L.polyline(perimeterCoords, {opacity: 0});
-                        label.setText(`\u25BA ${profile.name} `, {
-                            repeat: true, center: true,
-                            attributes: { 'font-weight': 'bold', 'font-size': '14', 'fill': '#000', 'text-shadow': '1px 1px 1px #fff, -1px -1px 1px #fff, 1px -1px 1px #fff, -1px 1px 1px #fff' }
-                        });
-                        label.addTo(userLayerGroup);
-                    }
-                }
-
-                if (!isCurrentUser && profile.territory) {
-                    const center = turf.centerOfMass(profile.territory);
-                    const avatarUrl = profile.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
-                    const icon = L.divIcon({
-                        html: `<div class="avatar-marker" style="background-image: url(${avatarUrl}); width: 32px; height: 32px; border-color: ${profile.color};"></div>`,
-                        className: '', iconSize: [32, 32], iconAnchor: [16, 16]
-                    });
-                    L.marker([center.geometry.coordinates[1], center.geometry.coordinates[0]], { icon: icon }).addTo(userLayerGroup);
-                }
-                
-                userLayerGroup.addTo(map);
-                allUserLayers[profile.id] = userLayerGroup;
-            });
-            
-            updateLeaderboard(profiles);
-        }
-        
-        function updateLeaderboard(profiles) {
-            profiles.sort((a, b) => (b.area || 0) - (a.area || 0));
-
-            leaderboardDiv.innerHTML = profiles.map((u, index) => {
-                const isCurrentUser = u.id === telegramUser.id;
-                const name = u.name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                const displayName = isCurrentUser ? `${name} (Вы)` : name;
-                const avatar = u.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${name.charAt(0)}`;
-                
-                const area = u.area || 0;
-                const formattedArea = area > 10000 
-                    ? `${(area / 1000000).toFixed(2)} км²` 
-                    : `${Math.round(area)} м²`;
-
-                return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showUserDetailModal(${u.id})">
-                    <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
-                    <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
-                    <div class="flex-grow">
-                        <p class="font-bold">${displayName}</p>
-                        <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
-                    </div>
-                </div>`
-            }).join('');
-        }
-
-        function refreshAllStats() {
-            let area = 0;
-            if (userTerritory) {
-                try {
-                    area = turf.area(userTerritory);
-                    if (isNaN(area)) area = 0;
-                } catch (e) {
-                    area = 0;
-                }
-            }
-            
-            const formattedArea = area > 10000 
-                ? `${(area / 1000000).toFixed(2)} км²` 
-                : `${Math.round(area)} м²`;
-            
-            areaDisplay.textContent = `Площадь: ${formattedArea}`;
-            profileAreaDisplay.textContent = formattedArea;
-        }
-
-        // --- Лента, Лайки, Комментарии ---
-
-        function listenToPosts() {
-            renderFeed();
-            supabase.channel('public:posts_activity')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, renderFeed)
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, renderFeed)
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload) => {
-                    const modal = document.getElementById('comments-modal');
-                    if (!modal.classList.contains('hidden')) {
-                       const postId = payload.new?.post_id || payload.old?.post_id;
-                       if(postId && postId === currentReplyTarget.postId) {
-                           showCommentsModal(postId);
-                       }
-                    }
-                    renderFeed();
-                })
-                .subscribe();
-        }
-
-        async function renderFeed() {
-            const { data: posts, error: postsError } = await supabase
-                .from('posts')
-                .select('*')
-                .order('created_at', { ascending: false });
-            if (postsError) { console.error("Error fetching posts:", postsError); return; }
-
-            const postIds = posts.map(p => p.id);
-            if (postIds.length === 0) {
-    _x000D_
-                 feedContainer.innerHTML = '<p class="text-center text-gray-500">В ленте пока нет постов.</p>';
-                 profileFeedContainer.innerHTML = '<p class="text-center text-gray-500">У вас еще нет постов.</p>';
-                 return;
-            }
-
-            const { data: likes, error: likesError } = await supabase.from('likes').select('*').in('post_id', postIds);
-            const { data: comments, error: commentsError } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
-            if (likesError || commentsError) { console.error("Error fetching activity:", likesError, commentsError); return; }
-
-            const likesByPost = likes.reduce((acc, like) => {
-                if (!acc[like.post_id]) acc[like.post_id] = [];
-                acc[like.post_id].push(like);
-                return acc;
-            }, {});
-
-            const commentsByPost = comments.reduce((acc, comment) => {
-                if (!acc[comment.post_id]) acc[comment.post_id] = [];
-                acc[comment.post_id].push(comment);
-                return acc;
-            }, {});
-
-            const feedHTML = posts.map(post => {
-                const postLikes = likesByPost[post.id] || [];
-                const postComments = commentsByPost[post.id] || [];
-                return generatePostHTML(post, postLikes, postComments);
-            }).join('');
-            feedContainer.innerHTML = feedHTML || '<p class="text-center text-gray-500">В ленте пока нет постов.</p>';
-            
-            const userPostsHTML = posts.filter(p => p.user_id === telegramUser.id).map(post => {
-                const postLikes = likesByPost[post.id] || [];
-                const postComments = commentsByPost[post.id] || [];
-                return generatePostHTML(post, postLikes, postComments);
-            }).join('');
-            profileFeedContainer.innerHTML = userPostsHTML || '<p class="text-center text-gray-500">У вас еще нет постов.</p>';
-
-            posts.forEach(post => {
-                 const mapContainer = document.getElementById(`mini-map-${post.id}`);
-                 if (mapContainer && !mapContainer._leaflet_id) {
-                    const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
-                    const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-                    L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token={accessToken}', { maxZoom: 19, accessToken: mapboxAccessToken }).addTo(miniMap);
-                    const territoryLayer = L.geoJSON(post.territory_captured, { style: { color: post.user_color, weight: 2, opacity: 0.8, fillColor: post.user_color, fillOpacity: 0.5 } }).addTo(miniMap);
-                    miniMap.fitBounds(territoryLayer.getBounds(), { padding: [10, 10] });
-                 }
-            });
-        }
-
-        function generatePostHTML(post, likes, comments) {
-            const avatar = post.user_avatar_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${post.user_name.charAt(0)}`;
-            const area = post.area_captured || 0;
-            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
-            const userHasLiked = likes.some(like => like.user_id === telegramUser.id);
-            
-            return `
-                <div class="card-bg rounded-2xl shadow-lg overflow-hidden" id="post-${post.id}">
-                    <div class="p-4">
-                        <div class="flex items-center space-x-3">
-                            <img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar">
-                            <div>
-                                <p class="font-bold">${post.user_name}</p>
-                                <p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p>
-                            </div>
-                        </div>
-                        <p class="mt-4">${post.title}</p>
-                    </div>
-                    ${post.photo_url ? `<img src="${post.photo_url}" class="w-full h-64 object-cover" alt="Post photo">` : ''}
-                    <div id="mini-map-${post.id}" class="h-48 w-full mini-map"></div>
-                    <div class="p-4">
-                        <p class="font-semibold">Захвачено: <span class="font-bold" style="color: var(--button-color);">${formattedArea}</span></p>
-                         <div class="flex items-center space-x-4 mt-3" style="color: var(--hint-color);">
-                            <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" onclick="toggleLike(this, ${post.id})">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>
-                                <span>${likes.length}</span>
-                            </button>
-                            <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="showCommentsModal(${post.id})">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                                <span>${comments.length}</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        function generateCommentHTML(comment, commentsByParent) {
-            const replies = commentsByParent[comment.id] || [];
-            const profileName = comment.profiles ? comment.profiles.name : 'Аноним';
-            const avatar = comment.profiles ? (comment.profiles.photo_url || `https://placehold.co/32x32/E5E7EB/4B5563?text=${profileName.charAt(0)}`) : 'https://placehold.co/32x32/E5E7EB/4B5563?text=?';
-            
-            return `
-                <div class="flex items-start space-x-3 mt-4">
-                    <img src="${avatar}" class="w-8 h-8 rounded-full" alt="avatar">
-                    <div class="flex-1">
-                        <div class="bg-gray-100 rounded-lg p-2">
-                            <p class="font-bold text-sm text-gray-800">${profileName}</p>
-                            <p class="text-sm text-gray-600">${comment.content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
-                        </div>
-                        <div class="text-xs text-gray-500 mt-1">
-                            <button class="hover:underline" onclick="setReplyMode(${comment.post_id}, ${comment.id}, '${profileName.replace(/'/g, "\\'")}')">Ответить</button>
-                        </div>
-                        <div class="pl-4 border-l-2 border-gray-200">
-                            ${replies.map(reply => generateCommentHTML(reply, commentsByParent)).join('')}
-                        </div>
-          _x000D_
-                    </div>
-                </div>
-            `;
-        }
-
-        async function toggleLike(buttonElement, postId) {
-            tg.HapticFeedback.impactOccurred('light');
-            
-            const hasLiked = buttonElement.classList.contains('liked');
-            const countSpan = buttonElement.querySelector('span');
-            const currentCount = parseInt(countSpan.textContent);
-
-            buttonElement.classList.toggle('liked');
-            countSpan.textContent = hasLiked ? currentCount - 1 : currentCount + 1;
-
-            try {
-                if (hasLiked) {
-                    const { error } = await supabase.from('likes').delete().match({ post_id: postId, user_id: telegramUser.id });
-                    if (error) throw error;
-                } else {
-                    const { error } = await supabase.from('likes').insert({ post_id: postId, user_id: telegramUser.id });
-                    if (error) throw error;
-                }
-            } catch (error) {
-                console.error("Ошибка лайка:", error);
-                buttonElement.classList.toggle('liked');
-                countSpan.textContent = currentCount;
-                showMessage(`Не удалось обработать лайк. Код ошибки: ${error.code}. Подробности в консоли.`);
-      _x000D_
-            }
-        }
-        
-        function setReplyMode(postId, parentCommentId, parentAuthorName) {
-            currentReplyTarget = { postId, parentCommentId };
-            
-            const replyIndicator = document.getElementById('reply-indicator');
-            const replyIndicatorText = document.getElementById('reply-indicator-text');
-            const mainInput = document.getElementById('main-comment-input');
-
-            replyIndicatorText.textContent = `Ответ пользователю: ${parentAuthorName}`;
-            replyIndicator.classList.remove('hidden');
-            mainInput.focus();
-        }
-
-        function cancelReply() {
-            currentReplyTarget.parentCommentId = null; // Keep postId
-            const replyIndicator = document.getElementById('reply-indicator');
-            replyIndicator.classList.add('hidden');
-        }
-
-        async function postComment() {
-            const { postId, parentCommentId } = currentReplyTarget;
-            if (!postId) return;
-
-            const inputElement = document.getElementById('main-comment-input');
-            const buttonElement = document.getElementById('main-comment-send-btn');
-            
-            const content = inputElement.value.trim();
-            if (!content) return;
-
-            buttonElement.disabled = true;
-
-            const commentData = {
-                post_id: postId,
-                user_id: telegramUser.id,
-                parent_comment_id: parentCommentId,
-                content: content
-            };
-
-            try {
-                const { error } = await supabase.from('comments').insert(commentData);
-                if (error) throw error;
-                
-                inputElement.value = '';
-                cancelReply();
-
-            } catch (error) {
-                console.error('Ошибка отправки комментария:', error);
-                showMessage(`Не удалось отправить комментарий. Код ошибки: ${error.code}. Подробности в консоли.`);
-            } finally {
-                buttonElement.disabled = false;
-            }
-        }
-        
-        async function showCommentsModal(postId) {
-            tg.HapticFeedback.impactOccurred('medium');
-            tg.BackButton.show();
-
-            const modal = document.getElementById('comments-modal');
-            const modalContent = document.getElementById('comments-modal-content');
-            const modalBody = document.getElementById('comments-modal-body');
-
-            currentReplyTarget = { postId: postId, parentCommentId: null };
-            cancelReply();
-
-            modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>';
-
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                modal.classList.remove('opacity-0');
-                modalContent.classList.remove('translate-y-full');
-            }, 10);
-
-            try {
-                const { data: comments, error: commentsError } = await supabase
-                    .from('comments')
-                    .select('*, profiles(name, photo_url)')
-                    .eq('post_id', postId)
-                    .order('created_at', { ascending: true });
-
-                if (commentsError) throw commentsError;
-                
-                const validComments = Array.isArray(comments) ? comments : [];
-                const commentsByParent = validComments.reduce((acc, comment) => {
-                    const parentId = comment.parent_comment_id || 'root';
-                    if (!acc[parentId]) acc[parentId] = [];
-                    acc[parentId].push(comment);
-                    return acc;
-                }, {});
-                const rootComments = commentsByParent['root'] || [];
-
-                let html = '';
-                if (rootComments.length === 0) {
-                    html = '<p class="text-center text-gray-500 py-4">Пока нет комментариев. Будьте первым!</p>';
-                } else {
-                    html = rootComments.map(comment => generateCommentHTML(comment, commentsByParent)).join('');
-                }
-                modalBody.innerHTML = html;
-
-            } catch(error) {
-                 console.error("Ошибка загрузки комментариев:", error); 
-                 modalBody.innerHTML = '<p class="text-center text-red-500 p-4">Ошибка загрузки комментариев. Проверьте RLS-политики для таблиц `comments` и `profiles`.</p>';
-            }
-        }
-
-        function hideCommentsModal() {
-            tg.BackButton.hide();
-            const modal = document.getElementById('comments-modal');
-            const modalContent = document.getElementById('comments-modal-content');
-            modal.classList.add('opacity-0');
-            modalContent.classList.add('translate-y-full');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                document.getElementById('comments-modal-body').innerHTML = '';
-            }, 300);
-        }
-
-        function shareProfile(userId, userName) {
-            const url = `https://t.me/share/url?url=${encodeURIComponent(`https://t.me/TerraRunBot/app?startapp=user${userId}`)}&text=${encodeURIComponent(`Посмотри на территорию, которую захватил(а) ${userName} в TerraRun!`)}`;
-            tg.openTelegramLink(url);
-        }
-
-        // --- Интеграция с Telegram API ---
-        function applyTheme(themeParams) {
-            document.documentElement.style.setProperty('--bg-color', themeParams.bg_color || '#f3f4f6');
-            document.documentElement.style.setProperty('--secondary-bg-color', themeParams.secondary_bg_color || '#ffffff');
-            document.documentElement.style.setProperty('--text-color', themeParams.text_color || '#1f2937');
-            document.documentElement.style.setProperty('--hint-color', themeParams.hint_color || '#6b7280');
-            document.documentElement.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
-            document.documentElement.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
-        }
-        
-        function updateMainButton() {
-             if (isRunning) {
-                toggleRunBtn.textContent = "Стоп";
-                toggleRunBtn.className = "btn-gradient-red text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-red-300";
-            } else {
-                toggleRunBtn.textContent = "Старт";
-                toggleRunBtn.className = "btn-gradient text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300";
-            }
-        }
-
-        function setupEventListeners() {
-            tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
-            tg.onEvent('backButtonClicked', () => {
-                if (!document.getElementById('comments-modal').classList.contains('hidden')) {
-                    hideCommentsModal();
-                } else if (!document.getElementById('user-detail-modal').classList.contains('hidden')) {
-                    hideUserDetailModal();
-                }
-            });
-
-            // Этот обработчик сработает, когда пользователь вернется в приложение после сворачивания
-            tg.onEvent('activated', () => {
-                console.log('App activated');
-                // Когда приложение неактивно, браузер может приостановить отслеживание геолокации для экономии батареи.
-                // Чтобы пользователь сразу увидел свою актуальную позицию при возвращении,
-                // мы запрашиваем ее однократно. Это НЕ вызовет повторного окна с запросом разрешений,
-                // так как они уже были даны.
-                if (geoWatchId && navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            const { latitude, longitude } = position.coords;
-                            const latLng = [latitude, longitude];
-                            console.log('Refreshed location on app activation.', latLng);
-                            // Обновляем последние известные координаты и маркер на карте
-                            lastKnownLocation = latLng;
-                            localStorage.setItem('lastKnownLocation', JSON.stringify(latLng));
-                            updateCurrentUserMarker(latLng);
-                        },
-                        (err) => {
-                            console.warn('Could not refresh location on activation:', err.message);
-                        },
-                        // Используем параметры для получения свежей и точной позиции
-                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                    );
-                }
-            });
-
-            tg.onEvent('deactivated', () => {
-                console.log('App deactivated');
-                // Ничего специально делать не нужно. `watchPosition` продолжит попытки получения
-                // геолокации, но будет ограничен операционной системой и браузером.
-            });
-        }
-
-
-        // --- Обработчики событий ---
-        recenterBtn.addEventListener('click', () => {
-             tg.HapticFeedback.impactOccurred('medium');
-            if (lastKnownLocation) {
-                map.flyTo(lastKnownLocation, 16);
-            } else {
-                tg.showAlert("Определяем ваше местоположение...");
-                requestAndWatchGeo().catch(() => {
-                    tg.showAlert("Не удалось получить доступ к геолокации. Пожалуйста, проверьте разрешения для Telegram.");
-                });
-            }
-        });
-        toggleRunBtn.addEventListener('click', () => {
-            if (isRunning) {
-                stopRun();
-            } else {
-                startRun();
-            }
-        });
-        userDetailModal.addEventListener('click', (e) => {
-            if (e.target.id === 'user-detail-modal') {
-                hideUserDetailModal();
-            }
-        });
-        document.getElementById('comments-modal').addEventListener('click', (e) => {
-            if (e.target.id === 'comments-modal') {
-                hideCommentsModal();
-            }
-        });
-        savePostBtn.addEventListener('click', handlePostSubmission);
-        cancelPostBtn.addEventListener('click', hideCreatePostModal);
-        postPhotoInput.addEventListener('change', () => {
-            const file = postPhotoInput.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    postPhotoPreview.src = e.target.result;
-                    postPhotoPreview.classList.remove('hidden');
-                    postPhotoIcon.classList.add('hidden');
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-        
-        // --- Глобальные функции для HTML ---
-        window.showView = showView;
-        window.closeModal = closeModal;
-        window.showUserDetailModal = showUserDetailModal;
-        window.hideUserDetailModal = hideUserDetailModal;
-        window.toggleLike = toggleLike;
-        window.setReplyMode = setReplyMode;
-        window.cancelReply = cancelReply;
-        window.postComment = postComment;
-        window.showCommentsModal = showCommentsModal;
-        window.hideCommentsModal = hideCommentsModal;
-        window.onTelegramAuth = async (user) => {
-            console.log("Logged in via external widget:", user);
-            telegramUser = user;
-            await initializeWithUser();
-        };
-        window.handleTouchStart = handleTouchStart;
-        window.handleTouchMove = handleTouchMove;
-        window.handleTouchEnd = handleTouchEnd;
-        window.initializeWithUser = initializeWithUser;
-
-        // Запускаем приложение
-        document.addEventListener('DOMContentLoaded', startApp);
-    </script>
+    <!-- Экран-заглушка / Вход -->
+    <div id="auth-screen" class="fixed inset-0 flex items-center justify-center p-4 z-50">
+        <div id="login-map-bg" class="absolute inset-0 z-10 filter blur-sm brightness-90"></div>
+        <div id="auth-content" class="z-20 text-center card-bg p-8 rounded-2xl shadow-lg">
+            <!-- Содержимое будет сгенерировано JS -->
+        </div>
+    </div>
+
+    <!-- Основной контейнер приложения -->
+    <div id="app-container" class="hidden">
+        <!-- Вид 1: Карта -->
+        <div id="map-view" class="view active">
+            <div id="map"></div>
+            <button id="recenter-btn" class="z-20 fixed top-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+            <div id="run-controls" class="fixed bottom-24 left-0 right-0 p-4 z-20">
+                <div class="max-w-md mx-auto card-bg backdrop-blur-md rounded-2xl shadow-xl p-4 flex items-center justify-between fade-in">
+                    <div class="flex flex-col">
+                        <span id="username-display" class="font-bold text-lg">TerraRun</span>
+                        <span id="area-display" class="text-sm" style="color: var(--hint-color);">Площадь: 0 м²</span>
+                    </div>
+                    <button id="toggle-run-btn" class="btn-gradient text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300">
+                        Старт
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вид 2: Лента -->
+        <div id="feed-view" class="view p-4 fade-in">
+            <h1 class="text-3xl font-bold mb-6 px-2">Лента</h1>
+            <div id="feed-container" class="space-y-4"></div>
+        </div>
+
+        <!-- Вид 3: Топ пользователей -->
+        <div id="top-view" class="view p-4 fade-in">
+            <h1 class="text-3xl font-bold mb-6 px-2">Топ Бегунов</h1>
+            <div id="leaderboard" class="space-y-3"></div>
+        </div>
+
+        <!-- Вид 4: Профиль -->
+        <div id="profile-view" class="view p-4 fade-in">
+            <h1 class="text-3xl font-bold mb-6 px-2">Профиль</h1>
+            <div class="card-bg rounded-2xl shadow-lg p-6 space-y-6">
+                <div class="flex items-center space-x-4">
+                    <div id="profile-avatar-wrapper" class="w-20 h-20 rounded-full border-4 flex-shrink-0">
+                        <img src="https://placehold.co/80x80/E2E8F0/4A5568?text=?" id="profile-avatar-img" class="w-full h-full rounded-full object-cover" alt="avatar">
+                    </div>
+                    <div>
+                        <h2 id="profile-name" class="text-2xl font-bold">Загрузка...</h2>
+                        <p style="color: var(--hint-color);">Энтузиаст захвата территорий</p>
+                    </div>
+                </div>
+                <div class="rounded-lg p-4 text-center" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent)">
+                    <p class="text-sm" style="color: var(--button-color)">Общая площадь</p>
+                    <p id="profile-area" class="text-3xl font-bold" style="color: var(--button-color)">0 м²</p>
+                </div>
+            </div>
+            <h2 class="text-2xl font-bold my-6 px-2">Мои посты</h2>
+            <div id="profile-feed-container" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <!-- Нижний навбар -->
+    <nav id="bottom-navbar" class="hidden fixed bottom-0 left-0 right-0 h-20 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] flex justify-around items-center z-30">
+        <button class="nav-btn active flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('map-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg><span>Карта</span></button>
+        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('feed-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3h2m0 0h2" /></svg><span>Лента</span></button>
+        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('top-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg><span>Топ</span></button>
+        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('profile-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg><span>Профиль</span></button>
+    </nav>
+    
+    <!-- Модальное окно -->
+    <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center hidden z-50"><div class="card-bg rounded-2xl shadow-2xl p-8 text-center max-w-sm w-full fade-in"><p id="modal-message" class="text-lg mb-6"></p><button onclick="closeModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-full transition-all">OK</button></div></div>
+
+    <!-- Модальное окно создания поста -->
+    <div id="create-post-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center hidden z-50 p-4">
+        <div class="card-bg rounded-2xl shadow-2xl p-6 w-full max-w-md fade-in space-y-4">
+            <h2 class="text-2xl font-bold">Новое достижение!</h2>
+            <p style="color: var(--hint-color);">Дайте название вашей новой территории и поделитесь с другими.</p>
+            <div>
+                <label for="post-title" class="block text-sm font-medium">Название</label>
+                <input type="text" id="post-title" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Например, 'Утренний захват парка'">
+            </div>
+            <div>
+                 <label for="post-photo-input" class="block text-sm font-medium">Фото</label>
+                 <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                     <div class="space-y-1 text-center">
+                         <img id="post-photo-preview" src="" alt="Предпросмотр фото" class="hidden mx-auto h-24 w-auto mb-4 rounded">
+                         <svg id="post-photo-icon" class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                         <div class="flex text-sm text-gray-600">
+                             <label for="post-photo-input" class="relative cursor-pointer rounded-md font-medium" style="color: var(--button-color)">
+                                 <span>Загрузите файл</span>
+                                 <input id="post-photo-input" name="post-photo-input" type="file" class="sr-only" accept="image/*">
+                             </label>
+                             <p class="pl-1">или перетащите</p>
+                         </div>
+                         <p class="text-xs text-gray-500">PNG, JPG, GIF до 10MB</p>
+                     </div>
+                 </div>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button id="cancel-post-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full transition-all">Пропустить</button>
+                <button id="save-post-btn" class="text-white font-bold py-2 px-4 rounded-full transition-all flex items-center justify-center" style="background-color: var(--button-color); color: var(--button-text-color)">
+                    <span id="save-post-text">Опубликовать</span>
+                    <svg id="save-post-loader" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно с деталями пользователя -->
+    <div id="user-detail-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-end z-40 opacity-0 hidden transition-opacity duration-300">
+        <div id="user-detail-content" class="w-full h-3/4 card-bg rounded-t-2xl shadow-2xl p-4 flex flex-col transform translate-y-full transition-transform duration-300 ease-in-out">
+            <div class="w-full flex justify-center mb-2 flex-shrink-0" ontouchstart="handleTouchStart(event)" ontouchmove="handleTouchMove(event)" ontouchend="handleTouchEnd()">
+                <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+            </div>
+            <div id="user-detail-header" class="flex items-center space-x-4 mb-4 flex-shrink-0"></div>
+            <div id="detail-map" class="w-full flex-grow bg-gray-200 rounded-lg mb-4"></div>
+            <div id="user-detail-stats" class="text-center flex-shrink-0"></div>
+             <button id="share-profile-btn" class="mt-4 w-full text-white font-bold py-3 px-4 rounded-full transition-all" style="background-color: var(--button-color); color: var(--button-text-color)">Поделиться профилем</button>
+        </div>
+    </div>
+    
+    <!-- Модальное окно с комментариями -->
+    <div id="comments-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-end z-40 opacity-0 hidden transition-opacity duration-300">
+        <div id="comments-modal-content" class="w-full h-3/4 card-bg rounded-t-2xl shadow-2xl flex flex-col transform translate-y-full transition-transform duration-300 ease-in-out">
+            <div class="w-full flex justify-center py-3 flex-shrink-0 cursor-grab" onclick="hideCommentsModal()">
+                <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+            </div>
+            <div id="comments-modal-body" class="flex-grow overflow-y-auto p-4">
+                <!-- Комментарии будут отрендерены здесь -->
+            </div>
+            <!-- Панель ввода комментария -->
+            <div id="comment-input-container" class="flex-shrink-0 p-2 border-t border-gray-200 bg-white">
+                 <div id="reply-indicator" class="hidden text-xs text-gray-500 px-2 pb-1 flex justify-between items-center">
+                    <span id="reply-indicator-text"></span>
+                    <button onclick="cancelReply()" class="font-bold text-xl">&times;</button>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <textarea id="main-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
+                    <button id="main-comment-send-btn" onclick="postComment()" class="flex-shrink-0 bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600 disabled:bg-gray-400">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module">
+        // --- Глобальные переменные ---
+        const tg = window.Telegram.WebApp;
+        let map;
+        let detailMap = null;
+        let supabase;
+        let telegramUser = null;
+        let isRunning = false;
+        let geoWatchId = null;
+        let currentRunPath = [];
+        let currentPathPolyline = null;
+        let userTerritory = null;
+        let userColor = '#3b82f6';
+        let currentUserMarker = null;
+        let allUserLayers = {};
+        let allProfilesData = [];
+        let loginAnimationInterval = null;
+        let lastCaptureData = null;
+        let currentReplyTarget = { postId: null, parentCommentId: null };
+        let initialLocationSet = false;
+        let lastKnownLocation = null;
+
+        // --- Элементы DOM ---
+        const authScreen = document.getElementById('auth-screen');
+        const authContent = document.getElementById('auth-content');
+        const appContainer = document.getElementById('app-container');
+        const bottomNavbar = document.getElementById('bottom-navbar');
+        const areaDisplay = document.getElementById('area-display');
+        const usernameDisplay = document.getElementById('username-display');
+        const profileAreaDisplay = document.getElementById('profile-area');
+        const profileName = document.getElementById('profile-name');
+        const profileAvatarImg = document.getElementById('profile-avatar-img');
+        const profileAvatarWrapper = document.getElementById('profile-avatar-wrapper');
+        const leaderboardDiv = document.getElementById('leaderboard');
+        const modal = document.getElementById('message-modal');
+        const modalMessage = document.getElementById('modal-message');
+        const recenterBtn = document.getElementById('recenter-btn');
+        const userDetailModal = document.getElementById('user-detail-modal');
+        const userDetailContent = document.getElementById('user-detail-content');
+        const createPostModal = document.getElementById('create-post-modal');
+        const savePostBtn = document.getElementById('save-post-btn');
+        const cancelPostBtn = document.getElementById('cancel-post-btn');
+        const postTitleInput = document.getElementById('post-title');
+        const postPhotoInput = document.getElementById('post-photo-input');
+        const postPhotoPreview = document.getElementById('post-photo-preview');
+        const postPhotoIcon = document.getElementById('post-photo-icon');
+        const savePostText = document.getElementById('save-post-text');
+        const savePostLoader = document.getElementById('save-post-loader');
+        const feedContainer = document.getElementById('feed-container');
+        const profileFeedContainer = document.getElementById('profile-feed-container');
+        const toggleRunBtn = document.getElementById('toggle-run-btn');
+
+        // --- Функции UI ---
+        function showView(viewId) {
+            tg.HapticFeedback.impactOccurred('light');
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`button[onclick="showView('${viewId}')"]`).classList.add('active');
+        }
+
+        function showMessage(message) {
+            modalMessage.textContent = message;
+            modal.classList.remove('hidden');
+        }
+        function closeModal() {
+            modal.classList.add('hidden');
+        }
+
+        function generateColorFromId(id) {
+            const strId = String(id);
+            let hash = 0;
+            for (let i = 0; i < strId.length; i++) {
+                hash = strId.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const h = hash % 360;
+            return `hsl(${h}, 80%, 65%)`;
+        }
+        
+        function focusOnUser(userId) {
+            showView('map-view');
+            const userLayerGroup = allUserLayers[userId];
+            if (userLayerGroup && map && userLayerGroup.getLayers().length > 0) {
+                setTimeout(() => {
+                    map.flyToBounds(userLayerGroup.getBounds(), { padding: [50, 50], duration: 1, maxZoom: 16 });
+                }, 100);
+            } else {
+                showMessage("У этого пользователя еще нет захваченных территорий.");
+            }
+        }
+        
+        // --- Логика модальных окон ---
+        let touchStartY = 0;
+        let currentY = 0;
+        let isDragging = false;
+
+        function handleTouchStart(e) {
+            isDragging = true;
+            touchStartY = e.touches[0].clientY;
+            userDetailContent.style.transition = 'none';
+        }
+
+        function handleTouchMove(e) {
+            if (!isDragging) return;
+            currentY = e.touches[0].clientY;
+            const deltaY = currentY - touchStartY;
+            if (deltaY > 0) {
+                userDetailContent.style.transform = `translateY(${deltaY}px)`;
+            }
+        }
+
+        function handleTouchEnd() {
+            if (!isDragging) return;
+            isDragging = false;
+            userDetailContent.style.transition = 'transform 0.3s ease-in-out';
+            const deltaY = currentY - touchStartY;
+
+            if (deltaY > userDetailContent.clientHeight * 0.3) {
+                hideUserDetailModal();
+            } else {
+                userDetailContent.style.transform = '';
+            }
+        }
+
+        async function showUserDetailModal(userId) {
+            const profile = allProfilesData.find(p => p.id === userId);
+            if (!profile) {
+                showMessage("Профиль пользователя не найден.");
+                return;
+            }
+
+            tg.HapticFeedback.impactOccurred('medium');
+            tg.BackButton.show();
+
+            const userDetailHeader = document.getElementById('user-detail-header');
+            const avatar = profile.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
+            userDetailHeader.innerHTML = `<img src="${avatar}" class="w-16 h-16 rounded-full" alt="avatar"><div><p class="text-2xl font-bold">${profile.name}</p><p class="text-sm" style="color: var(--hint-color);">Завоеватель</p></div>`;
+            
+            const userDetailStats = document.getElementById('user-detail-stats');
+            const area = profile.area || 0;
+            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
+            userDetailStats.innerHTML = `<p class="text-sm" style="color: var(--hint-color);">Общая площадь</p><p class="text-4xl font-bold">${formattedArea}</p>`;
+            
+            const shareBtn = document.getElementById('share-profile-btn');
+            shareBtn.onclick = () => shareProfile(profile.id, profile.name);
+
+            userDetailContent.style.transform = '';
+            userDetailModal.classList.remove('hidden');
+            setTimeout(() => {
+                userDetailModal.classList.remove('opacity-0');
+                userDetailContent.classList.remove('translate-y-full');
+            }, 10);
+
+            setTimeout(() => {
+                if (detailMap) detailMap.remove();
+                detailMap = L.map('detail-map', { zoomControl: false, attributionControl: false });
+                const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
+                L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token={accessToken}', { maxZoom: 19, accessToken: mapboxAccessToken }).addTo(detailMap);
+                
+                if (profile.territory) {
+                    const territoryLayer = L.geoJSON(profile.territory, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.5 } }).addTo(detailMap);
+                    detailMap.fitBounds(territoryLayer.getBounds(), { padding: [20, 20], maxZoom: 16 });
+                } else {
+                    detailMap.setView([55.75, 37.61], 5);
+                }
+            }, 300);
+        }
+
+        function hideUserDetailModal() {
+            tg.BackButton.hide();
+            userDetailModal.classList.add('opacity-0');
+            userDetailContent.classList.add('translate-y-full');
+            setTimeout(() => {
+                userDetailModal.classList.add('hidden');
+                if (detailMap) {
+                    detailMap.remove();
+                    detailMap = null;
+                }
+                document.getElementById('detail-map').innerHTML = '';
+            }, 300);
+        }
+
+        function showCreatePostModal(newCapture) {
+            lastCaptureData = newCapture;
+            postTitleInput.value = '';
+            postPhotoInput.value = '';
+            postPhotoPreview.classList.add('hidden');
+            postPhotoIcon.classList.remove('hidden');
+            createPostModal.classList.remove('hidden');
+        }
+
+        function hideCreatePostModal() {
+            createPostModal.classList.add('hidden');
+            lastCaptureData = null;
+        }
+
+        // --- Логика анимации входа ---
+        function startLoginAnimation() {
+            const loginMap = L.map('login-map-bg', {
+                zoomControl: false, attributionControl: false, dragging: false,
+                scrollWheelZoom: false, doubleClickZoom: false,
+            }).setView([55.75, 37.61], 10);
+
+            const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
+            L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}', {
+                maxZoom: 19, tileSize: 512, zoomOffset: -1, accessToken: mapboxAccessToken
+            }).addTo(loginMap);
+            
+            const animationLayers = L.layerGroup().addTo(loginMap);
+            let animationTerritories = [];
+            const randomAvatars = [
+                'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=100&auto=format&fit=crop',
+                'https://images.unsplash.com/photo-1527980965255-d3b416303d12?q=80&w=100&auto=format&fit=crop',
+                'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=100&auto=format&fit=crop',
+                'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=100&auto=format&fit=crop',
+                'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=100&auto=format&fit=crop'
+            ];
+            let availableAvatars = [...randomAvatars];
+
+            function getUniqueAvatar() {
+                if(availableAvatars.length === 0) {
+                    availableAvatars = [...randomAvatars];
+                }
+                const index = Math.floor(Math.random() * availableAvatars.length);
+                return availableAvatars.splice(index, 1)[0];
+            }
+
+            loginAnimationInterval = setInterval(() => {
+                const bounds = loginMap.getBounds();
+                if (!bounds.isValid()) return;
+
+                const centerPoint = [
+                    bounds.getWest() + Math.random() * (bounds.getEast() - bounds.getWest()),
+                    bounds.getSouth() + Math.random() * (bounds.getNorth() - bounds.getSouth())
+                ];
+
+                const radius = (Math.random() * 0.05) + 0.02;
+                const points = 10 + Math.floor(Math.random() * 10);
+                const path = [];
+                for (let i = 0; i < points; i++) {
+                    const angle = (i / points) * 360;
+                    const distance = radius * (0.8 + Math.random() * 0.4);
+                    const destination = turf.destination(centerPoint, distance, {units: 'degrees'});
+                    path.push(destination.geometry.coordinates);
+                }
+                path.push(path[0]);
+
+                const color = `hsl(${Math.random() * 360}, 80%, 65%)`;
+                const polyline = L.polyline([], { color: color, weight: 4 }).addTo(animationLayers);
+                
+                let i = 0;
+                function draw() {
+                    if (i < path.length) {
+                        polyline.addLatLng([path[i][1], path[i][0]]);
+                        i++;
+                        setTimeout(draw, 150);
+                    } else {
+                        const coordinates = polyline.toGeoJSON().geometry.coordinates;
+                        if (coordinates.length < 4) {
+                            loginMap.removeLayer(polyline);
+                            return;
+                        }
+                        const newPolygonGeoJSON = turf.polygon([coordinates]);
+                        
+                        animationTerritories.forEach(existing => {
+                            if (existing.geojson) {
+                                try {
+                                    const intersection = turf.intersect(existing.geojson, newPolygonGeoJSON);
+                                    if (intersection) {
+                                        const remaining = turf.difference(existing.geojson, newPolygonGeoJSON);
+                                        loginMap.removeLayer(existing.layer);
+                                        if (existing.avatar) loginMap.removeLayer(existing.avatar);
+
+                                        if (remaining) {
+                                            existing.geojson = remaining;
+                                            existing.layer = L.geoJSON(remaining, { style: { color: existing.color, weight: 2, opacity: 0.8, fillColor: existing.color, fillOpacity: 0.4 } }).addTo(animationLayers);
+                                            const newCenter = turf.centerOfMass(remaining);
+                                            existing.avatar = L.marker([newCenter.geometry.coordinates[1], newCenter.geometry.coordinates[0]], { icon: existing.icon }).addTo(animationLayers);
+                                        } else {
+                                            existing.geojson = null;
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.warn("Turf operation failed in animation, skipping.", e);
+                                }
+                            }
+                        });
+                        
+                        const polygonLayer = L.geoJSON(newPolygonGeoJSON, { style: { color: color, weight: 2, opacity: 0.8, fillColor: color, fillOpacity: 0.4 } }).addTo(animationLayers);
+                        
+                        const center = turf.centerOfMass(newPolygonGeoJSON);
+                        const avatarUrl = getUniqueAvatar();
+                        const icon = L.divIcon({
+                            html: `<div class="avatar-marker" style="background-image: url(${avatarUrl}); width: 32px; height: 32px; border-color: ${color};"></div>`,
+                            className: '', iconSize: [32, 32], iconAnchor: [16, 16]
+                        });
+                        const avatarMarker = L.marker([center.geometry.coordinates[1], center.geometry.coordinates[0]], { icon: icon }).addTo(animationLayers);
+
+                        animationTerritories.push({ geojson: newPolygonGeoJSON, layer: polygonLayer, color: color, avatar: avatarMarker, icon: icon });
+
+                        setTimeout(() => loginMap.removeLayer(polyline), 500);
+                    }
+                }
+                draw();
+            }, 4000);
+        }
+        
+        // --- Основная логика ---
+        async function startApp() {
+            tg.ready();
+            tg.expand();
+            applyTheme(tg.themeParams);
+            setupEventListeners();
+            
+            if (tg.initDataUnsafe?.user) {
+                telegramUser = tg.initDataUnsafe.user;
+                await initializeWithUser();
+            } else {
+                startLoginAnimation();
+                showAuthWidget();
+            }
+        }
+        
+        function showAuthWidget() {
+            authContent.innerHTML = `
+                <h1 class="text-2xl font-bold mb-4">Добро пожаловать в TerraRun!</h1>
+                <p class="mb-6" style="color: var(--hint-color);">Войдите через Telegram, чтобы начать.</p>
+            `;
+            const script = document.createElement('script');
+            script.async = true;
+            script.src = 'https://telegram.org/js/telegram-widget.js?22';
+            script.setAttribute('data-telegram-login', 'TerraRunbot');
+            script.setAttribute('data-size', 'large');
+            script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+            script.setAttribute('data-request-access', 'write');
+            authContent.appendChild(script);
+        }
+
+        async function initializeWithUser() {
+             if (loginAnimationInterval) clearInterval(loginAnimationInterval);
+             
+             try {
+                await requestAndWatchGeo();
+                
+                const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
+                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                
+                await setupUser();
+
+             } catch (error) {
+                console.error("Geolocation permission denied:", error);
+                authContent.innerHTML = `
+                    <h1 class="text-2xl font-bold mb-4 text-red-500">Доступ к геолокации необходим</h1>
+                    <p class="mb-6" style="color: var(--hint-color);">Для работы приложения TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение.</p>
+                    <button onclick="initializeWithUser()" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Предоставить доступ</button>
+                `;
+             }
+        }
+        
+        async function setupUser() {
+            try {
+                await upsertUserProfile();
+                initMap();
+                updateUI();
+                listenToAllProfiles();
+                listenToPosts();
+                
+                setTimeout(() => {
+                    if (!localStorage.getItem('attachmentPromptSeen')) {
+                        tg.showConfirm("Для удобного доступа, хотите добавить это приложение в меню вложений?", (ok) => {
+                            if (ok) {
+                                tg.showAlert("Отлично! Нажмите на имя бота вверху экрана, а затем выберите 'Добавить в меню вложений'.");
+                            }
+                            localStorage.setItem('attachmentPromptSeen', 'true');
+                        });
+                    }
+                }, 3000);
+
+                authScreen.style.display = 'none';
+                appContainer.classList.remove('hidden');
+                bottomNavbar.classList.remove('hidden');
+            } catch (error) {
+                console.error("Error during user setup:", error);
+                authContent.innerHTML = `
+                    <h1 class="text-2xl font-bold text-red-600 mb-4">Ошибка</h1>
+                    <p class="text-gray-600">Произошла ошибка при настройке вашего профиля. Пожалуйста, попробуйте перезапустить приложение.</p>
+                    <p class="text-xs text-gray-400 mt-4">${error.message}</p>
+                `;
+            }
+        }
+
+        function updateUI() {
+            const name = telegramUser.first_name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            profileName.textContent = name;
+            usernameDisplay.textContent = name;
+            
+            if (telegramUser.photo_url) {
+                profileAvatarImg.src = telegramUser.photo_url;
+            } else {
+                const initial = name.charAt(0).toUpperCase();
+                profileAvatarImg.src = `https://placehold.co/80x80/E2E8F0/4A5568?text=${initial}`;
+            }
+            profileAvatarWrapper.style.borderColor = userColor;
+            refreshAllStats();
+        }
+
+        function initMap() {
+            if (map) return;
+            
+            let initialView = [55.75, 37.61];
+            let initialZoom = 13;
+            const savedLocation = localStorage.getItem('lastKnownLocation');
+            if (savedLocation) {
+                try {
+                    initialView = JSON.parse(savedLocation);
+                    initialZoom = 16; 
+                } catch (e) {
+                    console.error("Failed to parse saved location", e);
+                }
+            }
+
+            map = L.map('map', { zoomControl: false, attributionControl: false }).setView(initialView, initialZoom);
+            
+            const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
+            L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}', {
+                maxZoom: 19,
+                tileSize: 512,
+                zoomOffset: -1,
+                accessToken: mapboxAccessToken
+            }).addTo(map);
+            
+            setTimeout(() => map?.invalidateSize(), 100);
+        }
+
+        function updateCurrentUserMarker(latLng) {
+            const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E2E8F0/4A5568?text=${telegramUser.first_name.charAt(0)}`;
+            const icon = L.divIcon({
+                html: `<div class="avatar-marker current-user-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${userColor};"></div>`,
+                className: '',
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
+            });
+            
+            if (currentUserMarker) {
+                currentUserMarker.setLatLng(latLng);
+            } else {
+                currentUserMarker = L.marker(latLng, { icon: icon, zIndexOffset: 1000 }).addTo(map);
+            }
+        }
+        
+        // --- Логика бега и территории ---
+        function requestAndWatchGeo() {
+            return new Promise((resolve, reject) => {
+                if (geoWatchId) {
+                    resolve();
+                    return;
+                }
+                
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        geoWatchId = navigator.geolocation.watchPosition(
+                            (position) => {
+                                const { latitude, longitude } = position.coords;
+                                const latLng = [latitude, longitude];
+                                lastKnownLocation = latLng;
+                                localStorage.setItem('lastKnownLocation', JSON.stringify(latLng));
+
+                                if (!initialLocationSet) {
+                                    map.flyTo(latLng, 16);
+                                    initialLocationSet = true;
+                                }
+
+                                updateCurrentUserMarker(latLng);
+
+                                if (isRunning) {
+                                    currentRunPath.push([longitude, latitude]);
+                                    if (currentPathPolyline) {
+                                        currentPathPolyline.addLatLng(latLng);
+                                    }
+                                }
+                            },
+                            (err) => {
+                                console.error("Geolocation watch error:", err);
+                                tg.showAlert("Потерян доступ к геолокации.");
+                            },
+                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                        );
+                        resolve();
+                    },
+                    (err) => {
+                        reject(err);
+                    },
+                    { enableHighAccuracy: true }
+                );
+            });
+        }
+
+        function startRun() {
+            if (!initialLocationSet) {
+                 tg.showAlert("Сначала определите свое местоположение. Если вы отказали в доступе, перезапустите приложение.");
+                 return;
+            }
+
+            isRunning = true;
+            tg.HapticFeedback.impactOccurred('heavy');
+            tg.isClosingConfirmationEnabled = true;
+            updateMainButton();
+            
+            if (telegramUser?.is_premium) {
+                // ID кастомного эмодзи бегущего человечка
+                tg.setEmojiStatus({ emoji_id: '5368324170671202286' });
+            }
+
+            currentRunPath = [];
+            if (currentPathPolyline) map.removeLayer(currentPathPolyline);
+            currentPathPolyline = L.polyline([], { color: '#ef4444', weight: 5, opacity: 0.9 }).addTo(map);
+        }
+
+        function stopRun(confirm = true) {
+            if (!isRunning) return;
+
+            if (confirm) {
+                tg.showConfirm("Завершить пробежку и захватить территорию?", (ok) => {
+                    if (ok) {
+                        processStop();
+                    }
+                });
+            } else {
+                processStop();
+            }
+        }
+        
+        function processStop() {
+            isRunning = false;
+            tg.HapticFeedback.notificationOccurred('success');
+            tg.isClosingConfirmationEnabled = false;
+            updateMainButton();
+
+            if (telegramUser?.is_premium) {
+                tg.setEmojiStatus(); // Сбрасываем статус
+            }
+
+            if (currentRunPath.length > 3) {
+                processRunPath();
+            } else {
+                showMessage('Слишком короткий маршрут.');
+            }
+            if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
+        }
+
+
+        function processRunPath() {
+            const startPoint = currentRunPath[0];
+            const endPoint = currentRunPath[currentRunPath.length - 1];
+            const distance = turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' });
+            if (distance > 50) {
+                showMessage('Маршрут не замкнут. Вернитесь к точке старта для захвата.');
+                return;
+            }
+            currentRunPath.push(startPoint);
+
+            const line = turf.lineString(currentRunPath);
+            const polygonized = turf.polygonize(line);
+
+            if (polygonized.features.length === 0) {
+                showMessage('Не удалось сформировать замкнутую территорию. Попробуйте снова.');
+                return;
+            }
+
+            let newCapture = polygonized.features[0];
+            if (polygonized.features.length > 1) {
+                for (let i = 1; i < polygonized.features.length; i++) {
+                    newCapture = turf.union(newCapture, polygonized.features[i]);
+                }
+            }
+            
+            updateTerritory(newCapture);
+        }
+        
+        async function updateTerritory(newCapture) {
+            try {
+                let combinedTerritory;
+                if (!userTerritory) {
+                    combinedTerritory = newCapture;
+                } else {
+                    combinedTerritory = turf.union(userTerritory, newCapture);
+                }
+                const newTotalTerritory = turf.cleanCoords(combinedTerritory);
+
+                const affectedUsersUpdates = [];
+                for (const profile of allProfilesData) {
+                    if (profile.id !== telegramUser.id && profile.territory) {
+                        const intersection = turf.intersect(profile.territory, newTotalTerritory);
+                        if (intersection) {
+                            const remainingTerritory = turf.difference(profile.territory, newTotalTerritory);
+                            let finalTerritory = null;
+                            let finalArea = 0;
+                            if (remainingTerritory) {
+                                try {
+                                    const area = turf.area(remainingTerritory);
+                                    if (area > 1) {
+                                        finalTerritory = remainingTerritory;
+                                        finalArea = area;
+                                    }
+                                } catch (e) { /* Ignore invalid geometry */ }
+                            }
+                            affectedUsersUpdates.push({ id: profile.id, territory: finalTerritory, area: finalArea });
+                        }
+                    }
+                }
+
+                userTerritory = newTotalTerritory;
+                await saveUserData();
+
+                if (affectedUsersUpdates.length > 0) {
+                    const { error } = await supabase.from('profiles').upsert(affectedUsersUpdates);
+                    if (error) console.error("Error updating territories of other users:", error);
+                }
+
+                refreshAllStats();
+                tg.HapticFeedback.notificationOccurred('success');
+                showCreatePostModal(newCapture);
+            } catch (error) {
+                console.error("Ошибка в updateTerritory:", error);
+                showMessage("Ошибка обработки территории. Форма слишком сложная.");
+                tg.HapticFeedback.notificationOccurred('error');
+            }
+        }
+        
+        // --- Supabase ---
+        async function upsertUserProfile() {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', telegramUser.id)
+                .single();
+
+            if (error && error.code !== 'PGRST116') {
+                console.error('Error fetching profile:', error); throw error;
+            } 
+            
+            if (data) {
+                userColor = data.color;
+                userTerritory = data.territory;
+            } else {
+                userColor = generateColorFromId(telegramUser.id);
+                const { error: insertError } = await supabase
+                    .from('profiles')
+                    .insert({ id: telegramUser.id, name: telegramUser.first_name, color: userColor, area: 0, photo_url: telegramUser.photo_url || null, territory: null });
+                if (insertError) throw insertError;
+            }
+        }
+
+        async function saveUserData() {
+            if (!telegramUser) return;
+            const area = userTerritory ? turf.area(userTerritory) : 0;
+            
+            const { error } = await supabase
+                .from('profiles')
+                .upsert({ 
+                    id: telegramUser.id, 
+                    name: telegramUser.first_name,
+                    photo_url: telegramUser.photo_url || null,
+                    color: userColor,
+                    territory: userTerritory, 
+                    area: area, 
+                    updated_at: new Date().toISOString() 
+                });
+
+            if (error) {
+                console.error('Error saving user data (upsert):', error);
+                tg.HapticFeedback.notificationOccurred('error');
+                showMessage("Ошибка сохранения прогресса.");
+            }
+        }
+
+        async function handlePostSubmission() {
+            const title = postTitleInput.value.trim();
+            if (!title) {
+                showMessage("Пожалуйста, введите название.");
+                return;
+            }
+            if (!lastCaptureData) return;
+
+            savePostBtn.disabled = true;
+            savePostText.classList.add('hidden');
+            savePostLoader.classList.remove('hidden');
+
+            let photoUrl = null;
+            const file = postPhotoInput.files[0];
+            if (file) {
+                const filePath = `${telegramUser.id}/${Date.now()}_${file.name}`;
+                const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
+                if (error) {
+                    console.error("Error uploading photo:", error);
+                    showMessage("Не удалось загрузить фото.");
+                    savePostBtn.disabled = false;
+                    savePostText.classList.remove('hidden');
+                    savePostLoader.classList.add('hidden');
+                    return;
+                }
+                const { data: urlData } = supabase.storage.from('photo').getPublicUrl(data.path);
+                photoUrl = urlData.publicUrl;
+            }
+
+            const areaCaptured = turf.area(lastCaptureData);
+            
+            const { error: postError } = await supabase.from('posts').insert({
+                user_id: telegramUser.id,
+                title: title,
+                photo_url: photoUrl,
+                territory_captured: lastCaptureData,
+                area_captured: areaCaptured,
+                user_name: telegramUser.first_name,
+                user_avatar_url: telegramUser.photo_url,
+                user_color: userColor
+            });
+            
+            savePostBtn.disabled = false;
+            savePostText.classList.remove('hidden');
+            savePostLoader.classList.add('hidden');
+
+            if (postError) {
+                console.error("Error saving post:", postError);
+                showMessage("Не удалось сохранить пост.");
+            } else {
+                showMessage("Пост успешно опубликован!");
+                hideCreatePostModal();
+            }
+        }
+
+        function listenToAllProfiles() {
+            fetchAllProfilesAndDraw();
+            supabase.channel('public:profiles')
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => fetchAllProfilesAndDraw())
+              .subscribe();
+        }
+
+        async function fetchAllProfilesAndDraw() {
+            let { data: profiles, error } = await supabase.from('profiles').select('*');
+            if (error) { console.error("Error fetching profiles:", error); return; }
+            
+            allProfilesData = profiles; 
+
+            for (const userId in allUserLayers) {
+                if (allUserLayers[userId]) map.removeLayer(allUserLayers[userId]);
+            }
+            allUserLayers = {};
+
+            profiles.forEach(profile => {
+                const isCurrentUser = profile.id === telegramUser.id;
+                const userLayerGroup = L.layerGroup();
+
+                if (profile.territory) {
+                    L.geoJSON(profile.territory, { 
+                        style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } 
+                    }).addTo(userLayerGroup);
+
+                    if (profile.territory.geometry.coordinates.length > 0 && profile.territory.geometry.coordinates[0].length > 0) {
+                        const perimeterCoords = profile.territory.geometry.coordinates[0].map(p => [p[1], p[0]]);
+                        const label = L.polyline(perimeterCoords, {opacity: 0});
+                        label.setText(`\u25BA ${profile.name} `, {
+                            repeat: true, center: true,
+                            attributes: { 'font-weight': 'bold', 'font-size': '14', 'fill': '#000', 'text-shadow': '1px 1px 1px #fff, -1px -1px 1px #fff, 1px -1px 1px #fff, -1px 1px 1px #fff' }
+                        });
+                        label.addTo(userLayerGroup);
+                    }
+                }
+
+                if (!isCurrentUser && profile.territory) {
+                    const center = turf.centerOfMass(profile.territory);
+                    const avatarUrl = profile.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
+                    const icon = L.divIcon({
+                        html: `<div class="avatar-marker" style="background-image: url(${avatarUrl}); width: 32px; height: 32px; border-color: ${profile.color};"></div>`,
+                        className: '', iconSize: [32, 32], iconAnchor: [16, 16]
+                    });
+                    L.marker([center.geometry.coordinates[1], center.geometry.coordinates[0]], { icon: icon }).addTo(userLayerGroup);
+                }
+                
+                userLayerGroup.addTo(map);
+                allUserLayers[profile.id] = userLayerGroup;
+            });
+            
+            updateLeaderboard(profiles);
+        }
+        
+        function updateLeaderboard(profiles) {
+            profiles.sort((a, b) => (b.area || 0) - (a.area || 0));
+
+            leaderboardDiv.innerHTML = profiles.map((u, index) => {
+                const isCurrentUser = u.id === telegramUser.id;
+                const name = u.name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                const displayName = isCurrentUser ? `${name} (Вы)` : name;
+                const avatar = u.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${name.charAt(0)}`;
+                
+                const area = u.area || 0;
+                const formattedArea = area > 10000 
+                    ? `${(area / 1000000).toFixed(2)} км²` 
+                    : `${Math.round(area)} м²`;
+
+                return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showUserDetailModal(${u.id})">
+                    <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
+                    <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
+                    <div class="flex-grow">
+                        <p class="font-bold">${displayName}</p>
+                        <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
+                    </div>
+                </div>`
+            }).join('');
+        }
+
+        function refreshAllStats() {
+            let area = 0;
+            if (userTerritory) {
+                try {
+                    area = turf.area(userTerritory);
+                    if (isNaN(area)) area = 0;
+                } catch (e) {
+                    area = 0;
+                }
+            }
+            
+            const formattedArea = area > 10000 
+                ? `${(area / 1000000).toFixed(2)} км²` 
+                : `${Math.round(area)} м²`;
+            
+            areaDisplay.textContent = `Площадь: ${formattedArea}`;
+            profileAreaDisplay.textContent = formattedArea;
+        }
+
+        // --- Лента, Лайки, Комментарии ---
+
+        function listenToPosts() {
+            renderFeed();
+            supabase.channel('public:posts_activity')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, renderFeed)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, renderFeed)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload) => {
+                    const modal = document.getElementById('comments-modal');
+                    if (!modal.classList.contains('hidden')) {
+                       const postId = payload.new?.post_id || payload.old?.post_id;
+                       if(postId && postId === currentReplyTarget.postId) {
+                           showCommentsModal(postId);
+                       }
+                    }
+                    renderFeed();
+                })
+                .subscribe();
+        }
+
+        async function renderFeed() {
+            const { data: posts, error: postsError } = await supabase
+                .from('posts')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (postsError) { console.error("Error fetching posts:", postsError); return; }
+
+            const postIds = posts.map(p => p.id);
+            if (postIds.length === 0) {
+                 feedContainer.innerHTML = '<p class="text-center text-gray-500">В ленте пока нет постов.</p>';
+                 profileFeedContainer.innerHTML = '<p class="text-center text-gray-500">У вас еще нет постов.</p>';
+                 return;
+            }
+
+            const { data: likes, error: likesError } = await supabase.from('likes').select('*').in('post_id', postIds);
+            const { data: comments, error: commentsError } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
+            if (likesError || commentsError) { console.error("Error fetching activity:", likesError, commentsError); return; }
+
+            const likesByPost = likes.reduce((acc, like) => {
+                if (!acc[like.post_id]) acc[like.post_id] = [];
+                acc[like.post_id].push(like);
+                return acc;
+            }, {});
+
+            const commentsByPost = comments.reduce((acc, comment) => {
+                if (!acc[comment.post_id]) acc[comment.post_id] = [];
+                acc[comment.post_id].push(comment);
+                return acc;
+            }, {});
+
+            const feedHTML = posts.map(post => {
+                const postLikes = likesByPost[post.id] || [];
+                const postComments = commentsByPost[post.id] || [];
+                return generatePostHTML(post, postLikes, postComments);
+            }).join('');
+            feedContainer.innerHTML = feedHTML || '<p class="text-center text-gray-500">В ленте пока нет постов.</p>';
+            
+            const userPostsHTML = posts.filter(p => p.user_id === telegramUser.id).map(post => {
+                const postLikes = likesByPost[post.id] || [];
+                const postComments = commentsByPost[post.id] || [];
+                return generatePostHTML(post, postLikes, postComments);
+            }).join('');
+            profileFeedContainer.innerHTML = userPostsHTML || '<p class="text-center text-gray-500">У вас еще нет постов.</p>';
+
+            posts.forEach(post => {
+                 const mapContainer = document.getElementById(`mini-map-${post.id}`);
+                 if (mapContainer && !mapContainer._leaflet_id) {
+                    const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
+                    const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
+                    L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token={accessToken}', { maxZoom: 19, accessToken: mapboxAccessToken }).addTo(miniMap);
+                    const territoryLayer = L.geoJSON(post.territory_captured, { style: { color: post.user_color, weight: 2, opacity: 0.8, fillColor: post.user_color, fillOpacity: 0.5 } }).addTo(miniMap);
+                    miniMap.fitBounds(territoryLayer.getBounds(), { padding: [10, 10] });
+                 }
+            });
+        }
+
+        function generatePostHTML(post, likes, comments) {
+            const avatar = post.user_avatar_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${post.user_name.charAt(0)}`;
+            const area = post.area_captured || 0;
+            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
+            const userHasLiked = likes.some(like => like.user_id === telegramUser.id);
+            
+            return `
+                <div class="card-bg rounded-2xl shadow-lg overflow-hidden" id="post-${post.id}">
+                    <div class="p-4">
+                        <div class="flex items-center space-x-3">
+                            <img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar">
+                            <div>
+                                <p class="font-bold">${post.user_name}</p>
+                                <p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p>
+                            </div>
+                        </div>
+                        <p class="mt-4">${post.title}</p>
+                    </div>
+                    ${post.photo_url ? `<img src="${post.photo_url}" class="w-full h-64 object-cover" alt="Post photo">` : ''}
+                    <div id="mini-map-${post.id}" class="h-48 w-full mini-map"></div>
+                    <div class="p-4">
+                        <p class="font-semibold">Захвачено: <span class="font-bold" style="color: var(--button-color);">${formattedArea}</span></p>
+                         <div class="flex items-center space-x-4 mt-3" style="color: var(--hint-color);">
+                            <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" onclick="toggleLike(this, ${post.id})">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>
+                                <span>${likes.length}</span>
+                            </button>
+                            <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="showCommentsModal(${post.id})">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                <span>${comments.length}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function generateCommentHTML(comment, commentsByParent) {
+            const replies = commentsByParent[comment.id] || [];
+            const profileName = comment.profiles ? comment.profiles.name : 'Аноним';
+            const avatar = comment.profiles ? (comment.profiles.photo_url || `https://placehold.co/32x32/E5E7EB/4B5563?text=${profileName.charAt(0)}`) : 'https://placehold.co/32x32/E5E7EB/4B5563?text=?';
+            
+            return `
+                <div class="flex items-start space-x-3 mt-4">
+                    <img src="${avatar}" class="w-8 h-8 rounded-full" alt="avatar">
+                    <div class="flex-1">
+                        <div class="bg-gray-100 rounded-lg p-2">
+                            <p class="font-bold text-sm text-gray-800">${profileName}</p>
+                            <p class="text-sm text-gray-600">${comment.content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">
+                            <button class="hover:underline" onclick="setReplyMode(${comment.post_id}, ${comment.id}, '${profileName.replace(/'/g, "\\'")}')">Ответить</button>
+                        </div>
+                        <div class="pl-4 border-l-2 border-gray-200">
+                            ${replies.map(reply => generateCommentHTML(reply, commentsByParent)).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function toggleLike(buttonElement, postId) {
+            tg.HapticFeedback.impactOccurred('light');
+            
+            const hasLiked = buttonElement.classList.contains('liked');
+            const countSpan = buttonElement.querySelector('span');
+            const currentCount = parseInt(countSpan.textContent);
+
+            buttonElement.classList.toggle('liked');
+            countSpan.textContent = hasLiked ? currentCount - 1 : currentCount + 1;
+
+            try {
+                if (hasLiked) {
+                    const { error } = await supabase.from('likes').delete().match({ post_id: postId, user_id: telegramUser.id });
+                    if (error) throw error;
+                } else {
+                    const { error } = await supabase.from('likes').insert({ post_id: postId, user_id: telegramUser.id });
+                    if (error) throw error;
+                }
+            } catch (error) {
+                console.error("Ошибка лайка:", error);
+                buttonElement.classList.toggle('liked');
+                countSpan.textContent = currentCount;
+                showMessage(`Не удалось обработать лайк. Код ошибки: ${error.code}. Подробности в консоли.`);
+            }
+        }
+        
+        function setReplyMode(postId, parentCommentId, parentAuthorName) {
+            currentReplyTarget = { postId, parentCommentId };
+            
+            const replyIndicator = document.getElementById('reply-indicator');
+            const replyIndicatorText = document.getElementById('reply-indicator-text');
+            const mainInput = document.getElementById('main-comment-input');
+
+            replyIndicatorText.textContent = `Ответ пользователю: ${parentAuthorName}`;
+            replyIndicator.classList.remove('hidden');
+            mainInput.focus();
+        }
+
+        function cancelReply() {
+            currentReplyTarget.parentCommentId = null; // Keep postId
+            const replyIndicator = document.getElementById('reply-indicator');
+            replyIndicator.classList.add('hidden');
+        }
+
+        async function postComment() {
+            const { postId, parentCommentId } = currentReplyTarget;
+            if (!postId) return;
+
+            const inputElement = document.getElementById('main-comment-input');
+            const buttonElement = document.getElementById('main-comment-send-btn');
+            
+            const content = inputElement.value.trim();
+            if (!content) return;
+
+            buttonElement.disabled = true;
+
+            const commentData = {
+                post_id: postId,
+                user_id: telegramUser.id,
+                parent_comment_id: parentCommentId,
+                content: content
+            };
+
+            try {
+                const { error } = await supabase.from('comments').insert(commentData);
+                if (error) throw error;
+                
+                inputElement.value = '';
+                cancelReply();
+
+            } catch (error) {
+                console.error('Ошибка отправки комментария:', error);
+                showMessage(`Не удалось отправить комментарий. Код ошибки: ${error.code}. Подробности в консоли.`);
+            } finally {
+                buttonElement.disabled = false;
+            }
+        }
+        
+        async function showCommentsModal(postId) {
+            tg.HapticFeedback.impactOccurred('medium');
+            tg.BackButton.show();
+
+            const modal = document.getElementById('comments-modal');
+            const modalContent = document.getElementById('comments-modal-content');
+            const modalBody = document.getElementById('comments-modal-body');
+
+            currentReplyTarget = { postId: postId, parentCommentId: null };
+            cancelReply();
+
+            modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>';
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('translate-y-full');
+            }, 10);
+
+            try {
+                const { data: comments, error: commentsError } = await supabase
+                    .from('comments')
+                    .select('*, profiles(name, photo_url)')
+                    .eq('post_id', postId)
+                    .order('created_at', { ascending: true });
+
+                if (commentsError) throw commentsError;
+                
+                const validComments = Array.isArray(comments) ? comments : [];
+                const commentsByParent = validComments.reduce((acc, comment) => {
+                    const parentId = comment.parent_comment_id || 'root';
+                    if (!acc[parentId]) acc[parentId] = [];
+                    acc[parentId].push(comment);
+                    return acc;
+                }, {});
+                const rootComments = commentsByParent['root'] || [];
+
+                let html = '';
+                if (rootComments.length === 0) {
+                    html = '<p class="text-center text-gray-500 py-4">Пока нет комментариев. Будьте первым!</p>';
+                } else {
+                    html = rootComments.map(comment => generateCommentHTML(comment, commentsByParent)).join('');
+                }
+                modalBody.innerHTML = html;
+
+            } catch(error) {
+                 console.error("Ошибка загрузки комментариев:", error); 
+                 modalBody.innerHTML = '<p class="text-center text-red-500 p-4">Ошибка загрузки комментариев. Проверьте RLS-политики для таблиц `comments` и `profiles`.</p>';
+            }
+        }
+
+        function hideCommentsModal() {
+            tg.BackButton.hide();
+            const modal = document.getElementById('comments-modal');
+            const modalContent = document.getElementById('comments-modal-content');
+            modal.classList.add('opacity-0');
+            modalContent.classList.add('translate-y-full');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.getElementById('comments-modal-body').innerHTML = '';
+            }, 300);
+        }
+
+        function shareProfile(userId, userName) {
+            const url = `https://t.me/share/url?url=${encodeURIComponent(`https://t.me/TerraRunBot/app?startapp=user${userId}`)}&text=${encodeURIComponent(`Посмотри на территорию, которую захватил(а) ${userName} в TerraRun!`)}`;
+            tg.openTelegramLink(url);
+        }
+
+        // --- Интеграция с Telegram API ---
+        function applyTheme(themeParams) {
+            document.documentElement.style.setProperty('--bg-color', themeParams.bg_color || '#f3f4f6');
+            document.documentElement.style.setProperty('--secondary-bg-color', themeParams.secondary_bg_color || '#ffffff');
+            document.documentElement.style.setProperty('--text-color', themeParams.text_color || '#1f2937');
+            document.documentElement.style.setProperty('--hint-color', themeParams.hint_color || '#6b7280');
+            document.documentElement.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
+            document.documentElement.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
+        }
+        
+        function updateMainButton() {
+             if (isRunning) {
+                toggleRunBtn.textContent = "Стоп";
+                toggleRunBtn.className = "btn-gradient-red text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-red-300";
+            } else {
+                toggleRunBtn.textContent = "Старт";
+                toggleRunBtn.className = "btn-gradient text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300";
+            }
+        }
+
+        function setupEventListeners() {
+            tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
+            tg.onEvent('backButtonClicked', () => {
+                if (!document.getElementById('comments-modal').classList.contains('hidden')) {
+                    hideCommentsModal();
+                } else if (!document.getElementById('user-detail-modal').classList.contains('hidden')) {
+                    hideUserDetailModal();
+                }
+            });
+            // События activated/deactivated для управления geoWatchId при необходимости в будущем
+            tg.onEvent('activated', () => {
+                console.log('App activated');
+                if (!geoWatchId) {
+                    // Попытка восстановить отслеживание, если оно было потеряно
+                    requestAndWatchGeo().catch(() => {});
+                }
+            });
+            tg.onEvent('deactivated', () => {
+                console.log('App deactivated');
+                // Мы не останавливаем geoWatchId, чтобы отслеживание продолжалось
+            });
+        }
+
+
+        // --- Обработчики событий ---
+        recenterBtn.addEventListener('click', () => {
+             tg.HapticFeedback.impactOccurred('medium');
+            if (lastKnownLocation) {
+                map.flyTo(lastKnownLocation, 16);
+            } else {
+                tg.showAlert("Определяем ваше местоположение...");
+                requestAndWatchGeo().catch(() => {
+                    tg.showAlert("Не удалось получить доступ к геолокации. Пожалуйста, проверьте разрешения для Telegram.");
+                });
+            }
+        });
+        toggleRunBtn.addEventListener('click', () => {
+            if (isRunning) {
+                stopRun();
+            } else {
+                startRun();
+            }
+        });
+        userDetailModal.addEventListener('click', (e) => {
+            if (e.target.id === 'user-detail-modal') {
+                hideUserDetailModal();
+            }
+        });
+        document.getElementById('comments-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'comments-modal') {
+                hideCommentsModal();
+            }
+        });
+        savePostBtn.addEventListener('click', handlePostSubmission);
+        cancelPostBtn.addEventListener('click', hideCreatePostModal);
+        postPhotoInput.addEventListener('change', () => {
+            const file = postPhotoInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    postPhotoPreview.src = e.target.result;
+                    postPhotoPreview.classList.remove('hidden');
+                    postPhotoIcon.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // --- Глобальные функции для HTML ---
+        window.showView = showView;
+        window.closeModal = closeModal;
+        window.showUserDetailModal = showUserDetailModal;
+        window.hideUserDetailModal = hideUserDetailModal;
+        window.toggleLike = toggleLike;
+        window.setReplyMode = setReplyMode;
+        window.cancelReply = cancelReply;
+        window.postComment = postComment;
+        window.showCommentsModal = showCommentsModal;
+        window.hideCommentsModal = hideCommentsModal;
+        window.onTelegramAuth = async (user) => {
+            console.log("Logged in via external widget:", user);
+            telegramUser = user;
+            await initializeWithUser();
+        };
+        window.handleTouchStart = handleTouchStart;
+        window.handleTouchMove = handleTouchMove;
+        window.handleTouchEnd = handleTouchEnd;
+        window.initializeWithUser = initializeWithUser;
+
+        // Запускаем приложение
+        document.addEventListener('DOMContentLoaded', startApp);
+    </script>
 
 </body>
 </html>
