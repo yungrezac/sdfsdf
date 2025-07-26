@@ -188,11 +188,11 @@
             </button>
             <div id="run-info" class="fixed top-20 left-0 right-0 p-4 z-20 pointer-events-none">
                  <div class="max-w-md mx-auto card-bg backdrop-blur-md rounded-2xl shadow-xl p-3 flex items-center justify-center fade-in">
-                    <div class="text-center">
-                        <span id="username-display" class="font-bold text-lg">TerraRun</span>
-                        <span id="area-display" class="text-sm block" style="color: var(--hint-color);">Площадь: 0 м²</span>
-                    </div>
-                </div>
+                     <div class="text-center">
+                         <span id="username-display" class="font-bold text-lg">TerraRun</span>
+                         <span id="area-display" class="text-sm block" style="color: var(--hint-color);">Площадь: 0 м²</span>
+                     </div>
+                 </div>
             </div>
         </div>
 
@@ -268,17 +268,16 @@
                 <input type="text" id="post-title" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Например, 'Утренний захват парка'">
             </div>
             <div>
-                 <label for="post-photo-input" class="block text-sm font-medium">Фото</label>
-                 <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                <label for="post-photo-input" class="block text-sm font-medium">Фото</label>
+                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                     <div class="space-y-1 text-center">
-                         <img id="post-photo-preview" src="" alt="Предпросмотр фото" class="hidden mx-auto h-24 w-auto mb-4 rounded">
-                         <svg id="post-photo-icon" class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                        <img id="post-photo-preview" src="" alt="Предпросмотр фото" class="hidden mx-auto h-24 w-auto mb-4 rounded">
+                        <svg id="post-photo-icon" class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
                         <div class="flex text-sm text-gray-600">
-                             <label for="post-photo-input" class="relative cursor-pointer rounded-md font-medium" style="color: var(--button-color)">
-                                 <span>Загрузите файл</span>
-                                 <input id="post-photo-input" name="post-photo-input" type="file" class="sr-only" accept="image/*">
-                             </label>
-                             <p class="pl-1">или перетащите</p>
+                            <label for="post-photo-input-btn" class="relative cursor-pointer rounded-md font-medium" style="color: var(--button-color)">
+                                <span>Выберите файл</span>
+                            </label>
+                            <input id="post-photo-input" name="post-photo-input" type="file" class="sr-only" accept="image/*">
                         </div>
                         <p class="text-xs text-gray-500">PNG, JPG, GIF до 10MB</p>
                     </div>
@@ -319,15 +318,15 @@
             <!-- Панель ввода комментария -->
             <div id="comment-input-container" class="flex-shrink-0 p-2 border-t border-gray-200 bg-white">
                  <div id="reply-indicator" class="hidden text-xs text-gray-500 px-2 pb-1 flex justify-between items-center">
-                    <span id="reply-indicator-text"></span>
-                    <button onclick="cancelReply()" class="font-bold text-xl">&times;</button>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <textarea id="main-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
-                    <button id="main-comment-send-btn" onclick="postComment()" class="flex-shrink-0 bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600 disabled:bg-gray-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                    </button>
-                </div>
+                     <span id="reply-indicator-text"></span>
+                     <button onclick="cancelReply()" class="font-bold text-xl">&times;</button>
+                 </div>
+                 <div class="flex items-center space-x-2">
+                     <textarea id="main-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
+                     <button id="main-comment-send-btn" onclick="postComment()" class="flex-shrink-0 bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600 disabled:bg-gray-400">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                     </button>
+                 </div>
             </div>
         </div>
     </div>
@@ -379,6 +378,7 @@
         const cancelPostBtn = document.getElementById('cancel-post-btn');
         const postTitleInput = document.getElementById('post-title');
         const postPhotoInput = document.getElementById('post-photo-input');
+        const postPhotoInputBtn = document.getElementById('post-photo-input-btn');
         const postPhotoPreview = document.getElementById('post-photo-preview');
         const postPhotoIcon = document.getElementById('post-photo-icon');
         const savePostText = document.getElementById('save-post-text');
@@ -402,6 +402,8 @@
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             document.querySelector(`button[onclick="showView('${viewId}')"]`).classList.add('active');
             
+            updateMainButton(viewId); // Обновляем MainButton при смене вида
+
             if (viewId === 'map-view') {
                 startStopBtn.classList.remove('hidden');
                 // Invalidate map size to fix rendering issues
@@ -480,12 +482,16 @@
             
             // Контекстная MainButton
             if (profile.id !== telegramUser.id) {
-                tg.MainButton.setText(`Показать ${profile.name} на карте`);
+                tg.MainButton.setText(`ПОКАЗАТЬ ${profile.name.toUpperCase()} НА КАРТЕ`);
                 tg.MainButton.onClick(() => {
                     hideUserDetailModal();
                     focusOnUser(profile.id);
                 });
                 tg.MainButton.show();
+            } else {
+                 tg.MainButton.setText(`ПОДЕЛИТЬСЯ ПРОФИЛЕМ`);
+                 tg.MainButton.onClick(() => shareProfile(profile.id, profile.name));
+                 tg.MainButton.show();
             }
 
 
@@ -525,7 +531,7 @@
 
         function hideUserDetailModal() {
             tg.BackButton.hide();
-            tg.MainButton.hide(); // Скрываем MainButton при закрытии
+            updateMainButton(document.querySelector('.view.active').id); // Возвращаем MainButton к состоянию текущего вида
             userDetailModal.classList.add('opacity-0');
             userDetailContent.classList.add('translate-y-full');
             setTimeout(() => {
@@ -545,11 +551,13 @@
             postPhotoPreview.classList.add('hidden');
             postPhotoIcon.classList.remove('hidden');
             createPostModal.classList.remove('hidden');
+            tg.BackButton.show();
         }
 
         function hideCreatePostModal() {
             createPostModal.classList.add('hidden');
             lastCaptureData = null;
+            tg.BackButton.hide();
         }
 
         // --- Логика анимации входа ---
@@ -668,6 +676,7 @@
             tg.ready();
             tg.expand();
             applyTheme(tg.themeParams);
+            setupTelegramIntegration();
             setupEventListeners();
             
             // Handle deep linking
@@ -727,9 +736,9 @@
                  initialLoader.classList.add('hidden');
                  authScreen.classList.remove('hidden');
                  authContent.innerHTML = `
-                      <h1 class="text-2xl font-bold mb-4 text-red-500">Доступ к геолокации необходим</h1>
-                      <p class="mb-6" style="color: var(--hint-color);">Для работы приложения TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение.</p>
-                      <button onclick="requestAndWatchGeo().then(initializeWithUser).catch(() => {})" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Предоставить доступ</button>
+                       <h1 class="text-2xl font-bold mb-4 text-red-500">Доступ к геолокации необходим</h1>
+                       <p class="mb-6" style="color: var(--hint-color);">Для работы приложения TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение в настройках браузера или Telegram.</p>
+                       <button onclick="window.location.reload()" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Перезагрузить</button>
                  `;
              }
         }
@@ -743,15 +752,18 @@
                 listenToPosts();
                 
                 setTimeout(() => {
-                    if (!localStorage.getItem('attachmentPromptSeen')) {
-                        tg.showConfirm("Для удобного доступа, хотите добавить это приложение в меню вложений?", (ok) => {
-                            if (ok) {
-                                tg.showAlert("Отлично! Нажмите на имя бота вверху экрана, а затем выберите 'Добавить в меню вложений'.");
-                            }
-                            localStorage.setItem('attachmentPromptSeen', 'true');
-                        });
-                    }
-                }, 3000);
+                    tg.CloudStorage.getItem('attachmentPromptSeen', (err, seen) => {
+                        if (!seen) {
+                            tg.showConfirm("Хотите добавить TerraRun в меню вложений для быстрого доступа?", (ok) => {
+                                if (ok) {
+                                    tg.showAlert("Отлично! Теперь вы можете быстро запускать приложение из меню скрепки в любом чате.");
+                                    // Note: Actual addition to attachment menu is handled by user via bot settings.
+                                }
+                                tg.CloudStorage.setItem('attachmentPromptSeen', 'true');
+                            });
+                        }
+                    });
+                }, 5000);
 
                 initialLoader.classList.add('hidden');
                 authScreen.style.display = 'none';
@@ -823,13 +835,26 @@
                     return;
                 }
                 
+                if (!navigator.geolocation) {
+                    reject(new Error("Геолокация не поддерживается вашим устройством."));
+                    return;
+                }
+
+                const locationDot = document.getElementById('location-dot');
+                const locationText = document.getElementById('location-text');
+
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
                         geoWatchId = navigator.geolocation.watchPosition(
                             (position) => {
-                                const { latitude, longitude } = position.coords;
+                                const { latitude, longitude, accuracy } = position.coords;
                                 const latLng = [latitude, longitude];
                                 lastKnownLocation = latLng;
+                                
+                                locationDot.classList.remove('bg-gray-400', 'bg-yellow-400', 'animate-pulse');
+                                locationDot.classList.add('bg-green-500');
+                                locationText.textContent = `Точность: ${accuracy.toFixed(0)} м`;
+
 
                                 if (!initialLocationSet) {
                                     map.flyTo(latLng, 16);
@@ -847,13 +872,19 @@
                             },
                             (err) => {
                                 console.error("Geolocation watch error:", err);
-                                tg.showAlert("Потерян доступ к геолокации.");
+                                locationDot.classList.remove('bg-green-500', 'bg-gray-400', 'animate-pulse');
+                                locationDot.classList.add('bg-red-500');
+                                locationText.textContent = "Ошибка GPS";
+                                tg.showAlert(`Ошибка геолокации: ${err.message}.`);
                             },
-                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
                         );
                         resolve();
                     },
                     (err) => {
+                        locationDot.classList.remove('bg-green-500', 'bg-gray-400', 'animate-pulse');
+                        locationDot.classList.add('bg-red-500');
+                        locationText.textContent = "Доступ запрещен";
                         reject(err);
                     },
                     { enableHighAccuracy: true }
@@ -863,7 +894,7 @@
 
         function startRun() {
             if (!initialLocationSet) {
-                 tg.showAlert("Сначала определите свое местоположение. Если вы отказали в доступе, перезапустите приложение.");
+                 tg.showAlert("Сначала определите свое местоположение. Если вы отказали в доступе, перезапустите приложение и предоставьте разрешение.");
                  return;
             }
 
@@ -896,7 +927,7 @@
             if (currentRunPath.length > 3) {
                 processRunPath();
             } else {
-                tg.showAlert('Слишком короткий маршрут.');
+                tg.showAlert('Слишком короткий маршрут для захвата.');
             }
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
@@ -907,7 +938,7 @@
             const endPoint = currentRunPath[currentRunPath.length - 1];
             const distance = turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' });
             if (distance > 50) {
-                tg.showAlert('Маршрут не замкнут. Вернитесь к точке старта для захвата.');
+                tg.showAlert('Маршрут не замкнут. Вернитесь к точке старта (в радиус 50м) для захвата территории.');
                 return;
             }
             currentRunPath.push(startPoint);
@@ -916,7 +947,7 @@
             const polygonized = turf.polygonize(line);
 
             if (polygonized.features.length === 0) {
-                tg.showAlert('Не удалось сформировать замкнутую территорию. Попробуйте снова.');
+                tg.showAlert('Не удалось сформировать замкнутую территорию. Вероятно, маршрут пересекал сам себя. Попробуйте снова.');
                 return;
             }
 
@@ -975,7 +1006,7 @@
                 showCreatePostModal(newCapture);
             } catch (error) {
                 console.error("Ошибка в updateTerritory:", error);
-                tg.showAlert("Ошибка обработки территории. Форма слишком сложная.");
+                tg.showAlert("Ошибка обработки территории. Форма слишком сложная или некорректная.");
                 tg.HapticFeedback.notificationOccurred('error');
             }
         }
@@ -1161,13 +1192,13 @@
                     : `${Math.round(area)} м²`;
 
                 return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showUserDetailModal(${u.id})">
-                    <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
-                    <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
-                    <div class="flex-grow">
-                        <p class="font-bold">${displayName}</p>
-                        <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
-                    </div>
-                </div>`
+                        <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
+                        <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
+                        <div class="flex-grow">
+                            <p class="font-bold">${displayName}</p>
+                            <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
+                        </div>
+                    </div>`
             }).join('');
         }
 
@@ -1257,11 +1288,11 @@
             posts.forEach(post => {
                  const mapContainer = document.getElementById(`mini-map-${post.id}`);
                  if (mapContainer && !mapContainer._leaflet_id) {
-                    const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
-                    const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-                    L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token={accessToken}', { maxZoom: 19, accessToken: mapboxAccessToken }).addTo(miniMap);
-                    const territoryLayer = L.geoJSON(post.territory_captured, { style: { color: post.user_color, weight: 2, opacity: 0.8, fillColor: post.user_color, fillOpacity: 0.5 } }).addTo(miniMap);
-                    miniMap.fitBounds(territoryLayer.getBounds(), { padding: [10, 10] });
+                     const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
+                     const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
+                     L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/256/{z}/{x}/{y}?access_token={accessToken}', { maxZoom: 19, accessToken: mapboxAccessToken }).addTo(miniMap);
+                     const territoryLayer = L.geoJSON(post.territory_captured, { style: { color: post.user_color, weight: 2, opacity: 0.8, fillColor: post.user_color, fillOpacity: 0.5 } }).addTo(miniMap);
+                     miniMap.fitBounds(territoryLayer.getBounds(), { padding: [10, 10] });
                  }
             });
         }
@@ -1289,18 +1320,18 @@
                     <div class="p-4">
                         <p class="font-semibold">Захвачено: <span class="font-bold" style="color: var(--button-color);">${formattedArea}</span></p>
                          <div class="flex items-center space-x-6 mt-3" style="color: var(--hint-color);">
-                            <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" onclick="toggleLike(this, ${post.id})">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>
-                                <span>${likes.length}</span>
-                            </button>
-                            <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="showCommentsModal(${post.id})">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                                <span>${comments.length}</span>
-                            </button>
-                            <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="shareProfile(${post.user_id}, '${post.user_name.replace(/'/g, "\\'")}')">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6.002l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" /></svg>
-                            </button>
-                        </div>
+                             <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" onclick="toggleLike(this, ${post.id})">
+                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>
+                                 <span>${likes.length}</span>
+                             </button>
+                             <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="showCommentsModal(${post.id})">
+                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                 <span>${comments.length}</span>
+                             </button>
+                             <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="shareProfile(${post.user_id}, '${post.user_name.replace(/'/g, "\\'")}')">
+                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6.002l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" /></svg>
+                             </button>
+                         </div>
                     </div>
                 </div>
             `;
@@ -1399,6 +1430,7 @@
                 
                 inputElement.value = '';
                 cancelReply();
+                tg.HapticFeedback.notificationOccurred('success');
 
             } catch (error) {
                 console.error('Ошибка отправки комментария:', error);
@@ -1479,18 +1511,21 @@
         function showMyQrCode() {
             tg.HapticFeedback.impactOccurred('light');
             const deepLink = `https://t.me/TerraRunBot/app?startapp=user${telegramUser.id}`;
+            const container = document.createElement('div');
+            container.id = 'qrcode-container';
+            
             tg.showPopup({
                 title: 'Ваш QR-код',
                 message: 'Покажите этот QR-код другу, чтобы он мог посмотреть ваш профиль!',
                 buttons: [{ type: 'close', text: 'Закрыть' }]
-            }, (buttonId) => {
-                // После показа popup, рендерим QR-код
+            });
+
+            // Небольшая задержка, чтобы popup успел отрендериться
+            setTimeout(() => {
                 const messageContainer = document.querySelector('.popup-message');
                 if (messageContainer) {
-                    const qrContainer = document.createElement('div');
-                    qrContainer.id = 'qrcode-container';
-                    messageContainer.appendChild(qrContainer);
-                    new QRCode(qrContainer, {
+                    messageContainer.appendChild(container);
+                    new QRCode(container, {
                         text: deepLink,
                         width: 128,
                         height: 128,
@@ -1499,12 +1534,12 @@
                         correctLevel : QRCode.CorrectLevel.H
                     });
                 }
-            });
+            }, 100);
         }
 
         async function editStatus() {
             tg.HapticFeedback.impactOccurred('light');
-            tg.showPrompt('Введите ваш новый статус', 'Сохранить', (newStatus) => {
+            tg.showPrompt('Введите ваш новый статус', (newStatus) => {
                 if (newStatus && newStatus.trim().length > 0) {
                     const trimmedStatus = newStatus.trim().slice(0, 50); // Ограничение длины
                     profileStatus.textContent = trimmedStatus;
@@ -1546,15 +1581,44 @@
                 stopIcon.classList.add('hidden');
             }
         }
+        
+        function updateMainButton(viewId) {
+            tg.MainButton.hide();
+            tg.MainButton.offClick(tg.MainButton.onClick); // Удаляем предыдущий обработчик
+            
+            switch(viewId) {
+                case 'profile-view':
+                    tg.MainButton.setText('ПОДЕЛИТЬСЯ ПРОФИЛЕМ');
+                    tg.MainButton.onClick(() => shareProfile(telegramUser.id, telegramUser.first_name));
+                    tg.MainButton.show();
+                    break;
+                case 'top-view':
+                    tg.MainButton.setText('ОБНОВИТЬ РЕЙТИНГ');
+                    tg.MainButton.onClick(() => {
+                        tg.HapticFeedback.impactOccurred('light');
+                        fetchAllProfilesAndDraw();
+                    });
+                    tg.MainButton.show();
+                    break;
+                // Можно добавить другие кейсы
+                default:
+                    tg.MainButton.hide();
+                    break;
+            }
+        }
 
-        function setupEventListeners() {
+        function setupTelegramIntegration() {
+            // Обработчик изменения темы
             tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
             
+            // Обработчик кнопки "Назад"
             tg.onEvent('backButtonClicked', () => {
                 if (!document.getElementById('comments-modal').classList.contains('hidden')) {
                     hideCommentsModal();
                 } else if (!document.getElementById('user-detail-modal').classList.contains('hidden')) {
                     hideUserDetailModal();
+                } else if (!document.getElementById('create-post-modal').classList.contains('hidden')) {
+                    hideCreatePostModal();
                 }
             });
 
@@ -1573,12 +1637,10 @@
                 tg.closeScanQrPopup();
                 const url = eventData.data;
                 try {
-                    // Пытаемся распарсить URL и найти параметр startapp
-                    const urlPattern = /startapp=(user\d+)/;
+                    const urlPattern = /startapp=user(\d+)/;
                     const match = url.match(urlPattern);
                     if (match && match[1]) {
-                        const startParam = match[1];
-                        const userId = parseInt(startParam.substring(4), 10);
+                        const userId = parseInt(match[1], 10);
                         if (!isNaN(userId)) {
                             showUserDetailModal(userId);
                         } else {
@@ -1595,79 +1657,92 @@
 
 
         // --- Обработчики событий ---
-        recenterBtn.addEventListener('click', () => {
-             tg.HapticFeedback.impactOccurred('medium');
-            if (lastKnownLocation) {
-                map.flyTo(lastKnownLocation, 16);
-            } else {
-                tg.showAlert("Определяем ваше местоположение...");
-                requestAndWatchGeo().catch(() => {
-                    tg.showAlert("Не удалось получить доступ к геолокации. Пожалуйста, проверьте разрешения для Telegram.");
-                });
-            }
-        });
-        
-        scanQrBtn.addEventListener('click', () => {
-            tg.HapticFeedback.impactOccurred('light');
-            tg.showScanQrPopup({
-                text: 'Наведите на QR-код другого игрока'
-            });
-        });
-
-        startStopBtn.addEventListener('click', () => {
-            if (isRunning) {
-                stopRun();
-            } else {
-                startRun();
-            }
-        });
-
-        inviteFriendBtn.addEventListener('click', () => {
-            tg.HapticFeedback.impactOccurred('light');
-            tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(`https://t.me/TerraRunBot/app`)}&text=${encodeURIComponent(`Присоединяйся ко мне в TerraRun и давай захватывать территории вместе!`)}`);
-        });
-
-        donateBtn.addEventListener('click', () => {
-            tg.HapticFeedback.impactOccurred('light');
-            // Это демонстрационный инвойс. Замените `invoice_link` на реальную ссылку, полученную от вашего платежного провайдера.
-            tg.openInvoice('https://t.me/invoice/example', (status) => {
-                if (status === 'paid') {
-                    tg.HapticFeedback.notificationOccurred('success');
-                    tg.showAlert('Спасибо за вашу поддержку!');
-                } else if (status === 'failed') {
-                    tg.HapticFeedback.notificationOccurred('error');
-                    tg.showAlert('Не удалось обработать платеж.');
+        function setupEventListeners() {
+            recenterBtn.addEventListener('click', () => {
+                 tg.HapticFeedback.impactOccurred('medium');
+                if (lastKnownLocation) {
+                    map.flyTo(lastKnownLocation, 16);
+                } else {
+                    tg.showAlert("Определяем ваше местоположение...");
+                    requestAndWatchGeo().catch(() => {
+                        tg.showAlert("Не удалось получить доступ к геолокации. Пожалуйста, проверьте разрешения для Telegram.");
+                    });
                 }
             });
-        });
+            
+            scanQrBtn.addEventListener('click', () => {
+                tg.HapticFeedback.impactOccurred('light');
+                tg.showScanQrPopup({
+                    text: 'Наведите на QR-код другого игрока'
+                });
+            });
 
-        editStatusBtn.addEventListener('click', editStatus);
-        showQrBtn.addEventListener('click', showMyQrCode);
+            startStopBtn.addEventListener('click', () => {
+                if (isRunning) {
+                    stopRun();
+                } else {
+                    startRun();
+                }
+            });
 
-        userDetailModal.addEventListener('click', (e) => {
-            if (e.target.id === 'user-detail-modal') {
-                hideUserDetailModal();
-            }
-        });
-        document.getElementById('comments-modal').addEventListener('click', (e) => {
-            if (e.target.id === 'comments-modal') {
-                hideCommentsModal();
-            }
-        });
-        savePostBtn.addEventListener('click', handlePostSubmission);
-        cancelPostBtn.addEventListener('click', hideCreatePostModal);
-        postPhotoInput.addEventListener('change', () => {
-            const file = postPhotoInput.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    postPhotoPreview.src = e.target.result;
-                    postPhotoPreview.classList.remove('hidden');
-                    postPhotoIcon.classList.add('hidden');
-                };
-                reader.readAsDataURL(file);
-            }
-        });
+            inviteFriendBtn.addEventListener('click', () => {
+                tg.HapticFeedback.impactOccurred('light');
+                tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(`https://t.me/TerraRunBot/app`)}&text=${encodeURIComponent(`Присоединяйся ко мне в TerraRun и давай захватывать территории вместе!`)}`);
+            });
+
+            donateBtn.addEventListener('click', () => {
+                tg.HapticFeedback.impactOccurred('light');
+                // Это демонстрационный инвойс. Замените `invoice_link` на реальную ссылку, полученную от вашего платежного провайдера через бота.
+                // Пример получения ссылки: https://core.telegram.org/bots/api#createinvoicelink
+                tg.openInvoice('https://t.me/invoice/1-2222222222-33333333-4444-555555555555', (status) => {
+                    if (status === 'paid') {
+                        tg.HapticFeedback.notificationOccurred('success');
+                        tg.showAlert('Спасибо за вашу поддержку! Вы помогаете проекту развиваться.');
+                    } else if (status === 'failed') {
+                        tg.HapticFeedback.notificationOccurred('error');
+                        tg.showAlert('Не удалось обработать платеж. Попробуйте снова позже.');
+                    }
+                });
+            });
+
+            editStatusBtn.addEventListener('click', editStatus);
+            showQrBtn.addEventListener('click', showMyQrCode);
+
+            userDetailModal.addEventListener('click', (e) => {
+                if (e.target.id === 'user-detail-modal') {
+                    hideUserDetailModal();
+                }
+            });
+            document.getElementById('comments-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'comments-modal') {
+                    hideCommentsModal();
+                }
+            });
+            savePostBtn.addEventListener('click', handlePostSubmission);
+            cancelPostBtn.addEventListener('click', () => {
+                tg.showConfirm('Вы уверены, что хотите пропустить создание поста? Это действие нельзя будет отменить.', (ok) => {
+                    if (ok) {
+                         hideCreatePostModal();
+                    }
+                });
+            });
+            
+            // Запускаем выбор файла через стандартный инпут
+            postPhotoInputBtn.addEventListener('click', () => postPhotoInput.click());
+
+            postPhotoInput.addEventListener('change', () => {
+                const file = postPhotoInput.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        postPhotoPreview.src = e.target.result;
+                        postPhotoPreview.classList.remove('hidden');
+                        postPhotoIcon.classList.add('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
         
         // --- Глобальные функции для HTML ---
         window.showView = showView;
@@ -1688,8 +1763,6 @@
         window.handleTouchStart = handleTouchStart;
         window.handleTouchMove = handleTouchMove;
         window.handleTouchEnd = handleTouchEnd;
-        window.requestAndWatchGeo = requestAndWatchGeo;
-        window.initializeWithUser = initializeWithUser;
 
         // Запускаем приложение
         document.addEventListener('DOMContentLoaded', startApp);
