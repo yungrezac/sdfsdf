@@ -253,21 +253,21 @@
                 <input type="text" id="post-title" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Например, 'Утренний захват парка'">
             </div>
             <div>
-                 <label for="post-photo-input" class="block text-sm font-medium">Фото</label>
-                 <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                     <div class="space-y-1 text-center">
-                         <img id="post-photo-preview" src="" alt="Предпросмотр фото" class="hidden mx-auto h-24 w-auto mb-4 rounded">
-                         <svg id="post-photo-icon" class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                         <div class="flex text-sm text-gray-600">
-                             <label for="post-photo-input" class="relative cursor-pointer rounded-md font-medium" style="color: var(--button-color)">
-                                 <span>Загрузите файл</span>
-                                 <input id="post-photo-input" name="post-photo-input" type="file" class="sr-only" accept="image/*">
-                             </label>
-                             <p class="pl-1">или перетащите</p>
-                         </div>
-                         <p class="text-xs text-gray-500">PNG, JPG, GIF до 10MB</p>
-                     </div>
-                 </div>
+                <label for="post-photo-input" class="block text-sm font-medium">Фото</label>
+                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                    <div class="space-y-1 text-center">
+                        <img id="post-photo-preview" src="" alt="Предпросмотр фото" class="hidden mx-auto h-24 w-auto mb-4 rounded">
+                        <svg id="post-photo-icon" class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                        <div class="flex text-sm text-gray-600">
+                            <label for="post-photo-input-label" class="relative cursor-pointer rounded-md font-medium" style="color: var(--button-color)">
+                                <span>Загрузите файл</span>
+                                <input id="post-photo-input" name="post-photo-input" type="file" class="sr-only" accept="image/*">
+                            </label>
+                            <p class="pl-1">или перетащите</p>
+                        </div>
+                        <p class="text-xs text-gray-500">PNG, JPG, GIF до 10MB</p>
+                    </div>
+                </div>
             </div>
             <div class="flex justify-end space-x-3">
                 <button id="cancel-post-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full transition-all">Пропустить</button>
@@ -302,14 +302,14 @@
                 <!-- Комментарии будут отрендерены здесь -->
             </div>
             <!-- Панель ввода комментария -->
-            <div id="comment-input-container" class="flex-shrink-0 p-2 border-t border-gray-200 bg-white">
-                 <div id="reply-indicator" class="hidden text-xs text-gray-500 px-2 pb-1 flex justify-between items-center">
+            <div id="comment-input-container" class="flex-shrink-0 p-2 border-t" style="background-color: var(--secondary-bg-color); border-color: var(--bg-color);">
+                <div id="reply-indicator" class="hidden text-xs px-2 pb-1 flex justify-between items-center" style="color: var(--hint-color);">
                     <span id="reply-indicator-text"></span>
                     <button onclick="cancelReply()" class="font-bold text-xl">&times;</button>
                 </div>
                 <div class="flex items-center space-x-2">
                     <textarea id="main-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
-                    <button id="main-comment-send-btn" onclick="postComment()" class="flex-shrink-0 bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600 disabled:bg-gray-400">
+                    <button id="main-comment-send-btn" onclick="postComment()" class="flex-shrink-0 text-white rounded-full p-2 hover:opacity-80 disabled:opacity-50" style="background-color: var(--button-color);">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                     </button>
                 </div>
@@ -682,16 +682,9 @@
         function showAuthWidget() {
             authContent.innerHTML = `
                 <h1 class="text-2xl font-bold mb-4">Добро пожаловать в TerraRun!</h1>
-                <p class="mb-6" style="color: var(--hint-color);">Войдите через Telegram, чтобы начать.</p>
+                <p class="mb-6" style="color: var(--hint-color);">Это приложение работает только внутри Telegram.</p>
+                <p class="text-sm" style="color: var(--hint-color);">Пожалуйста, откройте @TerraRunBot и нажмите "Начать".</p>
             `;
-            const script = document.createElement('script');
-            script.async = true;
-            script.src = 'https://telegram.org/js/telegram-widget.js?22';
-            script.setAttribute('data-telegram-login', 'TerraRunbot');
-            script.setAttribute('data-size', 'large');
-            script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-            script.setAttribute('data-request-access', 'write');
-            authContent.appendChild(script);
         }
 
         async function initializeWithUser() {
@@ -713,8 +706,8 @@
                  authScreen.classList.remove('hidden');
                  authContent.innerHTML = `
                      <h1 class="text-2xl font-bold mb-4 text-red-500">Доступ к геолокации необходим</h1>
-                     <p class="mb-6" style="color: var(--hint-color);">Для работы приложения TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение.</p>
-                     <button onclick="requestAndWatchGeo().then(initializeWithUser).catch(() => {})" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Предоставить доступ</button>
+                     <p class="mb-6" style="color: var(--hint-color);">Для работы приложения TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение в настройках браузера или Telegram и перезапустите приложение.</p>
+                     <button onclick="requestAndWatchGeo().then(initializeWithUser).catch(() => {})" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Попробовать снова</button>
                  `;
              }
         }
@@ -848,8 +841,8 @@
 
         function startRun() {
             if (!initialLocationSet) {
-                 tg.showAlert("Сначала определите свое местоположение. Если вы отказали в доступе, перезапустите приложение.");
-                 return;
+                tg.showAlert("Сначала определите свое местоположение. Если вы отказали в доступе, перезапустите приложение.");
+                return;
             }
 
             isRunning = true;
@@ -1146,13 +1139,13 @@
                     : `${Math.round(area)} м²`;
 
                 return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showUserDetailModal(${u.id})">
-                    <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
-                    <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
-                    <div class="flex-grow">
-                        <p class="font-bold">${displayName}</p>
-                        <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
-                    </div>
-                </div>`
+                        <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
+                        <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
+                        <div class="flex-grow">
+                            <p class="font-bold">${displayName}</p>
+                            <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
+                        </div>
+                    </div>`
             }).join('');
         }
 
@@ -1204,9 +1197,9 @@
 
             const postIds = posts.map(p => p.id);
             if (postIds.length === 0) {
-                 feedContainer.innerHTML = '<p class="text-center text-gray-500">В ленте пока нет постов.</p>';
-                 profileFeedContainer.innerHTML = '<p class="text-center text-gray-500">У вас еще нет постов.</p>';
-                 return;
+                feedContainer.innerHTML = '<p class="text-center text-gray-500">В ленте пока нет постов.</p>';
+                profileFeedContainer.innerHTML = '<p class="text-center text-gray-500">У вас еще нет постов.</p>';
+                return;
             }
 
             const { data: likes, error: likesError } = await supabase.from('likes').select('*').in('post_id', postIds);
@@ -1240,14 +1233,14 @@
             profileFeedContainer.innerHTML = userPostsHTML || '<p class="text-center text-gray-500">У вас еще нет постов.</p>';
 
             posts.forEach(post => {
-                 const mapContainer = document.getElementById(`mini-map-${post.id}`);
-                 if (mapContainer && !mapContainer._leaflet_id) {
+                const mapContainer = document.getElementById(`mini-map-${post.id}`);
+                if (mapContainer && !mapContainer._leaflet_id) {
                     const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
                     const mapboxAccessToken = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
                     L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token={accessToken}', { maxZoom: 19, accessToken: mapboxAccessToken }).addTo(miniMap);
                     const territoryLayer = L.geoJSON(post.territory_captured, { style: { color: post.user_color, weight: 2, opacity: 0.8, fillColor: post.user_color, fillOpacity: 0.5 } }).addTo(miniMap);
                     miniMap.fitBounds(territoryLayer.getBounds(), { padding: [10, 10] });
-                 }
+                }
             });
         }
 
@@ -1300,14 +1293,14 @@
                 <div class="flex items-start space-x-3 mt-4">
                     <img src="${avatar}" class="w-8 h-8 rounded-full" alt="avatar">
                     <div class="flex-1">
-                        <div class="bg-gray-100 rounded-lg p-2">
-                            <p class="font-bold text-sm text-gray-800">${profileName}</p>
-                            <p class="text-sm text-gray-600">${comment.content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+                        <div class="rounded-lg p-2" style="background-color: color-mix(in srgb, var(--bg-color) 70%, transparent)">
+                            <p class="font-bold text-sm" style="color: var(--text-color);">${profileName}</p>
+                            <p class="text-sm" style="color: var(--hint-color);">${comment.content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
                         </div>
-                        <div class="text-xs text-gray-500 mt-1">
+                        <div class="text-xs mt-1" style="color: var(--hint-color);">
                             <button class="hover:underline" onclick="setReplyMode(${comment.post_id}, ${comment.id}, '${profileName.replace(/'/g, "\\'")}')">Ответить</button>
                         </div>
-                        <div class="pl-4 border-l-2 border-gray-200">
+                        <div class="pl-4 border-l-2" style="border-color: var(--bg-color);">
                             ${replies.map(reply => generateCommentHTML(reply, commentsByParent)).join('')}
                         </div>
                     </div>
@@ -1464,27 +1457,32 @@
         function showMyQrCode() {
             tg.HapticFeedback.impactOccurred('light');
             const deepLink = `https://t.me/TerraRunBot/app?startapp=user${telegramUser.id}`;
-            tg.showPopup({
-                title: 'Ваш QR-код',
-                message: 'Покажите этот QR-код другу, чтобы он мог посмотреть ваш профиль!',
-                buttons: [{ type: 'close', text: 'Закрыть' }]
-            }, (buttonId) => {
-                // После показа popup, рендерим QR-код
-                const messageContainer = document.querySelector('.popup-message');
-                if (messageContainer) {
-                    const qrContainer = document.createElement('div');
-                    qrContainer.id = 'qrcode-container';
-                    messageContainer.appendChild(qrContainer);
-                    new QRCode(qrContainer, {
-                        text: deepLink,
-                        width: 128,
-                        height: 128,
-                        colorDark : "#000000",
-                        colorLight : "#ffffff",
-                        correctLevel : QRCode.CorrectLevel.H
-                    });
-                }
+            
+            // Создаем временный контейнер для QR-кода, чтобы он сгенерировался до показа popup
+            const tempQrContainer = document.createElement('div');
+            tempQrContainer.style.display = 'none';
+            document.body.appendChild(tempQrContainer);
+            new QRCode(tempQrContainer, {
+                text: deepLink,
+                width: 128,
+                height: 128,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
             });
+            
+            // Ждем, пока QR-код сгенерируется в виде canvas или img
+            setTimeout(() => {
+                const qrImage = tempQrContainer.querySelector('img') || tempQrContainer.querySelector('canvas');
+                const qrHtml = qrImage ? `<div style="display: flex; justify-content: center; padding: 1rem;">${qrImage.outerHTML}</div>` : '';
+                document.body.removeChild(tempQrContainer);
+
+                tg.showPopup({
+                    title: 'Ваш QR-код',
+                    message: `Покажите этот QR-код другу, чтобы он мог посмотреть ваш профиль!${qrHtml}`,
+                    buttons: [{ type: 'close', text: 'Закрыть' }]
+                });
+            }, 100);
         }
 
         async function editStatus() {
@@ -1615,7 +1613,8 @@
         donateBtn.addEventListener('click', () => {
             tg.HapticFeedback.impactOccurred('light');
             // Это демонстрационный инвойс. Замените `invoice_link` на реальную ссылку, полученную от вашего платежного провайдера.
-            tg.openInvoice('https://t.me/invoice/example', (status) => {
+            // Для теста можно использовать @TestBot -> Start -> Payments
+            tg.openInvoice('...', (status) => { // Вставьте реальную ссылку на инвойс
                 if (status === 'paid') {
                     tg.HapticFeedback.notificationOccurred('success');
                     tg.showAlert('Спасибо за вашу поддержку!');
@@ -1641,6 +1640,9 @@
         });
         savePostBtn.addEventListener('click', handlePostSubmission);
         cancelPostBtn.addEventListener('click', hideCreatePostModal);
+        
+        const postPhotoLabel = document.getElementById('post-photo-input-label');
+        postPhotoLabel.addEventListener('click', () => postPhotoInput.click());
         postPhotoInput.addEventListener('change', () => {
             const file = postPhotoInput.files[0];
             if (file) {
@@ -1665,11 +1667,6 @@
         window.showCommentsModal = showCommentsModal;
         window.hideCommentsModal = hideCommentsModal;
         window.shareProfile = shareProfile;
-        window.onTelegramAuth = async (user) => {
-            console.log("Logged in via external widget:", user);
-            telegramUser = user;
-            await initializeWithUser();
-        };
         window.handleTouchStart = handleTouchStart;
         window.handleTouchMove = handleTouchMove;
         window.handleTouchEnd = handleTouchEnd;
