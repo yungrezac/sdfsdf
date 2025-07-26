@@ -145,6 +145,13 @@
             align-items: center;
             padding: 1rem;
         }
+        /* Стили для свитчера */
+        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 28px; }
+        .toggle-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .toggle-slider { background-color: var(--button-color); }
+        input:checked + .toggle-slider:before { transform: translateX(22px); }
     </style>
 </head>
 <body class="font-sans antialiased overflow-hidden">
@@ -255,19 +262,19 @@
             <div>
                  <label for="post-photo-input" class="block text-sm font-medium">Фото</label>
                  <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                     <div class="space-y-1 text-center">
+                    <div class="space-y-1 text-center">
                          <img id="post-photo-preview" src="" alt="Предпросмотр фото" class="hidden mx-auto h-24 w-auto mb-4 rounded">
                          <svg id="post-photo-icon" class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                         <div class="flex text-sm text-gray-600">
+                        <div class="flex text-sm text-gray-600">
                              <label for="post-photo-input" class="relative cursor-pointer rounded-md font-medium" style="color: var(--button-color)">
                                  <span>Загрузите файл</span>
                                  <input id="post-photo-input" name="post-photo-input" type="file" class="sr-only" accept="image/*">
                              </label>
                              <p class="pl-1">или перетащите</p>
-                         </div>
-                         <p class="text-xs text-gray-500">PNG, JPG, GIF до 10MB</p>
-                     </div>
-                 </div>
+                        </div>
+                        <p class="text-xs text-gray-500">PNG, JPG, GIF до 10MB</p>
+                    </div>
+                </div>
             </div>
             <div class="flex justify-end space-x-3">
                 <button id="cancel-post-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full transition-all">Пропустить</button>
@@ -712,9 +719,9 @@
                  initialLoader.classList.add('hidden');
                  authScreen.classList.remove('hidden');
                  authContent.innerHTML = `
-                     <h1 class="text-2xl font-bold mb-4 text-red-500">Доступ к геолокации необходим</h1>
-                     <p class="mb-6" style="color: var(--hint-color);">Для работы приложения TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение.</p>
-                     <button onclick="requestAndWatchGeo().then(initializeWithUser).catch(() => {})" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Предоставить доступ</button>
+                      <h1 class="text-2xl font-bold mb-4 text-red-500">Доступ к геолокации необходим</h1>
+                      <p class="mb-6" style="color: var(--hint-color);">Для работы приложения TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение.</p>
+                      <button onclick="requestAndWatchGeo().then(initializeWithUser).catch(() => {})" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Предоставить доступ</button>
                  `;
              }
         }
