@@ -956,7 +956,6 @@
         }
 
         function generateMiniPostHTML(post) {
-            // FIX: Use data attributes for event delegation
             return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" data-action="show-post-comments" data-id="${post.id}">
                         <p class="font-semibold">${post.title}</p>
                         <p class="text-xs text-gray-400">${new Date(post.created_at).toLocaleDateString()}</p>
@@ -1140,15 +1139,17 @@
         // СПОТЫ
         function handleMapClickForSpot(e) {
             const { lat, lng } = e.latlng;
+            // FIX: Use WKT format for PostGIS geography type
+            const locationWKT = `POINT(${lng} ${lat})`;
             tg.showConfirm("Создать новый спот в этом месте?", (ok) => {
                 if (ok) {
-                    showCreationModal('spot', { location: { type: 'Point', coordinates: [lng, lat] } });
+                    showCreationModal('spot', { location: locationWKT });
                 }
             });
         }
 
         async function saveSpot() {
-            const { location } = currentEditContext;
+            const { location } = currentEditContext; // location is now the WKT string
             const name = document.getElementById('creation-modal-name').value.trim();
             const description = document.getElementById('creation-modal-details').value.trim();
             const file = document.getElementById('creation-modal-photo-input').files[0];
@@ -1161,7 +1162,7 @@
             if (file) {
                 const filePath = `${telegramUser.id}/spots/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                if (error) { console.error(error); tg.showAlert("Ошибка загрузки фото."); return; }
+                if (error) { console.error("Ошибка загрузки фото:", error); tg.showAlert("Ошибка загрузки фото."); return; }
                 const { data: urlData } = supabase.storage.from('photo').getPublicUrl(data.path);
                 photoUrl = urlData.publicUrl;
             }
@@ -1171,7 +1172,7 @@
             }).select().single();
 
             if (error) {
-                console.error(error); tg.showAlert("Не удалось сохранить спот.");
+                console.error("Ошибка сохранения спота:", error); tg.showAlert("Не удалось сохранить спот.");
             } else {
                 tg.showAlert("Спот успешно создан!");
                 hideCreationModal();
@@ -1180,6 +1181,7 @@
         }
         
         function addSpotToMap(spot) {
+            // Supabase returns geography as GeoJSON, so we can parse it
             const coords = spot.location.coordinates;
             const marker = L.marker([coords[1], coords[0]]);
             marker.on('click', () => showDetailModal('spot', spot.id));
@@ -1215,14 +1217,16 @@
                 return;
             }
             
-            // Convert to GeoJSON format [lng, lat]
-            const geoJsonPath = currentRunPath.map(p => [p[1], p[0]]);
-            showCreationModal('route', { path: { type: 'LineString', coordinates: geoJsonPath } });
+            // FIX: Convert coordinates to WKT format for PostGIS
+            const pathCoordinates = currentRunPath.map(p => `${p[1]} ${p[0]}`).join(', ');
+            const pathWKT = `LINESTRING(${pathCoordinates})`;
+            showCreationModal('route', { path: pathWKT });
+
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
 
         async function saveRoute() {
-            const { path } = currentEditContext;
+            const { path } = currentEditContext; // path is now the WKT string
             const name = document.getElementById('creation-modal-name').value.trim();
             const description = document.getElementById('creation-modal-details').value.trim();
             
@@ -1233,7 +1237,7 @@
             }).select().single();
 
             if (error) {
-                console.error(error); tg.showAlert("Не удалось сохранить маршрут.");
+                console.error("Ошибка сохранения маршрута:", error); tg.showAlert("Не удалось сохранить маршрут.");
             } else {
                 tg.showAlert("Маршрут сохранен!");
                 hideCreationModal();
@@ -1242,6 +1246,7 @@
         }
         
         function addRouteToMap(route) {
+            // Supabase returns geography as GeoJSON
             const coords = route.path.coordinates.map(p => [p[1], p[0]]);
             const polyline = L.polyline(coords, { color: '#ff7800', weight: 3 });
             polyline.on('click', () => showDetailModal('route', route.id));
@@ -1284,9 +1289,8 @@
                   }
                   // Если открыта модалка деталей спота или маршрута
                   if (detailModal.classList.contains('visible') && (currentDetailContext.type === 'spot' || currentDetailContext.type === 'route')) {
-                      const changedParentId = payload.new?.parent_id || payload.old?.parent_id;
-                      const changedParentType = payload.new?.parent_type || payload.old?.parent_type;
-                      if (changedParentId === currentDetailContext.id && changedParentType === currentDetailContext.type) {
+                      const changedParentId = payload.new?.spot_id || payload.new?.route_id || payload.old?.spot_id || payload.old?.route_id;
+                      if (changedParentId === currentDetailContext.id) {
                           loadAndRenderComments(currentDetailContext.type, currentDetailContext.id, 'detail-comments-list');
                       }
                   }
@@ -1359,32 +1363,18 @@
             donateBtn.addEventListener('click', () => { /* TODO: Implement */ });
 
             // FIX: Use event delegation for dynamic content
-            feedContainer.addEventListener('click', (event) => {
-                const button = event.target.closest('button[data-action]');
+            appContainer.addEventListener('click', (event) => {
+                const button = event.target.closest('button[data-action], div[data-action]');
                 if (!button) return;
 
                 const action = button.dataset.action;
-                const postId = button.dataset.postId;
-
-                if (!action || !postId) return;
-
-                if (action === 'like') {
-                    toggleLike(button, postId);
-                } else if (action === 'comment') {
-                    showPostComments(postId);
-                }
-            });
-
-            detailModal.addEventListener('click', (event) => {
-                const target = event.target.closest('[data-action]');
-                if (!target) return;
-                
-                const action = target.dataset.action;
-                const id = target.dataset.id;
+                const id = button.dataset.id || button.dataset.postId;
 
                 if (!action || !id) return;
 
-                if (action === 'show-post-comments') {
+                if (action === 'like') {
+                    toggleLike(button, id);
+                } else if (action === 'comment' || action === 'show-post-comments') {
                     showPostComments(id);
                 }
             });
@@ -1454,14 +1444,21 @@
         
         async function upsertUserProfile() {
             const { data, error } = await supabase.from('profiles').select('*').eq('id', telegramUser.id).single();
-            if (error && error.code !== 'PGRST116') { throw error; }
+            if (error && error.code !== 'PGRST116') { console.error("Profile fetch error:", error); throw error; } 
             if (data) {
                 userColor = data.color;
                 userTerritory = data.territory;
             } else {
                 userColor = generateColorFromId(telegramUser.id);
-                const { error: insertError } = await supabase.from('profiles').insert({ id: telegramUser.id, name: telegramUser.first_name, color: userColor, area: 0, photo_url: telegramUser.photo_url || null, territory: null });
-                if (insertError) throw insertError;
+                const { error: insertError } = await supabase.from('profiles').insert({ 
+                    id: telegramUser.id, 
+                    name: telegramUser.first_name, 
+                    color: userColor, 
+                    area: 0, 
+                    photo_url: telegramUser.photo_url || null, 
+                    territory: null 
+                });
+                if (insertError) { console.error("Profile insert error:", insertError); throw insertError; }
             }
         }
         
@@ -1552,7 +1549,6 @@
             }
         }
         
-        // NEW: Handler for simple post saving
         async function handleSimplePostSave() {
             const description = document.getElementById('simple-post-details').value.trim();
             if (!description) {
@@ -1732,32 +1728,19 @@
         
         // --- СИСТЕМА КОММЕНТАРИЕВ ---
 
-        /**
-         * NOTE: Для универсальной системы комментариев рекомендуется,
-         * чтобы ваша таблица 'comments' в Supabase имела следующую структуру:
-         * - id (PK)
-         * - user_id (FK to profiles.id)
-         * - content (text)
-         * - created_at (timestamp)
-         * - parent_comment_id (FK to comments.id, nullable)
-         * - parent_type ('post', 'spot', 'route')
-         * - parent_id (integer, id поста/спота/маршрута)
-         * * Этот код написан с учетом такой структуры.
-         * Если у вас отдельные таблицы (post_comments, spot_comments),
-         * вам нужно будет адаптировать запросы в функциях ниже.
-        */
-
         async function fetchComments(type, id) {
-            // Адаптируйте этот запрос под вашу структуру БД
-            const { data, error } = await supabase.from('comments')
-                .select('*, profiles(name, photo_url)')
-                .eq(type === 'post' ? 'post_id' : 'parent_id', id) // Пример адаптации
-                //.eq('parent_type', type) // Идеальный вариант
-                .order('created_at', { ascending: true });
+            let query = supabase.from('comments').select('*, profiles(name, photo_url)');
+            if (type === 'post') {
+                query = query.eq('post_id', id);
+            } else if (type === 'spot') {
+                query = query.eq('spot_id', id);
+            } else if (type === 'route') {
+                query = query.eq('route_id', id);
+            }
+            const { data, error } = await query.order('created_at', { ascending: true });
             return { data, error };
         }
         
-        // Показывает модальное окно для комментариев к ПОСТАМ
         async function showPostComments(postId) {
             tg.HapticFeedback.impactOccurred('medium');
             tg.BackButton.show();
@@ -1774,7 +1757,6 @@
             renderCommentTree(comments, modalBody);
         }
 
-        // Загружает и рендерит комментарии в модальном окне ДЕТАЛЕЙ (для спотов/маршрутов)
         async function loadAndRenderComments(type, id, containerId) {
              const container = document.getElementById(containerId);
              if (!container) return;
@@ -1802,7 +1784,7 @@
             const profileName = comment.profiles ? comment.profiles.name : 'Аноним';
             const avatar = comment.profiles ? (comment.profiles.photo_url || `https://placehold.co/32x32/E5E7EB/4B5563?text=${profileName.charAt(0)}`) : 'https://placehold.co/32x32';
             const replyFn = context === 'post' ? 'setReplyMode' : 'setDetailReplyMode';
-            const parentId = comment.post_id || comment.parent_id;
+            const parentId = comment.post_id || comment.spot_id || comment.route_id;
 
             return `<div class="flex items-start space-x-3 mt-4">
                         <img src="${avatar}" class="w-8 h-8 rounded-full">
@@ -1819,7 +1801,6 @@
                     </div>`;
         }
         
-        // --- Функции для ответов в модалке постов ---
         function setReplyMode(postId, parentCommentId, parentAuthorName) {
             currentReplyTarget = { type: 'post', id: postId, parentCommentId };
             document.getElementById('reply-indicator-text').textContent = `Ответ: ${parentAuthorName}`;
@@ -1839,19 +1820,16 @@
             const content = inputElement.value.trim();
             if (!content) return;
             
-            // Адаптируйте этот запрос под вашу структуру БД
-            const { error } = await supabase.from('comments').insert({ 
-                post_id: id, // Пример адаптации 
-                // parent_id: id, // Идеальный вариант
-                // parent_type: type,
+            const commentData = { 
+                post_id: id,
                 user_id: telegramUser.id, 
                 parent_comment_id: parentCommentId, 
                 content: content 
-            });
+            };
+            const { error } = await supabase.from('comments').insert(commentData);
             if (error) { tg.showAlert('Ошибка отправки'); } else { inputElement.value = ''; cancelReply(); }
         }
 
-        // --- Функции для ответов в модалке деталей ---
         function setDetailReplyMode(id, parentCommentId, parentAuthorName) {
             currentDetailContext.replyTo = { parentCommentId };
             document.getElementById('detail-reply-indicator-text').textContent = `Ответ: ${parentAuthorName}`;
@@ -1873,14 +1851,18 @@
 
             const parentCommentId = replyTo ? replyTo.parentCommentId : null;
 
-            // Адаптируйте этот запрос под вашу структуру БД
-            const { error } = await supabase.from('comments').insert({ 
-                parent_id: id, // Идеальный вариант
-                parent_type: type,
-                user_id: telegramUser.id, 
-                parent_comment_id: parentCommentId, 
-                content: content 
-            });
+            const commentData = {
+                user_id: telegramUser.id,
+                parent_comment_id: parentCommentId,
+                content: content
+            };
+            if (type === 'spot') {
+                commentData.spot_id = id;
+            } else if (type === 'route') {
+                commentData.route_id = id;
+            }
+
+            const { error } = await supabase.from('comments').insert(commentData);
 
             if (error) { 
                 tg.showAlert('Ошибка отправки комментария.'); 
