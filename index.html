@@ -3,50 +3,128 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Geo Mini App</title>
+  <title>Telegram Geo Mini App</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       background: #f9f9f9;
       padding: 20px;
+      max-width: 600px;
+      margin: 0 auto;
+      color: #333;
     }
-    .location {
-      font-size: 18px;
+    h1, h2 {
+      color: #0088cc;
+    }
+    .location-info {
+      background: white;
+      padding: 15px;
+      border-radius: 12px;
       margin-top: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     button {
-      padding: 10px 20px;
+      padding: 12px 24px;
       font-size: 16px;
       background-color: #0088cc;
       color: white;
       border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: #0077bb;
+    }
+    .status {
+      font-size: 16px;
+      margin: 20px 0;
+      padding: 10px;
       border-radius: 8px;
+      background: #f0f0f0;
+    }
+    .coordinates {
+      font-family: monospace;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    .auto-request {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #eee;
     }
   </style>
 </head>
 <body>
-  <h2>Получение геолокации</h2>
-  <button id="getLocationBtn">Получить координаты</button>
-  <div class="location" id="locationOutput">⏳ Ожидание действия пользователя...</div>
+  <h1>Telegram Geolocation App</h1>
+  
+  <div class="manual-request">
+    <h2>Ручной запрос</h2>
+    <p>Нажмите кнопку, чтобы запросить ваше местоположение:</p>
+    <button id="getLocationBtn">Получить координаты</button>
+    <div class="location-info" id="locationOutput">
+      <div class="status">⏳ Ожидание действия пользователя...</div>
+    </div>
+  </div>
+  
+  <div class="auto-request">
+    <h2>Автоматический запрос</h2>
+    <p>Этот раздел автоматически запрашивает ваше местоположение при загрузке:</p>
+    <div class="location-info" id="autoLocationOutput">
+      <div class="status">⏳ Запрашиваю геолокацию...</div>
+    </div>
+  </div>
 
   <script>
+    // Инициализация Telegram WebApp
     Telegram.WebApp.ready();
+    Telegram.WebApp.expand();
 
+    // Ручной запрос геолокации
     document.getElementById('getLocationBtn').addEventListener('click', () => {
+      const output = document.getElementById('locationOutput');
+      output.innerHTML = '<div class="status">⌛️ Запрашиваю геолокацию...</div>';
+      
       Telegram.WebApp.requestGeoLocation((location) => {
-        const output = document.getElementById('locationOutput');
-
         if (location) {
           output.innerHTML = `
-            📍 Широта: <b>${location.latitude}</b><br>
-            📍 Долгота: <b>${location.longitude}</b>
+            <div class="status">✅ Геолокация получена</div>
+            <div class="coordinates">
+              📍 Широта: <b>${location.latitude}</b><br>
+              📍 Долгота: <b>${location.longitude}</b>
+            </div>
           `;
         } else {
-          output.innerHTML = `❗️ Геолокация недоступна. Включите "Allow Access to Geolocation" в профиле.`;
+          output.innerHTML = `
+            <div class="status">❌ Геолокация недоступна</div>
+            <p>Пожалуйста, разрешите доступ к геолокации в настройках Telegram.</p>
+          `;
         }
       });
     });
+
+    // Автоматический запрос геолокации (из первого примера)
+    (function autoRequestLocation() {
+      const output = document.getElementById('autoLocationOutput');
+      
+      Telegram.WebApp.requestGeoLocation((location) => {
+        if (location) {
+          output.innerHTML = `
+            <div class="status">✅ Автоматически получена геолокация</div>
+            <div class="coordinates">
+              📍 Широта: <b>${location.latitude}</b><br>
+              📍 Долгота: <b>${location.longitude}</b>
+            </div>
+          `;
+        } else {
+          output.innerHTML = `
+            <div class="status">❌ Автоматический запрос не удался</div>
+            <p>Используйте ручной запрос или разрешите доступ к геолокации.</p>
+          `;
+        }
+      });
+    })();
   </script>
 </body>
 </html>
