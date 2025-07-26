@@ -1077,7 +1077,8 @@
                 telegramUser = tg.initDataUnsafe.user;
 
                 // [ИЗМЕНЕНО] Получаем геолокацию через Telegram API
-                const initialCoords = await requestAndWatchGeo();
+                const initialPosition = await requestAndWatchGeo();
+                const initialCoords = initialPosition.coords;
                 
                 loaderText.textContent = 'Подключение к базе данных...';
                 
@@ -1112,7 +1113,11 @@
                 if (error.message === 'GEOLOCATION_DENIED') {
                      title = "Доступ к геолокации необходим";
                      message = "Для работы TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение в профиле бота и перезапустите приложение.";
-                } else if (error.message) {
+                } else if (error.message.includes("is not a function")) {
+                    title = "Ошибка API Telegram";
+                    message = "Функция геолокации недоступна. Убедитесь, что вы используете последнюю версию Telegram.";
+                }
+                else if (error.message) {
                     message = error.message;
                 }
                 showFallbackScreen(title, message, true);
@@ -1223,7 +1228,7 @@
             });
         }
 
-        // ** MODIFIED: Использует RPC для вставки **
+        // ** ИЗМЕНЕНО: RPC вызовы теперь безопаснее **
         async function saveSpot() {
             const { location } = currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
@@ -1243,12 +1248,12 @@
                 photoUrl = urlData.publicUrl;
             }
             
+            // ID пользователя больше не передается, он берется из сессии на сервере
             const { error } = await supabase.rpc('create_spot', {
-                user_id_in: telegramUser.id,
                 name_in: name,
                 description_in: description,
                 photo_url_in: photoUrl,
-                location_wkt_in: location // 'location' - это WKT строка
+                location_wkt_in: location
             });
 
             if (error) {
@@ -1329,7 +1334,7 @@
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
 
-        // ** MODIFIED: Использует RPC для вставки **
+        // ** ИЗМЕНЕНО: RPC вызовы теперь безопаснее **
         async function saveRoute() {
             const { path } = currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
@@ -1337,11 +1342,11 @@
             
             if (!name) { tg.showAlert("Название обязательно."); return; }
 
+            // ID пользователя больше не передается, он берется из сессии на сервере
             const { error } = await supabase.rpc('create_route', {
-                user_id_in: telegramUser.id,
                 name_in: name,
                 description_in: description,
-                path_wkt_in: path // 'path' - это WKT строка
+                path_wkt_in: path
             });
 
             if (error) {
@@ -1525,6 +1530,11 @@
         // [ИЗМЕНЕНО] Новая функция для запроса геолокации через Telegram API
         function telegramRequestLocation() {
             return new Promise((resolve, reject) => {
+                // Проверяем, существует ли функция, перед вызовом
+                if (typeof tg.requestGeoLocation !== 'function') {
+                    return reject(new Error('tg.requestGeoLocation is not a function'));
+                }
+
                 tg.requestGeoLocation((location) => {
                     if (location) {
                         resolve({ coords: location });
