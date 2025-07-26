@@ -277,6 +277,17 @@
         .profile-tab-content.active {
             display: block;
         }
+        
+        /* NEW: Стили для комментариев в модальном окне деталей */
+        #detail-comments-section {
+            border-top: 1px solid var(--bg-color);
+            padding: 1rem;
+        }
+        #detail-comment-input-form {
+            padding: 0.5rem 1rem 1rem;
+            border-top: 1px solid var(--bg-color);
+            background-color: var(--secondary-bg-color);
+        }
     </style>
 </head>
 <body class="font-sans antialiased overflow-hidden">
@@ -498,12 +509,11 @@
         </div>
     </div>
 
-    <!-- Модальное окно с комментариями для постов -->
-    <div id="comments-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-end z-40 opacity-0 hidden transition-opacity duration-300" onclick="if(event.target === this) hideCommentsModal()">
-        <div id="comments-modal-content" class="w-full h-3/4 card-bg rounded-t-2xl shadow-2xl flex flex-col transform translate-y-full transition-transform duration-300 ease-in-out">
-            <div class="w-full flex justify-center py-3 flex-shrink-0 cursor-grab" onclick="hideCommentsModal()">
-                <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
-            </div>
+    <!-- Модальное окно с комментариями (ДЛЯ ПОСТОВ) -->
+    <div id="comments-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideCommentsModal()">
+        <div class="bottom-sheet-content" style="height: 75%;">
+             <div class="grabber" onclick="hideCommentsModal()"></div>
+             <h2 id="comments-modal-title" class="text-xl font-bold px-4 pb-2 flex-shrink-0">Комментарии</h2>
             <div id="comments-modal-body" class="flex-grow overflow-y-auto p-4"></div>
             <div id="comment-input-container" class="flex-shrink-0 p-2 border-t" style="background-color: var(--secondary-bg-color); border-color: var(--bg-color);">
                 <div id="reply-indicator" class="hidden text-xs px-2 pb-1 flex justify-between items-center" style="color: var(--hint-color);">
@@ -513,7 +523,7 @@
                 <div class="flex items-center space-x-2">
                     <textarea id="main-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
                     <button id="main-comment-send-btn" onclick="postComment()" class="flex-shrink-0 text-white rounded-full p-2 hover:opacity-80 disabled:opacity-50" style="background-color: var(--button-color);">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transform rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                     </button>
                 </div>
             </div>
@@ -557,7 +567,7 @@
         let lastCaptureData = null; // Для постов
         let currentEditContext = {}; // Для модалки создания/редактирования
         let currentDetailContext = {}; // Для модалки деталей
-        let currentReplyTarget = { postId: null, parentCommentId: null }; // Для комментариев к постам
+        let currentReplyTarget = { type: null, id: null, parentCommentId: null };
         
         // --- ЭЛЕМЕНТЫ DOM ---
         const initialLoader = document.getElementById('initial-loader');
@@ -604,8 +614,6 @@
             if (isMapView) {
                 setTimeout(() => map?.invalidateSize(), 100);
             }
-            
-            tg.CloudStorage.setItem('lastView', viewId);
         }
 
         function setMode(newMode) {
@@ -625,12 +633,10 @@
 
             map.off('click');
             
-            // Скрываем все слои
             if (map.hasLayer(territoriesLayerGroup)) map.removeLayer(territoriesLayerGroup);
             if (map.hasLayer(spotMarkersLayer)) map.removeLayer(spotMarkersLayer);
             if (map.hasLayer(routePolylinesLayer)) map.removeLayer(routePolylinesLayer);
 
-            // Показываем нужный слой и настраиваем интерактивность
             switch (newMode) {
                 case 'capture':
                     map.addLayer(territoriesLayerGroup);
@@ -706,7 +712,6 @@
 
         // --- ЛОГИКА МОДАЛЬНЫХ ОКОН ---
         
-        // Модальное окно достижения (старое)
         function showEditModal(type, context = {}) {
             currentEditContext = { type, ...context };
             const title = document.getElementById('edit-modal-title');
@@ -716,7 +721,6 @@
             const detailsSection = document.getElementById('edit-modal-details-section');
             const photoSection = document.getElementById('edit-modal-photo-section');
             
-            // Сброс формы
             nameInput.value = '';
             detailsInput.value = '';
             document.getElementById('edit-modal-photo-input').value = '';
@@ -738,21 +742,17 @@
             currentEditContext = {};
         }
         
-        // NEW: Модальное окно простого поста
         function showSimplePostModal() {
             document.getElementById('simple-post-details').value = '';
             document.getElementById('simple-post-photo-input').value = '';
             document.getElementById('simple-post-filename').textContent = '';
             simplePostModal.classList.add('visible');
-            document.getElementById('simple-post-content').classList.remove('-translate-y-full');
         }
 
         function hideSimplePostModal() {
-            document.getElementById('simple-post-content').classList.add('-translate-y-full');
-            setTimeout(() => simplePostModal.classList.remove('visible'), 300);
+            simplePostModal.classList.remove('visible');
         }
         
-        // NEW: Модальное окно создания Спота/Маршрута
         function showCreationModal(type, context = {}) {
             currentEditContext = { type, ...context };
             const title = document.getElementById('creation-modal-title');
@@ -760,7 +760,6 @@
             const nameInput = document.getElementById('creation-modal-name');
             const detailsInput = document.getElementById('creation-modal-details');
             
-            // Сброс формы
             nameInput.value = '';
             detailsInput.value = '';
             document.getElementById('creation-modal-photo-input').value = '';
@@ -811,8 +810,29 @@
             
             body.innerHTML = `<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
 
+            const commentsHtml = `
+                <div id="detail-comments-section" class="mt-4">
+                    <h3 class="text-xl font-bold px-4">Комментарии</h3>
+                    <div id="detail-comments-list" class="p-4 space-y-4">
+                          <p class="text-center text-gray-500">Загрузка комментариев...</p>
+                    </div>
+                </div>
+                <div id="detail-comment-input-form" class="flex-shrink-0 p-2 border-t" style="background-color: var(--secondary-bg-color); border-color: var(--bg-color);">
+                     <div id="detail-reply-indicator" class="hidden text-xs px-2 pb-1 flex justify-between items-center" style="color: var(--hint-color);">
+                         <span id="detail-reply-indicator-text"></span>
+                         <button onclick="cancelDetailReply()" class="font-bold text-xl">&times;</button>
+                     </div>
+                    <div class="flex items-center space-x-2">
+                        <textarea id="detail-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
+                        <button onclick="postDetailComment()" class="flex-shrink-0 text-white rounded-full p-2 hover:opacity-80 disabled:opacity-50" style="background-color: var(--button-color);">
+                           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transform rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+
             if (type === 'spot') {
-                const { data: spot, error } = await supabase.from('spots').select('*, profiles(name, photo_url)').eq('id', id).single();
+                const { data: spot, error } = await supabase.from('spots').select('*, profiles(id, name, photo_url), location_wkt:location::text').eq('id', id).single();
                 if (error || !spot) {
                     body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали спота.</p>`;
                     return;
@@ -831,9 +851,11 @@
                             <p class="mt-4" style="color: var(--text-color);">${spot.description}</p>
                         </div>
                     </div>
+                    ${commentsHtml}
                 `;
+                loadAndRenderComments(type, id, 'detail-comments-list');
             } else if (type === 'route') {
-                const { data: route, error } = await supabase.from('routes').select('*, profiles(name, photo_url)').eq('id', id).single();
+                const { data: route, error } = await supabase.from('routes').select('*, profiles(id, name, photo_url), path_wkt:path::text').eq('id', id).single();
                 if (error || !route) {
                     body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали маршрута.</p>`;
                     return;
@@ -852,22 +874,25 @@
                             ${route.description ? `<p class="mt-4" style="color: var(--text-color);">${route.description}</p>` : ''}
                         </div>
                     </div>
+                     ${commentsHtml}
                 `;
                 setTimeout(() => {
                     const mapContainer = document.getElementById('detail-mini-map');
-                    if (mapContainer && !mapContainer._leaflet_id) {
+                    const routeGeoJson = parseWKT(route.path_wkt);
+                    if (mapContainer && !mapContainer._leaflet_id && routeGeoJson) {
                         const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
                         L.tileLayer(MAP_TILE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
-                        const routeLayer = L.geoJSON(route.path, { style: { color: '#ff7800', weight: 3 } }).addTo(miniMap);
+                        const routeLayer = L.geoJSON(routeGeoJson, { style: { color: '#ff7800', weight: 3 } }).addTo(miniMap);
                         miniMap.fitBounds(routeLayer.getBounds(), { padding: [10, 10] });
                     }
                 }, 100);
+                 loadAndRenderComments(type, id, 'detail-comments-list');
             } else if (type === 'user') {
                 const [profileRes, postsRes, spotsRes, routesRes] = await Promise.all([
                     supabase.from('profiles').select('*').eq('id', id).single(),
                     supabase.from('posts').select('*').eq('user_id', id).order('created_at', { ascending: false }),
-                    supabase.from('spots').select('*').eq('user_id', id).order('created_at', { ascending: false }),
-                    supabase.from('routes').select('*').eq('user_id', id).order('created_at', { ascending: false })
+                    supabase.from('spots').select('*, location_wkt:location::text').eq('user_id', id).order('created_at', { ascending: false }),
+                    supabase.from('routes').select('*, path_wkt:path::text').eq('user_id', id).order('created_at', { ascending: false })
                 ]);
 
                 if (profileRes.error) {
@@ -878,6 +903,16 @@
                 const posts = postsRes.data || [];
                 const spots = spotsRes.data || [];
                 const routes = routesRes.data || [];
+
+                const postIds = posts.map(p => p.id);
+                const likesByPost = {};
+                const commentsByPost = {};
+                if (postIds.length > 0) {
+                    const { data: likes } = await supabase.from('likes').select('*').in('post_id', postIds);
+                    const { data: comments } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
+                    if(likes) likes.forEach(like => (likesByPost[like.post_id] = likesByPost[like.post_id] || []).push(like));
+                    if(comments) comments.forEach(comment => (commentsByPost[comment.post_id] = commentsByPost[comment.post_id] || []).push(comment));
+                }
 
                 const avatar = profile.photo_url || `https://placehold.co/80x80/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
                 const area = profile.area || 0;
@@ -902,7 +937,7 @@
                     </div>
 
                     <div id="content-posts" class="profile-tab-content active p-4 space-y-4">
-                        ${posts.length > 0 ? posts.map(generateMiniPostHTML).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет постов.</p>'}
+                        ${posts.length > 0 ? posts.map(p => generatePostHTML(p, likesByPost[p.id] || [], commentsByPost[p.id] || [])).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет постов.</p>'}
                     </div>
                     <div id="content-spots" class="profile-tab-content p-4 space-y-4">
                         ${spots.length > 0 ? spots.map(generateMiniSpotHTML).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет спотов.</p>'}
@@ -911,6 +946,20 @@
                          ${routes.length > 0 ? routes.map(generateMiniRouteHTML).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет маршрутов.</p>'}
                     </div>
                 `;
+
+                setTimeout(() => {
+                    posts.forEach(post => {
+                        if (post.territory_captured) {
+                            const mapContainer = body.querySelector(`#mini-map-${post.id}`);
+                            if (mapContainer && !mapContainer._leaflet_id) {
+                                const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
+                                L.tileLayer(MAP_TILE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
+                                const territoryLayer = L.geoJSON(post.territory_captured, { style: { color: post.user_color, weight: 2, opacity: 0.8, fillColor: post.user_color, fillOpacity: 0.5 } }).addTo(miniMap);
+                                miniMap.fitBounds(territoryLayer.getBounds(), { padding: [10, 10] });
+                            }
+                        }
+                    });
+                }, 100);
             }
         }
         
@@ -922,46 +971,95 @@
         }
 
         function generateMiniPostHTML(post) {
-            return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="showCommentsModal(${post.id})">
+            return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" data-action="show-post-comments" data-id="${post.id}">
                         <p class="font-semibold">${post.title}</p>
                         <p class="text-xs text-gray-400">${new Date(post.created_at).toLocaleDateString()}</p>
                     </div>`;
         }
         function generateMiniSpotHTML(spot) {
              return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="navigateToMapObject('spot', ${spot.id})">
-                        <p class="font-semibold">${spot.name}</p>
-                        <p class="text-sm text-gray-600 truncate">${spot.description}</p>
-                        <p class="text-xs text-gray-400">${new Date(spot.created_at).toLocaleDateString()}</p>
-                    </div>`;
+                         <p class="font-semibold">${spot.name}</p>
+                         <p class="text-sm text-gray-600 truncate">${spot.description}</p>
+                         <p class="text-xs text-gray-400">${new Date(spot.created_at).toLocaleDateString()}</p>
+                     </div>`;
         }
         function generateMiniRouteHTML(route) {
              return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="navigateToMapObject('route', ${route.id})">
-                        <p class="font-semibold">${route.name}</p>
-                        <p class="text-xs text-gray-400">${new Date(route.created_at).toLocaleDateString()}</p>
-                    </div>`;
+                         <p class="font-semibold">${route.name}</p>
+                         <p class="text-xs text-gray-400">${new Date(route.created_at).toLocaleDateString()}</p>
+                     </div>`;
         }
 
-        // MODIFIED: Navigate to map object and set mode
         function navigateToMapObject(type, id) {
-            hideDetailModal(); // Закрываем модалку профиля
+            hideDetailModal(); 
             showView('map-view');
-            setMode(type === 'spot' ? 'spots' : 'routes'); // Устанавливаем режим
+            setMode(type === 'spot' ? 'spots' : 'routes'); 
 
             let target;
             if (type === 'spot') {
                 target = allSpots.find(s => s.id === id);
-                if (target) {
-                    const coords = target.location.coordinates;
+                const geoJson = parseWKT(target?.location_wkt);
+                if (geoJson) {
+                    const coords = geoJson.coordinates;
                     map.flyTo([coords[1], coords[0]], 17);
                 }
             } else if (type === 'route') {
                 target = allRoutes.find(r => r.id === id);
-                if (target) {
-                    const coords = target.path.coordinates.map(p => [p[1], p[0]]);
-                    const polyline = L.polyline(coords);
-                    map.flyToBounds(polyline.getBounds(), { padding: [50, 50] });
+                const geoJson = parseWKT(target?.path_wkt);
+                if (geoJson) {
+                    const coords = geoJson.coordinates.map(p => [p[1], p[0]]);
+                    if (coords.length >= 2) {
+                        const polyline = L.polyline(coords);
+                        map.flyToBounds(polyline.getBounds(), { padding: [50, 50] });
+                    }
                 }
             }
+        }
+
+        /**
+         * [FIXED] Более надежная функция для парсинга WKT-строк в GeoJSON.
+         * Использует регулярные выражения для извлечения координат, что делает ее
+         * устойчивой к префиксам (например, SRID) и вариациям в форматировании.
+         * @param {string | null} wkt - Строка в формате Well-Known Text (например, 'POINT(30 10)').
+         * @returns {object | null} GeoJSON-объект или null в случае ошибки.
+         */
+        function parseWKT(wkt) {
+            if (!wkt || typeof wkt !== 'string') {
+                return null;
+            }
+            
+            try {
+                const match = wkt.match(/(POINT|LINESTRING)\s*\((.+)\)/i);
+                if (!match) {
+                    return null;
+                }
+
+                const type = match[1].toUpperCase();
+                let content = match[2];
+
+                if (type === 'POINT') {
+                    const coords = content.match(/-?\d+(\.\d+)?/g);
+                    if (!coords || coords.length < 2) return null;
+                    return { type: 'Point', coordinates: [parseFloat(coords[0]), parseFloat(coords[1])] };
+                }
+
+                if (type === 'LINESTRING') {
+                    const coordPairs = content.split(',');
+                    const coordinates = coordPairs.map(pair => {
+                        const nums = pair.trim().match(/-?\d+(\.\d+)?/g);
+                        if (!nums || nums.length < 2) return null;
+                        return [parseFloat(nums[0]), parseFloat(nums[1])];
+                    }).filter(p => p !== null);
+
+                    if (coordinates.length < 2) return null;
+                    return { type: 'LineString', coordinates: coordinates };
+                }
+
+            } catch (e) {
+                console.error("Failed to parse WKT:", wkt, e);
+                return null;
+            }
+            return null;
         }
 
         // --- ОСНОВНАЯ ЛОГИКА И ИНИЦИАЛИЗАЦИЯ ---
@@ -980,10 +1078,11 @@
 
                 const initialPosition = await requestAndWatchGeo();
                 
-                loaderText.textContent = 'Загрузка данных...';
+                loaderText.textContent = 'Подключение к базе данных...';
                 
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 
+                loaderText.textContent = 'Загрузка данных...';
                 initMap(initialPosition.coords);
                 await upsertUserProfile();
                 updateUI();
@@ -1008,7 +1107,7 @@
                 console.error("Критическая ошибка инициализации:", error);
                 let title = "Ошибка инициализации";
                 let message = "Не удалось запустить приложение. Пожалуйста, попробуйте перезагрузить его.";
-                if (error.code === 1) {
+                if (error.code === 1) { // Geolocation permission denied
                     title = "Доступ к геолокации необходим";
                     message = "Для работы TerraRun требуется доступ к вашему местоположению. Пожалуйста, предоставьте разрешение в настройках и перезапустите приложение.";
                 } else if (error.message) {
@@ -1052,7 +1151,7 @@
         
         function updateCurrentUserMarker(latLng) {
             if (!map) return;
-            const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E2E8F0/4A5563?text=${telegramUser.first_name.charAt(0)}`;
+            const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${telegramUser.first_name.charAt(0)}`;
             const icon = L.divIcon({
                 html: `<div class="avatar-marker current-user-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${userColor};"></div>`,
                 className: '',
@@ -1069,7 +1168,6 @@
 
         // --- ЛОГИКА РЕЖИМОВ ---
         
-        // ЗАХВАТ
         function startRun() {
             if (!lastKnownLocation) {
                 tg.showAlert("Сначала определите свое местоположение."); return;
@@ -1086,7 +1184,7 @@
         }
         function stopRun() {
              tg.showConfirm("Завершить пробежку и захватить территорию?", (ok) => {
-                 if (ok) processStop();
+                   if (ok) processStop();
              });
         }
         function processStop() {
@@ -1102,16 +1200,17 @@
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
         
-        // СПОТЫ
         function handleMapClickForSpot(e) {
             const { lat, lng } = e.latlng;
+            const locationWKT = `POINT(${lng} ${lat})`;
             tg.showConfirm("Создать новый спот в этом месте?", (ok) => {
                 if (ok) {
-                    showCreationModal('spot', { location: { type: 'Point', coordinates: [lng, lat] } });
+                    showCreationModal('spot', { location: locationWKT });
                 }
             });
         }
 
+        // ** MODIFIED: Использует RPC для вставки **
         async function saveSpot() {
             const { location } = currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
@@ -1126,32 +1225,52 @@
             if (file) {
                 const filePath = `${telegramUser.id}/spots/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                if (error) { console.error(error); tg.showAlert("Ошибка загрузки фото."); return; }
+                if (error) { console.error("Ошибка загрузки фото:", error); tg.showAlert("Ошибка загрузки фото."); return; }
                 const { data: urlData } = supabase.storage.from('photo').getPublicUrl(data.path);
                 photoUrl = urlData.publicUrl;
             }
             
-            const { data: newSpot, error } = await supabase.from('spots').insert({
-                name, description, photo_url: photoUrl, location, user_id: telegramUser.id
-            }).select().single();
+            const { error } = await supabase.rpc('create_spot', {
+                user_id_in: telegramUser.id,
+                name_in: name,
+                description_in: description,
+                photo_url_in: photoUrl,
+                location_wkt_in: location // 'location' - это WKT строка
+            });
 
             if (error) {
-                console.error(error); tg.showAlert("Не удалось сохранить спот.");
+                console.error("Ошибка сохранения спота:", error); tg.showAlert("Не удалось сохранить спот.");
             } else {
                 tg.showAlert("Спот успешно создан!");
                 hideCreationModal();
-                // Realtime listener will handle adding to map
             }
         }
         
+        /**
+         * [FIXED] Более безопасная функция добавления спота на карту.
+         * Проверяет результат парсинга перед созданием слоя.
+         * @param {object} spot - Объект спота из базы данных.
+         */
         function addSpotToMap(spot) {
-            const coords = spot.location.coordinates;
-            const marker = L.marker([coords[1], coords[0]]);
-            marker.on('click', () => showDetailModal('spot', spot.id));
-            spotMarkersLayer.addLayer(marker);
+            try {
+                const wkt = spot.location_wkt || spot.location;
+                const geoJsonPoint = parseWKT(wkt);
+
+                if (!geoJsonPoint || geoJsonPoint.type !== 'Point') {
+                    console.warn(`Не удалось обработать геолокацию спота ${spot.id}:`, wkt);
+                    return;
+                }
+
+                const spotLayer = L.geoJSON(geoJsonPoint, {
+                    pointToLayer: (feature, latlng) => L.marker(latlng)
+                }).on('click', () => showDetailModal('spot', spot.id));
+                
+                spotMarkersLayer.addLayer(spotLayer);
+            } catch (e) {
+                console.error(`Ошибка при добавлении спота ${spot.id} на карту.`, e, spot);
+            }
         }
 
-        // МАРШРУТЫ
         function startRouteRecording() {
             if (!lastKnownLocation) {
                 tg.showAlert("Сначала определите свое местоположение."); return;
@@ -1161,7 +1280,7 @@
             tg.isClosingConfirmationEnabled = true;
             updateMainActionButton();
             
-            currentRunPath = [ [lastKnownLocation[0], lastKnownLocation[1]] ]; // Note: lat, lng for routes
+            currentRunPath = [ [lastKnownLocation[0], lastKnownLocation[1]] ];
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
             currentPathPolyline = L.polyline([], { color: 'var(--button-color)', weight: 5, opacity: 0.9 }).addTo(map);
             currentPathPolyline.addLatLng(lastKnownLocation);
@@ -1180,12 +1299,14 @@
                 return;
             }
             
-            // Convert to GeoJSON format [lng, lat]
-            const geoJsonPath = currentRunPath.map(p => [p[1], p[0]]);
-            showCreationModal('route', { path: { type: 'LineString', coordinates: geoJsonPath } });
+            const pathCoordinates = currentRunPath.map(p => `${p[1]} ${p[0]}`).join(', ');
+            const pathWKT = `LINESTRING(${pathCoordinates})`;
+            showCreationModal('route', { path: pathWKT });
+
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
 
+        // ** MODIFIED: Использует RPC для вставки **
         async function saveRoute() {
             const { path } = currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
@@ -1193,39 +1314,60 @@
             
             if (!name) { tg.showAlert("Название обязательно."); return; }
 
-            const { data: newRoute, error } = await supabase.from('routes').insert({
-                name, description, path, user_id: telegramUser.id
-            }).select().single();
+            const { error } = await supabase.rpc('create_route', {
+                user_id_in: telegramUser.id,
+                name_in: name,
+                description_in: description,
+                path_wkt_in: path // 'path' - это WKT строка
+            });
 
             if (error) {
-                console.error(error); tg.showAlert("Не удалось сохранить маршрут.");
+                console.error("Ошибка сохранения маршрута:", error); tg.showAlert("Не удалось сохранить маршрут.");
             } else {
                 tg.showAlert("Маршрут сохранен!");
                 hideCreationModal();
-                // Realtime listener will handle adding to map
             }
         }
         
+        /**
+         * [FIXED] Более безопасная функция добавления маршрута на карту.
+         * Проверяет результат парсинга перед созданием слоя.
+         * @param {object} route - Объект маршрута из базы данных.
+         */
         function addRouteToMap(route) {
-            const coords = route.path.coordinates.map(p => [p[1], p[0]]);
-            const polyline = L.polyline(coords, { color: '#ff7800', weight: 3 });
-            polyline.on('click', () => showDetailModal('route', route.id));
-            routePolylinesLayer.addLayer(polyline);
+            try {
+                const wkt = route.path_wkt || route.path;
+                const geoJsonLine = parseWKT(wkt);
+
+                if (!geoJsonLine || geoJsonLine.type !== 'LineString' || !Array.isArray(geoJsonLine.coordinates) || geoJsonLine.coordinates.length < 2) {
+                    console.warn(`Не удалось обработать путь для маршрута ${route.id}:`, wkt);
+                    return;
+                }
+
+                const routeLayer = L.geoJSON(geoJsonLine, {
+                    style: { color: '#ff7800', weight: 3 }
+                }).on('click', () => showDetailModal('route', route.id));
+                routePolylinesLayer.addLayer(routeLayer);
+            } catch (e) {
+                console.error(`Ошибка при добавлении маршрута ${route.id} на карту.`, e, route);
+            }
         }
 
         // --- ЗАГРУЗКА ДАННЫХ ---
         async function loadInitialMapData() {
-            const { data: spots, error: spotsError } = await supabase.from('spots').select('*');
-            if (spotsError) console.error("Ошибка загрузки спотов:", spotsError);
-            else {
+            const { data: spots, error: spotsError } = await supabase.from('spots').select('*, location_wkt:location::text');
+            if (spotsError) {
+                console.error("Ошибка загрузки спотов:", spotsError);
+            } else {
                 allSpots = spots;
                 spotMarkersLayer.clearLayers();
                 allSpots.forEach(addSpotToMap);
             }
 
-            const { data: routes, error: routesError } = await supabase.from('routes').select('*');
-            if (routesError) console.error("Ошибка загрузки маршрутов:", routesError);
-            else {
+            const { data: routes, error: routesError } = await supabase.from('routes').select('*, path_wkt:path::text');
+            if (routesError) {
+                console.error("Ошибка загрузки маршрутов:", routesError);
+            } else {
                 allRoutes = routes;
                 routePolylinesLayer.clearLayers();
                 allRoutes.forEach(addRouteToMap);
@@ -1237,12 +1379,19 @@
             supabase.channel('public-changes')
               .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, fetchAllProfilesAndDraw)
               .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => { renderFeed(); renderMyProfileContent(); })
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, renderFeed)
+              .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, renderFeed)
+              .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, renderFeed)
               .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload) => {
-                  if (!commentsModal.classList.contains('hidden')) {
-                      const postId = payload.new?.post_id || payload.old?.post_id;
-                      if(postId && postId === currentReplyTarget.postId) {
-                          showCommentsModal(postId);
+                  if (commentsModal.classList.contains('visible') && currentReplyTarget.type === 'post') {
+                      const changedPostId = payload.new?.post_id || payload.old?.post_id;
+                      if (changedPostId && changedPostId === currentReplyTarget.id) {
+                          showPostComments(currentReplyTarget.id);
+                      }
+                  }
+                  if (detailModal.classList.contains('visible') && (currentDetailContext.type === 'spot' || currentDetailContext.type === 'route')) {
+                      const changedParentId = payload.new?.spot_id || payload.new?.route_id || payload.old?.spot_id || payload.old?.route_id;
+                      if (changedParentId === currentDetailContext.id) {
+                          loadAndRenderComments(currentDetailContext.type, currentDetailContext.id, 'detail-comments-list');
                       }
                   }
                   renderFeed();
@@ -1255,10 +1404,10 @@
         function setupStaticEventListeners() {
             tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
             tg.onEvent('backButtonClicked', () => {
-                if (detailModal.classList.contains('visible')) {
-                    hideDetailModal();
-                } else if (!commentsModal.classList.contains('hidden')) {
+                if (commentsModal.classList.contains('visible')) {
                     hideCommentsModal();
+                } else if (detailModal.classList.contains('visible')) {
+                    hideDetailModal();
                 } else if (creationModal.classList.contains('visible')) {
                     hideCreationModal();
                 } else if (simplePostModal.classList.contains('visible')) {
@@ -1275,7 +1424,6 @@
             document.getElementById('save-edit-btn').addEventListener('click', handleSave);
             document.getElementById('cancel-edit-btn').addEventListener('click', hideEditModal);
             
-            // NEW: Listeners for new modals
             document.getElementById('save-creation-btn').addEventListener('click', handleSave);
             document.getElementById('creation-modal-photo-input').addEventListener('change', (e) => {
                 const file = e.target.files[0];
@@ -1312,10 +1460,24 @@
             
             showQrBtn.addEventListener('click', () => { /* TODO: Implement */ });
             donateBtn.addEventListener('click', () => { /* TODO: Implement */ });
+
+            document.body.addEventListener('click', (event) => {
+                const button = event.target.closest('button[data-action], div[data-action]');
+                if (!button) return;
+
+                const action = button.dataset.action;
+                const id = button.dataset.id || button.dataset.postId;
+
+                if (!action || !id) return;
+
+                if (action === 'like') {
+                    toggleLike(button, id);
+                } else if (action === 'comment' || action === 'show-post-comments') {
+                    showPostComments(id);
+                }
+            });
         }
         
-        // --- ПОЛНЫЕ РЕАЛИЗАЦИИ ВОССТАНОВЛЕННЫХ ФУНКЦИЙ ---
-
         function showFallbackScreen(title, message, showRetryButton = false) {
             fallbackContent.innerHTML = `
                 <h1 class="text-2xl font-bold mb-4 ${showRetryButton ? 'text-red-500' : ''}">${title}</h1>
@@ -1356,8 +1518,8 @@
 
                                 if (isRunning && currentPathPolyline) {
                                     const newPoint = (currentMode === 'capture') 
-                                        ? [longitude, latitude] // lng, lat for turf
-                                        : [latitude, longitude]; // lat, lng for leaflet
+                                        ? [longitude, latitude]
+                                        : [latitude, longitude];
                                     currentRunPath.push(newPoint);
                                     currentPathPolyline.addLatLng([latitude, longitude]);
                                 }
@@ -1377,15 +1539,32 @@
         }
         
         async function upsertUserProfile() {
+            if (!telegramUser) throw new Error("Пользователь Telegram не определен для upsertUserProfile.");
+
             const { data, error } = await supabase.from('profiles').select('*').eq('id', telegramUser.id).single();
-            if (error && error.code !== 'PGRST116') { throw error; }
+            
+            if (error && error.code !== 'PGRST116') {
+                console.error("Ошибка получения профиля:", error); 
+                throw error; 
+            } 
+            
             if (data) {
                 userColor = data.color;
                 userTerritory = data.territory;
             } else {
                 userColor = generateColorFromId(telegramUser.id);
-                const { error: insertError } = await supabase.from('profiles').insert({ id: telegramUser.id, name: telegramUser.first_name, color: userColor, area: 0, photo_url: telegramUser.photo_url || null, territory: null });
-                if (insertError) throw insertError;
+                const { error: insertError } = await supabase.from('profiles').insert({ 
+                    id: telegramUser.id, 
+                    name: telegramUser.first_name, 
+                    color: userColor, 
+                    area: 0, 
+                    photo_url: telegramUser.photo_url || null, 
+                    territory: null 
+                });
+                if (insertError) { 
+                    console.error("Ошибка создания профиля:", insertError); 
+                    throw insertError; 
+                }
             }
         }
         
@@ -1420,8 +1599,6 @@
                 let combinedTerritory = userTerritory ? turf.union(userTerritory, newCapture) : newCapture;
                 userTerritory = turf.cleanCoords(combinedTerritory);
                 
-                // ... (логика вычитания территорий у других игроков) ...
-
                 await saveUserData();
                 refreshAllStats();
                 tg.HapticFeedback.notificationOccurred('success');
@@ -1476,7 +1653,6 @@
             }
         }
         
-        // NEW: Handler for simple post saving
         async function handleSimplePostSave() {
             const description = document.getElementById('simple-post-details').value.trim();
             if (!description) {
@@ -1495,7 +1671,7 @@
 
             const postData = {
                 user_id: telegramUser.id,
-                title: description.substring(0, 50) + (description.length > 50 ? '...' : ''), // Auto-title
+                title: description.substring(0, 50) + (description.length > 50 ? '...' : ''),
                 description: description,
                 photo_url: photoUrl,
                 user_name: telegramUser.first_name,
@@ -1515,7 +1691,7 @@
 
 
         async function fetchAllProfilesAndDraw() {
-            let { data: profiles, error } = await supabase.from('profiles').select('*');
+            let { data: profiles, error } = await supabase.from('profiles').select('*, territory_wkt:territory::text');
             if (error) { console.error("Error fetching profiles:", error); return; }
             allProfilesData = profiles;
             
@@ -1523,14 +1699,15 @@
             allUserLayers = {};
 
             profiles.forEach(profile => {
-                if (profile.id === telegramUser.id) {
-                    userTerritory = profile.territory;
+                if (telegramUser && profile.id === telegramUser.id) {
+                    userTerritory = parseWKT(profile.territory_wkt) || profile.territory;
                     userColor = profile.color;
                     refreshAllStats();
                 }
                 const userLayerGroup = L.layerGroup();
-                if (profile.territory) {
-                    L.geoJSON(profile.territory, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } }).addTo(userLayerGroup);
+                const territoryGeoJson = parseWKT(profile.territory_wkt);
+                if (territoryGeoJson) {
+                    L.geoJSON(territoryGeoJson, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } }).addTo(userLayerGroup);
                 }
                 userLayerGroup.addTo(territoriesLayerGroup);
                 allUserLayers[profile.id] = userLayerGroup;
@@ -1541,7 +1718,7 @@
         function updateLeaderboard(profiles) {
             profiles.sort((a, b) => (b.area || 0) - (a.area || 0));
             leaderboardDiv.innerHTML = profiles.map((u, index) => {
-                const isCurrentUser = u.id === telegramUser.id;
+                const isCurrentUser = telegramUser && u.id === telegramUser.id;
                 const name = u.name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
                 const displayName = isCurrentUser ? `${name} (Вы)` : name;
                 const avatar = u.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${name.charAt(0)}`;
@@ -1559,7 +1736,15 @@
         }
 
         function refreshAllStats() {
-            let area = userTerritory ? turf.area(userTerritory) : 0;
+            let area = 0;
+            if (userTerritory) {
+                try {
+                    area = turf.area(userTerritory);
+                } catch(e) {
+                    console.warn("Could not calculate area for user territory", e);
+                    area = 0;
+                }
+            }
             if (isNaN(area)) area = 0;
             const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
             profileAreaDisplay.textContent = formattedArea;
@@ -1599,7 +1784,7 @@
             const avatar = post.user_avatar_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${post.user_name.charAt(0)}`;
             const area = post.area_captured || 0;
             const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
-            const userHasLiked = likes.some(like => like.user_id === telegramUser.id);
+            const userHasLiked = telegramUser && likes.some(like => like.user_id === telegramUser.id);
             return `<div class="card-bg rounded-2xl shadow-lg overflow-hidden" id="post-${post.id}">
                         <div class="p-4">
                             <div class="flex items-center space-x-3 cursor-pointer" onclick="showDetailModal('user', ${post.user_id})"><img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar"><div><p class="font-bold">${post.user_name}</p><p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p></div></div>
@@ -1611,11 +1796,11 @@
                         <div class="p-4">
                             ${post.area_captured ? `<p class="font-semibold">Захвачено: <span class="font-bold" style="color: var(--button-color);">${formattedArea}</span></p>` : ''}
                             <div class="flex items-center space-x-6 mt-3" style="color: var(--hint-color);">
-                                <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" onclick="toggleLike(this, ${post.id})">
+                                <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" data-action="like" data-post-id="${post.id}">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>
-                                    <span>${likes.length}</span>
+                                    <span data-likes-count>${likes.length}</span>
                                 </button>
-                                <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="showCommentsModal(${post.id})">
+                                <button class="flex items-center space-x-1 hover:text-blue-500 transition" data-action="comment" data-post-id="${post.id}">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                                     <span>${comments.length}</span>
                                 </button>
@@ -1625,8 +1810,19 @@
         }
 
         async function toggleLike(buttonElement, postId) {
+            if (!telegramUser) {
+                tg.showAlert('Пользователь не определен. Попробуйте перезагрузить приложение.');
+                return;
+            }
             tg.HapticFeedback.impactOccurred('light');
+            
             const hasLiked = buttonElement.classList.contains('liked');
+            const countSpan = buttonElement.querySelector('[data-likes-count]');
+            let currentCount = parseInt(countSpan.textContent, 10);
+
+            buttonElement.classList.toggle('liked');
+            countSpan.textContent = hasLiked ? currentCount - 1 : currentCount + 1;
+
             try {
                 if (hasLiked) {
                     await supabase.from('likes').delete().match({ post_id: postId, user_id: telegramUser.id });
@@ -1635,38 +1831,72 @@
                 }
             } catch (error) {
                 console.error("Ошибка лайка:", error);
+                buttonElement.classList.toggle('liked');
+                countSpan.textContent = currentCount;
+                tg.showAlert('Не удалось поставить лайк. Попробуйте снова.');
             }
         }
         
-        async function showCommentsModal(postId) {
+        // --- СИСТЕМА КОММЕНТАРИЕВ ---
+
+        async function fetchComments(type, id) {
+            let query = supabase.from('comments').select('*, profiles(id, name, photo_url)');
+            if (type === 'post') {
+                query = query.eq('post_id', id);
+            } else if (type === 'spot') {
+                query = query.eq('spot_id', id);
+            } else if (type === 'route') {
+                query = query.eq('route_id', id);
+            }
+            const { data, error } = await query.order('created_at', { ascending: true });
+            return { data, error };
+        }
+        
+        async function showPostComments(postId) {
             tg.HapticFeedback.impactOccurred('medium');
             tg.BackButton.show();
-            currentReplyTarget = { postId: postId, parentCommentId: null };
+            currentReplyTarget = { type: 'post', id: postId, parentCommentId: null };
             cancelReply();
+            
             const modalBody = document.getElementById('comments-modal-body');
             modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>';
-            commentsModal.classList.remove('hidden', 'opacity-0');
-            document.getElementById('comments-modal-content').classList.remove('translate-y-full');
+            commentsModal.classList.add('visible');
             
-            const { data: comments, error } = await supabase.from('comments').select('*, profiles(name, photo_url)').eq('post_id', postId).order('created_at', { ascending: true });
+            const { data: comments, error } = await fetchComments('post', postId);
             if (error) { modalBody.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
 
+            renderCommentTree(comments, modalBody);
+        }
+
+        async function loadAndRenderComments(type, id, containerId) {
+              const container = document.getElementById(containerId);
+              if (!container) return;
+              container.innerHTML = '<p class="text-center text-gray-500">Загрузка комментариев...</p>';
+              
+              const { data: comments, error } = await fetchComments(type, id);
+              if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
+
+              renderCommentTree(comments, container, 'detail');
+        }
+
+        function renderCommentTree(comments, container, context = 'post') {
             const commentsByParent = comments.reduce((acc, comment) => { (acc[comment.parent_comment_id || 'root'] = acc[comment.parent_comment_id || 'root'] || []).push(comment); return acc; }, {});
             const rootComments = commentsByParent['root'] || [];
-            modalBody.innerHTML = rootComments.length ? rootComments.map(c => generateCommentHTML(c, commentsByParent)).join('') : '<p class="text-center text-gray-500 py-4">Нет комментариев</p>';
+            container.innerHTML = rootComments.length ? rootComments.map(c => generateCommentHTML(c, commentsByParent, context)).join('') : '<p class="text-center text-gray-500 py-4">Нет комментариев</p>';
         }
 
         function hideCommentsModal() {
             tg.BackButton.hide();
-            commentsModal.classList.add('opacity-0');
-            document.getElementById('comments-modal-content').classList.add('translate-y-full');
-            setTimeout(() => commentsModal.classList.add('hidden'), 300);
+            commentsModal.classList.remove('visible');
         }
 
-        function generateCommentHTML(comment, commentsByParent) {
+        function generateCommentHTML(comment, commentsByParent, context = 'post') {
             const replies = commentsByParent[comment.id] || [];
             const profileName = comment.profiles ? comment.profiles.name : 'Аноним';
             const avatar = comment.profiles ? (comment.profiles.photo_url || `https://placehold.co/32x32/E5E7EB/4B5563?text=${profileName.charAt(0)}`) : 'https://placehold.co/32x32';
+            const replyFn = context === 'post' ? 'setReplyMode' : 'setDetailReplyMode';
+            const parentId = comment.post_id || comment.spot_id || comment.route_id;
+
             return `<div class="flex items-start space-x-3 mt-4">
                         <img src="${avatar}" class="w-8 h-8 rounded-full">
                         <div class="flex-1">
@@ -1674,14 +1904,16 @@
                                 <p class="font-bold text-sm">${profileName}</p>
                                 <p class="text-sm">${comment.content}</p>
                             </div>
-                            <div class="text-xs mt-1"><button onclick="setReplyMode(${comment.post_id}, ${comment.id}, '${profileName.replace(/'/g, "\\'")}')" class="font-medium" style="color: var(--hint-color);">Ответить</button></div>
-                            <div class="pl-4 border-l-2">${replies.map(reply => generateCommentHTML(reply, commentsByParent)).join('')}</div>
+                            <div class="text-xs mt-1">
+                                <button onclick="${replyFn}('${parentId}', ${comment.id}, '${profileName.replace(/'/g, "\\'")}')" class="font-medium" style="color: var(--hint-color);">Ответить</button>
+                            </div>
+                            <div class="pl-4 border-l-2">${replies.map(reply => generateCommentHTML(reply, commentsByParent, context)).join('')}</div>
                         </div>
                     </div>`;
         }
         
         function setReplyMode(postId, parentCommentId, parentAuthorName) {
-            currentReplyTarget = { postId, parentCommentId };
+            currentReplyTarget = { type: 'post', id: postId, parentCommentId };
             document.getElementById('reply-indicator-text').textContent = `Ответ: ${parentAuthorName}`;
             document.getElementById('reply-indicator').classList.remove('hidden');
             document.getElementById('main-comment-input').focus();
@@ -1693,14 +1925,66 @@
         }
 
         async function postComment() {
-            const { postId, parentCommentId } = currentReplyTarget;
-            if (!postId) return;
+            const { type, id, parentCommentId } = currentReplyTarget;
+            if (!id || !telegramUser) return;
             const inputElement = document.getElementById('main-comment-input');
             const content = inputElement.value.trim();
             if (!content) return;
-            const { error } = await supabase.from('comments').insert({ post_id: postId, user_id: telegramUser.id, parent_comment_id: parentCommentId, content: content });
+            
+            const commentData = { 
+                post_id: id,
+                user_id: telegramUser.id, 
+                parent_comment_id: parentCommentId, 
+                content: content 
+            };
+            const { error } = await supabase.from('comments').insert(commentData);
             if (error) { tg.showAlert('Ошибка отправки'); } else { inputElement.value = ''; cancelReply(); }
         }
+
+        function setDetailReplyMode(id, parentCommentId, parentAuthorName) {
+            currentDetailContext.replyTo = { parentCommentId };
+            document.getElementById('detail-reply-indicator-text').textContent = `Ответ: ${parentAuthorName}`;
+            document.getElementById('detail-reply-indicator').classList.remove('hidden');
+            document.getElementById('detail-comment-input').focus();
+        }
+        
+        function cancelDetailReply() {
+            currentDetailContext.replyTo = null;
+            document.getElementById('detail-reply-indicator').classList.add('hidden');
+        }
+
+        async function postDetailComment() {
+            const { type, id, replyTo } = currentDetailContext;
+            if (!id || !telegramUser) return;
+            const inputElement = document.getElementById('detail-comment-input');
+            const content = inputElement.value.trim();
+            if (!content) return;
+
+            const parentCommentId = replyTo ? replyTo.parentCommentId : null;
+
+            const commentData = {
+                user_id: telegramUser.id,
+                parent_comment_id: parentCommentId,
+                content: content
+            };
+            if (type === 'spot') {
+                commentData.spot_id = id;
+            } else if (type === 'route') {
+                commentData.route_id = id;
+            }
+
+            const { error } = await supabase.from('comments').insert(commentData);
+
+            if (error) { 
+                tg.showAlert('Ошибка отправки комментария.'); 
+                console.error("Comment post error:", error);
+            } else { 
+                inputElement.value = ''; 
+                cancelDetailReply();
+                loadAndRenderComments(type, id, 'detail-comments-list');
+            }
+        }
+
 
         function switchMainProfileTab(tabName) {
             document.querySelectorAll('#profile-view .profile-tab').forEach(t => t.classList.remove('active'));
@@ -1715,11 +1999,10 @@
 
             const [postsRes, spotsRes, routesRes] = await Promise.all([
                 supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-                supabase.from('spots').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-                supabase.from('routes').select('*').eq('user_id', userId).order('created_at', { ascending: false })
+                supabase.from('spots').select('*, location_wkt:location::text').eq('user_id', userId).order('created_at', { ascending: false }),
+                supabase.from('routes').select('*, path_wkt:path::text').eq('user_id', userId).order('created_at', { ascending: false })
             ]);
 
-            // Process Posts
             const posts = postsRes.data || [];
             const postIds = posts.map(p => p.id);
             const likesByPost = {};
@@ -1734,13 +2017,11 @@
             postsContainer.innerHTML = posts.length > 0 ? posts.map(p => generatePostHTML(p, likesByPost[p.id] || [], commentsByPost[p.id] || [])).join('') : '<p class="text-center text-gray-500 py-4">У вас нет постов.</p>';
             document.getElementById('profile-tab-posts').textContent = `Посты (${posts.length})`;
 
-            // Process Spots
             const spots = spotsRes.data || [];
             const spotsContainer = document.getElementById('profile-content-spots');
             spotsContainer.innerHTML = spots.length > 0 ? spots.map(generateMiniSpotHTML).join('') : '<p class="text-center text-gray-500 py-4">У вас нет спотов.</p>';
             document.getElementById('profile-tab-spots').textContent = `Споты (${spots.length})`;
 
-            // Process Routes
             const routes = routesRes.data || [];
             const routesContainer = document.getElementById('profile-content-routes');
             routesContainer.innerHTML = routes.length > 0 ? routes.map(generateMiniRouteHTML).join('') : '<p class="text-center text-gray-500 py-4">У вас нет маршрутов.</p>';
@@ -1753,7 +2034,7 @@
         window.hideEditModal = hideEditModal;
         window.hideDetailModal = hideDetailModal;
         window.toggleLike = toggleLike;
-        window.showCommentsModal = showCommentsModal;
+        window.showPostComments = showPostComments;
         window.hideCommentsModal = hideCommentsModal;
         window.setReplyMode = setReplyMode;
         window.cancelReply = cancelReply;
@@ -1762,10 +2043,12 @@
         window.switchProfileTab = switchProfileTab;
         window.switchMainProfileTab = switchMainProfileTab;
         window.navigateToMapObject = navigateToMapObject;
-        // NEW
         window.hideSimplePostModal = hideSimplePostModal;
         window.handleSimplePostSave = handleSimplePostSave;
         window.hideCreationModal = hideCreationModal;
+        window.postDetailComment = postDetailComment;
+        window.setDetailReplyMode = setDetailReplyMode;
+        window.cancelDetailReply = cancelDetailReply;
         
         document.addEventListener('DOMContentLoaded', main);
     </script>
