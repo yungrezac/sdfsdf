@@ -207,10 +207,6 @@
                     </div>
                     <div>
                         <h2 id="profile-name" class="text-2xl font-bold">Загрузка...</h2>
-                        <div class="flex items-center cursor-pointer" id="edit-status-btn">
-                            <p id="profile-status" class="text-sm" style="color: var(--hint-color);">Энтузиаст захвата территорий</p>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1.5" style="color: var(--hint-color);" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
-                        </div>
                     </div>
                 </div>
                 <div class="rounded-lg p-4 text-center" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent)">
@@ -356,7 +352,6 @@
         const usernameDisplay = document.getElementById('username-display');
         const profileAreaDisplay = document.getElementById('profile-area');
         const profileName = document.getElementById('profile-name');
-        const profileStatus = document.getElementById('profile-status');
         const profileAvatarImg = document.getElementById('profile-avatar-img');
         const profileAvatarWrapper = document.getElementById('profile-avatar-wrapper');
         const leaderboardDiv = document.getElementById('leaderboard');
@@ -380,7 +375,6 @@
         const stopIcon = document.getElementById('stop-icon');
         const inviteFriendBtn = document.getElementById('invite-friend-btn');
         const donateBtn = document.getElementById('donate-btn');
-        const editStatusBtn = document.getElementById('edit-status-btn');
         const showQrBtn = document.getElementById('show-qr-btn');
 
         // --- ФУНКЦИИ UI ---
@@ -480,7 +474,7 @@
 
             const userDetailHeader = document.getElementById('user-detail-header');
             const avatar = profile.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
-            userDetailHeader.innerHTML = `<img src="${avatar}" class="w-16 h-16 rounded-full" alt="avatar"><div><p class="text-2xl font-bold">${profile.name}</p><p class="text-sm" style="color: var(--hint-color);">${profile.status || 'Завоеватель'}</p></div>`;
+            userDetailHeader.innerHTML = `<img src="${avatar}" class="w-16 h-16 rounded-full" alt="avatar"><div><p class="text-2xl font-bold">${profile.name}</p></div>`;
             
             const userDetailStats = document.getElementById('user-detail-stats');
             const area = profile.area || 0;
@@ -860,14 +854,12 @@
             if (data) {
                 userColor = data.color;
                 userTerritory = data.territory;
-                profileStatus.textContent = data.status || 'Энтузиаст захвата территорий';
             } else {
                 userColor = generateColorFromId(telegramUser.id);
                 const { error: insertError } = await supabase
                     .from('profiles')
-                    .insert({ id: telegramUser.id, name: telegramUser.first_name, color: userColor, area: 0, photo_url: telegramUser.photo_url || null, territory: null, status: 'Новый игрок' });
+                    .insert({ id: telegramUser.id, name: telegramUser.first_name, color: userColor, area: 0, photo_url: telegramUser.photo_url || null, territory: null });
                 if (insertError) throw insertError;
-                profileStatus.textContent = 'Новый игрок';
             }
         }
 
@@ -1378,25 +1370,6 @@
             }, 100);
         }
 
-        async function editStatus() {
-            tg.HapticFeedback.impactOccurred('light');
-            tg.showPrompt('Введите ваш новый статус', (newStatus) => {
-                if (newStatus && newStatus.trim().length > 0) {
-                    const trimmedStatus = newStatus.trim().slice(0, 50); // Ограничение длины
-                    profileStatus.textContent = trimmedStatus;
-                    saveUserData({ status: trimmedStatus })
-                        .then(() => {
-                            tg.HapticFeedback.notificationOccurred('success');
-                        })
-                        .catch(() => {
-                            tg.HapticFeedback.notificationOccurred('error');
-                            tg.showAlert('Не удалось сохранить статус.');
-                        });
-                }
-            });
-        }
-
-
         // --- ИНТЕГРАЦИЯ С TELEGRAM API ---
         function applyTheme(themeParams) {
             document.documentElement.style.setProperty('--bg-color', themeParams.bg_color || '#f3f4f6');
@@ -1542,7 +1515,6 @@
                 });
             });
 
-            editStatusBtn.addEventListener('click', editStatus);
             showQrBtn.addEventListener('click', showMyQrCode);
 
             userDetailModal.addEventListener('click', (e) => {
