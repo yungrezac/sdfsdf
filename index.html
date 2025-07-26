@@ -303,7 +303,7 @@
         <div id="fallback-content" class="text-center card-bg p-8 rounded-2xl shadow-lg max-w-sm"></div>
     </div>
 
-    <!-- NEW: Модальное окно приветствия и запроса геолокации -->
+    <!-- Модальное окно приветствия и запроса геолокации -->
     <div id="welcome-modal" class="modal-overlay justify-center items-center p-4">
         <div class="card-bg rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center space-y-4">
             <h2 class="text-2xl font-bold">Добро пожаловать в TerraRun!</h2>
@@ -997,13 +997,13 @@
                          <p class="font-semibold">${spot.name}</p>
                          <p class="text-sm text-gray-600 truncate">${spot.description}</p>
                          <p class="text-xs text-gray-400">${new Date(spot.created_at).toLocaleDateString()}</p>
-                     </div>`;
+                      </div>`;
         }
         function generateMiniRouteHTML(route) {
              return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="navigateToMapObject('route', ${route.id})">
                          <p class="font-semibold">${route.name}</p>
                          <p class="text-xs text-gray-400">${new Date(route.created_at).toLocaleDateString()}</p>
-                     </div>`;
+                      </div>`;
         }
 
         function navigateToMapObject(type, id) {
@@ -1079,6 +1079,8 @@
         }
 
         // --- ОСНОВНАЯ ЛОГИКА И ИНИЦИАЛИЗАЦИЯ ---
+        
+        // [MODIFIED] Главная функция теперь только подготавливает UI
         async function main() {
             try {
                 tg.ready();
@@ -1092,24 +1094,9 @@
                 }
                 telegramUser = tg.initDataUnsafe.user;
 
-                // [MODIFIED] Проверяем, показывалось ли уже приветствие
-                tg.CloudStorage.getItem('welcome_shown', async (error, value) => {
-                    if (error) {
-                        console.error("Ошибка чтения CloudStorage:", error);
-                        // Продолжаем без модального окна в случае ошибки
-                        await initializeMainApp();
-                        return;
-                    }
-
-                    if (value !== 'true') {
-                        // Показываем модальное окно, если пользователь зашел впервые
-                        welcomeModal.classList.add('visible');
-                        initialLoader.classList.add('hidden'); // Скрываем основной загрузчик
-                    } else {
-                        // Сразу инициализируем приложение, если модальное окно уже было показано
-                        await initializeMainApp();
-                    }
-                });
+                // Показываем модальное окно для запроса разрешения, скрываем загрузчик
+                welcomeModal.classList.add('visible');
+                initialLoader.classList.add('hidden');
 
             } catch (error) {
                  console.error("Критическая ошибка на старте:", error);
@@ -1117,7 +1104,7 @@
             }
         }
 
-        // [NEW] Функция для основной инициализации приложения
+        // [MODIFIED] Основная инициализация вынесена в отдельную функцию
         async function initializeMainApp() {
             try {
                 const initialPosition = await requestAndWatchGeo();
@@ -1459,20 +1446,13 @@
                 }
             });
 
-            // [MOVED & FIXED] Обработчик для кнопки в модальном окне приветствия
-            requestGeoBtn.addEventListener('click', () => {
+            // [MODIFIED] Единственная точка входа для запуска приложения
+            requestGeoBtn.addEventListener('click', async () => {
                 welcomeModal.classList.remove('visible');
                 initialLoader.classList.remove('hidden');
+                loaderText.textContent = 'Запрашиваем доступ...';
                 
-                // Сохраняем в CloudStorage, что окно было показано
-                tg.CloudStorage.setItem('welcome_shown', 'true', (error, success) => {
-                    if (error) {
-                        console.error("Ошибка сохранения в CloudStorage:", error);
-                    }
-                });
-
-                // Запускаем основную инициализацию приложения
-                initializeMainApp();
+                await initializeMainApp();
             });
         }
 
@@ -1545,6 +1525,7 @@
                 ${showRetryButton ? `<button onclick="window.location.reload()" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Попробовать снова</button>` : ''}
             `;
             initialLoader.classList.add('hidden');
+            welcomeModal.classList.remove('visible');
             fallbackScreen.classList.remove('hidden');
         }
 
@@ -1560,111 +1541,93 @@
         }
 
         /**
-         * [MODIFIED] Запрашивает доступ к геолокации через Telegram SDK LocationManager
-         * для однократного запроса разрешения. После получения первоначальных координат,
-         * запускает непрерывное отслеживание через браузерный Geolocation API.
+         * [REWRITTEN] Запрашивает доступ к геолокации, получает начальные координаты и запускает непрерывное отслеживание.
+         * Отдает предпочтение Telegram API, но использует стандартный браузерный API как запасной вариант.
          */
         function requestAndWatchGeo() {
-            loaderText.textContent = 'Инициализация геолокации...';
-
             return new Promise((resolve, reject) => {
-                const startBrowserWatching = (initialPosition) => {
-                    loaderText.textContent = 'Отслеживание местоположения...';
-                    
-                    if (!navigator.geolocation || !navigator.geolocation.watchPosition) {
-                        console.warn("Браузер не поддерживает непрерывное отслеживание геолокации. Будет использоваться только начальная позиция.");
-                        resolve(initialPosition);
-                        return;
+                loaderText.textContent = 'Запрос доступа к геолокации...';
+
+                // Функция, которая будет вызываться при каждом обновлении позиции
+                const onPositionUpdate = (position) => {
+                    const { latitude, longitude } = position.coords;
+                    lastKnownLocation = [latitude, longitude];
+                    // Обновляем маркер на карте, только если карта уже инициализирована
+                    if (map) {
+                        updateCurrentUserMarker(lastKnownLocation);
                     }
 
-                    geoWatchId = navigator.geolocation.watchPosition(
-                        (position) => {
-                            const { latitude, longitude } = position.coords;
-                            lastKnownLocation = [latitude, longitude];
-                            updateCurrentUserMarker(lastKnownLocation);
+                    // Обновляем путь, если идет запись
+                    if (isRunning && currentPathPolyline) {
+                        const newPoint = (currentMode === 'capture') 
+                            ? [longitude, latitude] 
+                            : [latitude, longitude];
+                        currentRunPath.push(newPoint);
+                        currentPathPolyline.addLatLng([latitude, longitude]);
+                    }
+                };
 
-                            if (isRunning && currentPathPolyline) {
-                                const newPoint = (currentMode === 'capture') 
-                                    ? [longitude, latitude] 
-                                    : [latitude, longitude];
-                                currentRunPath.push(newPoint);
-                                currentPathPolyline.addLatLng([latitude, longitude]);
-                            }
-                        },
-                        (err) => {
-                            console.error("Ошибка отслеживания геолокации в браузере:", err);
-                        },
-                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                    );
-                    
-                    resolve(initialPosition);
+                // Обработчик ошибок для непрерывного отслеживания
+                const onWatchError = (err) => {
+                    console.error("Ошибка отслеживания геолокации в браузере:", err);
+                    // Можно показать неблокирующее уведомление пользователю
+                };
+
+                // Функция для запуска непрерывного отслеживания
+                const startWatching = () => {
+                    if (!navigator.geolocation || !navigator.geolocation.watchPosition) {
+                        console.warn("Браузер не поддерживает непрерывное отслеживание геолокации.");
+                        tg.showAlert("Ваше устройство не поддерживает непрерывное отслеживание местоположения. Карта не будет обновляться автоматически.");
+                        return;
+                    }
+                    if (geoWatchId) navigator.geolocation.clearWatch(geoWatchId);
+                    geoWatchId = navigator.geolocation.watchPosition(onPositionUpdate, onWatchError, { 
+                        enableHighAccuracy: true, timeout: 10000, maximumAge: 0 
+                    });
+                };
+
+                // Функция для обработки самой первой полученной позиции
+                const handleInitialPosition = (position) => {
+                    loaderText.textContent = 'Отслеживание местоположения...';
+                    onPositionUpdate(position); // Обрабатываем первую позицию
+                    startWatching();           // Запускаем непрерывное отслеживание
+                    resolve(position);         // Резолвим Promise для продолжения инициализации приложения
                 };
                 
-                const handleSuccess = (position) => {
-                     const initialPosition = {
-                        coords: {
-                            latitude: position.coords.latitude,
-                            longitude: position.coords.longitude,
-                            altitude: position.coords.altitude,
-                            speed: position.coords.speed,
-                            course: position.coords.course,
-                            horizontal_accuracy: position.coords.horizontal_accuracy,
-                        }
-                    };
-                    lastKnownLocation = [position.coords.latitude, position.coords.longitude];
-                    startBrowserWatching(initialPosition);
-                };
-                
+                // Общий обработчик ошибок
                 const handleError = (error) => {
                     console.error("Geolocation error:", error);
                     reject({ code: 1, message: "Не удалось получить доступ к геолокации. Проверьте настройки вашего устройства и разрешения для Telegram." });
                 };
 
-                // --- Fallback Logic ---
-                
-                // 1. Try modern LocationManager (Bot API 8.0+)
+                // Запасной метод: используем стандартный браузерный API
+                const getWithBrowserApi = () => {
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(handleInitialPosition, handleError, {
+                            enableHighAccuracy: true,
+                            timeout: 15000,
+                            maximumAge: 0
+                        });
+                    } else {
+                        handleError(new Error("Геолокация не поддерживается на вашем устройстве."));
+                    }
+                };
+
+                // Основной метод: пытаемся использовать современный Telegram Location Manager
                 if (tg.locationManager && tg.isVersionAtLeast('8.0')) {
-                    loaderText.textContent = 'Запрос доступа к геолокации...';
                     tg.locationManager.init();
                     tg.locationManager.getLocation((locationData) => {
                         if (locationData) {
-                            handleSuccess({ coords: locationData });
+                            handleInitialPosition({ coords: locationData });
                         } else {
-                            handleError(new Error("Пользователь отклонил запрос геолокации в Telegram."));
+                            // Если не удалось или пользователь отказал, пробуем запасной метод
+                            console.warn("tg.locationManager.getLocation() failed or was denied. Falling back to browser API.");
+                            getWithBrowserApi();
                         }
                     });
-                } 
-                // 2. Fallback to older event-based request (using requestLocation)
-                else if (tg.requestLocation) {
-                     loaderText.textContent = 'Запрос доступа к геолокации...';
-                     const locationHandler = (data) => {
-                         tg.offEvent('locationReceived', locationHandler);
-                         if (data && data.latitude && data.longitude) {
-                             handleSuccess({ coords: data });
-                         } else {
-                             handleError(new Error("Не удалось получить геолокацию от Telegram."));
-                         }
-                     };
-                     tg.onEvent('locationReceived', locationHandler);
-                     tg.requestLocation((accessGranted) => {
-                         if (!accessGranted) {
-                             tg.offEvent('locationReceived', locationHandler);
-                             handleError(new Error("Пользователь отклонил запрос геолокации в Telegram."));
-                         }
-                     });
-                }
-                // 3. Last resort: standard browser API
-                else if (navigator.geolocation) {
-                     loaderText.textContent = 'Запрос доступа к геолокации...';
-                     navigator.geolocation.getCurrentPosition(handleSuccess, handleError, {
-                         enableHighAccuracy: true,
-                         timeout: 15000,
-                         maximumAge: 0
-                     });
-                } 
-                // 4. If nothing works
-                else {
-                    handleError(new Error("Геолокация не поддерживается на вашем устройстве."));
+                } else {
+                    // Если Location Manager недоступен, сразу используем запасной метод
+                    getWithBrowserApi();
                 }
             });
         }
