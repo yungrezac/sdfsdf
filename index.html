@@ -1390,6 +1390,16 @@
             document.documentElement.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
             document.documentElement.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
         }
+        
+        function updateMainButton() {
+             if (isRunning) {
+                toggleRunBtn.textContent = "Стоп";
+                toggleRunBtn.className = "btn-gradient-red text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-red-300";
+            } else {
+                toggleRunBtn.textContent = "Старт";
+                toggleRunBtn.className = "btn-gradient text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300";
+            }
+        }
 
         function setupEventListeners() {
             tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
@@ -1399,6 +1409,18 @@
                 } else if (!document.getElementById('user-detail-modal').classList.contains('hidden')) {
                     hideUserDetailModal();
                 }
+            });
+            // События activated/deactivated для управления geoWatchId при необходимости в будущем
+            tg.onEvent('activated', () => {
+                console.log('App activated');
+                if (!geoWatchId) {
+                    // Попытка восстановить отслеживание, если оно было потеряно
+                    requestAndWatchGeo().catch(() => {});
+                }
+            });
+            tg.onEvent('deactivated', () => {
+                console.log('App deactivated');
+                // Мы не останавливаем geoWatchId, чтобы отслеживание продолжалось
             });
         }
 
@@ -1413,6 +1435,13 @@
                 requestAndWatchGeo().catch(() => {
                     tg.showAlert("Не удалось получить доступ к геолокации. Пожалуйста, проверьте разрешения для Telegram.");
                 });
+            }
+        });
+        toggleRunBtn.addEventListener('click', () => {
+            if (isRunning) {
+                stopRun();
+            } else {
+                startRun();
             }
         });
         userDetailModal.addEventListener('click', (e) => {
@@ -1459,7 +1488,6 @@
         window.handleTouchStart = handleTouchStart;
         window.handleTouchMove = handleTouchMove;
         window.handleTouchEnd = handleTouchEnd;
-        window.requestAndWatchGeo = requestAndWatchGeo;
         window.initializeWithUser = initializeWithUser;
 
         // Запускаем приложение
