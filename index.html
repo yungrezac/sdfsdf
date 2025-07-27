@@ -743,6 +743,8 @@
             modeSwitcher.classList.toggle('hidden', !isMapView || !AppState.lastKnownLocation);
             
             if (isMapView) {
+                // We fit viewport here to ensure the map resizes correctly when switching views.
+                // Specific navigation like panTo or setBounds will override this.
                 setTimeout(() => map?.container.fitToViewport(), 100);
             }
         }
@@ -1142,47 +1144,91 @@
                 ? `<button onclick="event.stopPropagation(); navigateToMapObject('spot', '${spot.id}')" class="mt-2 w-full text-sm text-center font-semibold p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);">Показать на карте</button>` 
                 : '';
              return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('spot', '${spot.id}')">
-                        ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Фото спота">` : ''}
-                        <p class="font-bold">${escapeHTML(spot.name)}</p>
-                        <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(spot.description)}</p>
-                        <p class="text-xs text-gray-400 mt-2">${new Date(spot.created_at).toLocaleDateString()}</p>
-                        ${buttonHTML}
-                      </div>`;
+                         ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Фото спота">` : ''}
+                         <p class="font-bold">${escapeHTML(spot.name)}</p>
+                         <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(spot.description)}</p>
+                         <p class="text-xs text-gray-400 mt-2">${new Date(spot.created_at).toLocaleDateString()}</p>
+                         ${buttonHTML}
+                       </div>`;
         }
         function generateMiniRouteHTML(route) {
              return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('route', '${route.id}')">
-                            <p class="font-bold flex items-center gap-2"><i class="fa-solid fa-route" style="color: var(--hint-color);"></i> ${escapeHTML(route.name)}</p>
-                            <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(route.description)}</p>
-                            <p class="text-xs text-gray-400 mt-2">${new Date(route.created_at).toLocaleDateString()}</p>
-                          </div>`;
+                               <p class="font-bold flex items-center gap-2"><i class="fa-solid fa-route" style="color: var(--hint-color);"></i> ${escapeHTML(route.name)}</p>
+                               <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(route.description)}</p>
+                               <p class="text-xs text-gray-400 mt-2">${new Date(route.created_at).toLocaleDateString()}</p>
+                             </div>`;
         }
 
+        /**
+         * [FIXED] Эта функция была переписана для корректной навигации.
+         * Она вручную переключает вид на карту, а затем, с небольшой задержкой,
+         * центрирует карту на нужном объекте. Это решает проблему конфликта
+         * между общим переключением вида и конкретной навигацией.
+         * Также исправлено сравнение ID (строка -> число).
+         */
         function navigateToMapObject(type, id) {
             hideDetailModal(); 
-            showView('map-view');
+
+            // 1. Вручную активируем вид карты и кнопку навигации
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('map-view').classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`button[onclick="showView('map-view')"]`).classList.add('active');
             
+            // 2. Показываем элементы управления картой, если они были скрыты
+            if (AppState.lastKnownLocation) {
+                mapActionContainer.classList.remove('hidden');
+                modeSwitcher.classList.remove('hidden');
+            }
+
+            // 3. Используем таймаут, чтобы дать DOM время обновиться перед манипуляцией картой
             setTimeout(() => {
+                if (!map) {
+                    console.error("Карта не инициализирована.");
+                    return;
+                }
+                
+                // Сначала убедимся, что контейнер карты имеет правильный размер
+                map.container.fitToViewport();
+
                 let targetObject;
+                const numericId = parseInt(id, 10); // Преобразуем ID в число для корректного поиска
+
                 if (type === 'spot') {
                     setMapMode('spots');
-                    targetObject = AppState.allSpots.find(s => s.id === id);
-                    const geoJson = parseWKT(targetObject?.location);
-                    if (geoJson) {
+                    targetObject = AppState.allSpots.find(s => s.id === numericId);
+                    if (!targetObject) {
+                        console.error(`Спот с ID ${id} не найден.`);
+                        return;
+                    }
+                    const geoJson = parseWKT(targetObject.location);
+                    if (geoJson && geoJson.type === 'Point') {
                         const coords = [geoJson.coordinates[1], geoJson.coordinates[0]]; // lat, long
-                        map.panTo(coords, { flying: true, duration: 1500 }).then(() => map.setZoom(17));
+                        map.panTo(coords, { flying: true, duration: 1500 })
+                           .then(() => {
+                               map.setZoom(17, { duration: 300 });
+                           });
                     }
                 } else if (type === 'route') {
                     setMapMode('routes');
-                    targetObject = AppState.allRoutes.find(r => r.id === id);
-                    const geoJson = parseWKT(targetObject?.path);
-                     if (geoJson && geoJson.coordinates.length > 0) {
+                    targetObject = AppState.allRoutes.find(r => r.id === numericId);
+                    if (!targetObject) {
+                        console.error(`Маршрут с ID ${id} не найден.`);
+                        return;
+                    }
+                    const geoJson = parseWKT(targetObject.path);
+                    if (geoJson && geoJson.type === 'LineString' && geoJson.coordinates.length > 0) {
                         const yandexCoords = geoJson.coordinates.map(p => [p[1], p[0]]);
                         const polyline = new ymaps.Polyline(yandexCoords);
-                        map.setBounds(polyline.geometry.getBounds(), { checkZoomRange: true, duration: 1000 });
+                        map.setBounds(polyline.geometry.getBounds(), { 
+                            checkZoomRange: true, 
+                            duration: 1000 
+                        });
                     }
                 }
-            }, 150);
+            }, 200); // Небольшая задержка для рендера
         }
+
 
         function parseWKT(wkt) {
             if (!wkt) return null;
@@ -2092,13 +2138,13 @@
                 const area = u.area || 0;
                 const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
                 return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showDetailModal('user', ${u.id})">
-                                    <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
-                                    <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
-                                    <div class="flex-grow">
-                                        <p class="font-bold">${displayName}</p>
-                                        <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
-                                    </div>
-                                </div>`
+                                      <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
+                                      <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
+                                      <div class="flex-grow">
+                                          <p class="font-bold">${displayName}</p>
+                                          <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
+                                      </div>
+                                  </div>`
             }).join('');
         }
 
