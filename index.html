@@ -131,6 +131,10 @@
             transition: all 0.3s ease-in-out;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
         }
+        #main-action-btn:disabled {
+            background-color: var(--hint-color) !important;
+            cursor: not-allowed;
+        }
         #main-action-btn.running {
             background-color: var(--destructive-color);
         }
@@ -149,7 +153,7 @@
             z-index: 20;
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start; /* Changed to flex-start */
             padding: 0 1rem;
             pointer-events: none; /* Позволяет кликать сквозь контейнер */
         }
@@ -162,10 +166,9 @@
             gap: 0.25rem;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             pointer-events: all; /* Включаем клики для самого свитчера */
-            margin: 0 auto; /* Центрирование */
         }
-        #recenter-btn {
-            pointer-events: all; /* Включаем клики для кнопки */
+        #map-controls-right {
+            pointer-events: all; /* Включаем клики для кнопок справа */
         }
         .mode-btn {
             padding: 0.5rem 1rem;
@@ -278,7 +281,7 @@
             display: block;
         }
         
-        /* Стили для комментариев в модальном окне деталей */
+        /* NEW: Стили для комментариев в модальном окне деталей */
         #detail-comments-section {
             border-top: 1px solid var(--bg-color);
             padding: 1rem;
@@ -304,48 +307,60 @@
     </div>
 
     <!-- Основной контейнер приложения -->
-    <main id="app-container" class="hidden">
+    <div id="app-container" class="hidden">
         <!-- Вид 1: Карта -->
-        <section id="map-view" class="view active">
+        <div id="map-view" class="view active">
             <div id="map"></div>
             
+            <!-- MODIFIED: Панель управления на карте -->
             <div id="map-top-panel">
-                <div class="w-12"></div> <!-- Пустой див для баланса -->
-                <div id="mode-switcher" class="hidden">
-                    <button id="mode-capture" class="mode-btn active" data-mode="capture">Захват</button>
-                    <button id="mode-spots" class="mode-btn" data-mode="spots">Споты</button>
-                    <button id="mode-routes" class="mode-btn" data-mode="routes">Маршруты</button>
+                <div class="w-12"></div> <!-- Пустой див для баланса слева -->
+                
+                <div class="flex-grow flex justify-center">
+                     <div id="mode-switcher" class="hidden">
+                        <button id="mode-capture" class="mode-btn active">Захват</button>
+                        <button id="mode-spots" class="mode-btn">Споты</button>
+                        <button id="mode-routes" class="mode-btn">Маршруты</button>
+                    </div>
                 </div>
-                <button id="recenter-btn" class="bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg" aria-label="Центрировать карту">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                </button>
+
+                <div id="map-controls-right" class="flex flex-col items-end gap-2">
+                    <button id="request-geo-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-lg flex items-center gap-2 pointer-events-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        <span id="request-geo-text">Дать доступ к гео</span>
+                        <svg id="request-geo-loader" class="animate-spin h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    </button>
+                    <button id="recenter-btn" class="hidden bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg pointer-events-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    </button>
+                </div>
             </div>
-        </section>
+        </div>
 
         <!-- Вид 2: Лента -->
-        <section id="feed-view" class="view p-4 fade-in">
+        <div id="feed-view" class="view p-4 fade-in">
             <div class="flex justify-between items-center mb-6 px-2">
                 <h1 class="text-3xl font-bold">Лента</h1>
-                <button id="create-simple-post-btn" class="p-2 rounded-full hover:bg-gray-200" style="background-color: var(--secondary-bg-color);" aria-label="Создать новый пост">
+                <button id="create-simple-post-btn" class="p-2 rounded-full hover:bg-gray-200" style="background-color: var(--secondary-bg-color);">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" style="color: var(--button-color);" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" /></svg>
                 </button>
             </div>
             <div id="feed-container" class="space-y-4"></div>
-        </section>
+        </div>
 
         <!-- Вид 3: Топ пользователей -->
-        <section id="top-view" class="view p-4 fade-in">
+        <div id="top-view" class="view p-4 fade-in">
             <div class="flex justify-between items-center mb-6 px-2">
                 <h1 class="text-3xl font-bold">Топ Бегунов</h1>
-                <button id="scan-qr-btn" class="p-2 rounded-full hover:bg-gray-200" style="background-color: var(--secondary-bg-color);" aria-label="Сканировать QR-код">
+                <button id="scan-qr-btn" class="p-2 rounded-full hover:bg-gray-200" style="background-color: var(--secondary-bg-color);">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" style="color: var(--hint-color);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><line x1="14" y1="14" x2="21" y2="14"></line><line x1="14" y1="17.5" x2="21" y2="17.5"></line><line x1="14" y1="21" x2="21" y2="21"></line></svg>
                 </button>
             </div>
-            <ol id="leaderboard" class="space-y-3"></ol>
-        </section>
+            <div id="leaderboard" class="space-y-3"></div>
+        </div>
 
         <!-- Вид 4: Профиль -->
-        <section id="profile-view" class="view p-4 fade-in">
+        <div id="profile-view" class="view p-4 fade-in">
             <h1 class="text-3xl font-bold mb-6 px-2">Профиль</h1>
             <div class="card-bg rounded-2xl shadow-lg p-6 flex flex-col items-center space-y-4">
                 <div id="profile-avatar-wrapper" class="w-24 h-24 rounded-full border-4 flex-shrink-0">
@@ -373,58 +388,98 @@
                     </div>
                 </div>
             </div>
-             <!-- TABS -->
+             <!-- NEW TABS -->
             <div class="flex border-b mt-6 sticky top-0 z-10" style="background-color: var(--bg-color);">
-                <div id="profile-tab-posts" class="profile-tab active" data-profile-tab="posts">Посты</div>
-                <div id="profile-tab-spots" class="profile-tab" data-profile-tab="spots">Споты</div>
-                <div id="profile-tab-routes" class="profile-tab" data-profile-tab="routes">Маршруты</div>
+                <div id="profile-tab-posts" class="profile-tab active" onclick="switchMainProfileTab('posts')">Посты</div>
+                <div id="profile-tab-spots" class="profile-tab" onclick="switchMainProfileTab('spots')">Споты</div>
+                <div id="profile-tab-routes" class="profile-tab" onclick="switchMainProfileTab('routes')">Маршруты</div>
             </div>
 
             <div id="profile-content-posts" class="profile-tab-content active mt-4 space-y-4"></div>
             <div id="profile-content-spots" class="profile-tab-content mt-4 space-y-4"></div>
             <div id="profile-content-routes" class="profile-tab-content mt-4 space-y-4"></div>
-        </section>
+        </div>
         
         <!-- Главная плавающая кнопка действия -->
-        <button id="main-action-btn" class="hidden w-auto h-20 px-8 rounded-full text-white items-center justify-center transition-all" style="background-color: var(--button-color);">
+        <button id="main-action-btn" class="hidden w-20 h-20 px-8 rounded-full text-white items-center justify-center transition-all" style="background-color: var(--button-color);">
             <!-- Содержимое кнопки будет меняться в JS -->
         </button>
-    </main>
+    </div>
 
     <!-- Нижний навбар -->
     <nav id="bottom-navbar" class="hidden fixed bottom-0 left-0 right-0 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] flex justify-around items-center z-20">
-        <button class="nav-btn active flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" data-view="map-view"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg><span>Карта</span></button>
-        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" data-view="feed-view"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3h2m0 0h2" /></svg><span>Лента</span></button>
-        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" data-view="top-view"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg><span>Топ</span></button>
-        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" data-view="profile-view"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg><span>Профиль</span></button>
+        <button class="nav-btn active flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('map-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg><span>Карта</span></button>
+        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('feed-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3h2m0 0h2" /></svg><span>Лента</span></button>
+        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('top-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg><span>Топ</span></button>
+        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('profile-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg><span>Профиль</span></button>
     </nav>
     
-    <!-- Модальное окно создания простого поста (сверху вниз, 45%) -->
-    <div id="simple-post-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="simple-post-title">
+    <!-- Модальное окно создания поста-достижения (старое) -->
+    <div id="edit-modal" class="modal-overlay justify-center items-center p-4" onclick="if(event.target === this) hideEditModal()">
+        <div class="card-bg rounded-2xl shadow-2xl p-6 w-full max-w-md fade-in space-y-4">
+            <h2 id="edit-modal-title" class="text-2xl font-bold"></h2>
+            <p id="edit-modal-description" style="color: var(--hint-color);"></p>
+            <div>
+                <label for="edit-modal-name" class="block text-sm font-medium">Название</label>
+                <input type="text" id="edit-modal-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Например, 'Красивый вид'">
+            </div>
+            <div id="edit-modal-details-section">
+                <label for="edit-modal-details" class="block text-sm font-medium">Описание</label>
+                <textarea id="edit-modal-details" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Опишите это место, маршрут или просто поделитесь мыслями..."></textarea>
+            </div>
+            <div id="edit-modal-photo-section">
+                <label for="edit-modal-photo-input" class="block text-sm font-medium">Фото</label>
+                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                    <div class="space-y-1 text-center">
+                        <img id="edit-modal-photo-preview" src="" alt="Предпросмотр фото" class="hidden mx-auto h-24 w-auto mb-4 rounded">
+                        <svg id="edit-modal-photo-icon" class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                        <div class="flex text-sm text-gray-600">
+                            <label id="edit-modal-photo-input-label" for="edit-modal-photo-input" class="relative cursor-pointer rounded-md font-medium" style="color: var(--button-color);">
+                                <span>Загрузите файл</span>
+                                <input id="edit-modal-photo-input" name="edit-modal-photo-input" type="file" class="sr-only" accept="image/*">
+                            </label>
+                            <p class="pl-1">или перетащите</p>
+                        </div>
+                        <p class="text-xs text-gray-500">PNG, JPG до 10MB</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button id="cancel-edit-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full transition-all">Отмена</button>
+                <button id="save-edit-btn" class="text-white font-bold py-2 px-4 rounded-full transition-all flex items-center justify-center" style="background-color: var(--button-color); color: var(--button-text-color)">
+                    <span id="save-edit-text">Сохранить</span>
+                    <svg id="save-edit-loader" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW: Модальное окно создания простого поста (сверху вниз, 45%) -->
+    <div id="simple-post-modal" class="modal-overlay" onclick="if(event.target === this) hideSimplePostModal()">
         <div id="simple-post-content" class="card-bg rounded-b-2xl shadow-2xl p-6 w-full max-w-lg space-y-4" style="height: 45vh;">
             <div class="flex justify-between items-center">
-                <h2 id="simple-post-title" class="text-2xl font-bold">Новый пост</h2>
-                <button id="simple-post-close-btn" class="p-2 rounded-full hover:bg-gray-200" aria-label="Закрыть модальное окно">&times;</button>
+                <h2 class="text-2xl font-bold">Новый пост</h2>
+                <button onclick="hideSimplePostModal()" class="p-2 rounded-full hover:bg-gray-200">&times;</button>
             </div>
             <p style="color: var(--hint-color);">Поделитесь своими мыслями с сообществом.</p>
             <textarea id="simple-post-details" class="mt-1 block w-full h-1/3 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Что у вас нового?"></textarea>
             <div id="simple-post-filename" class="text-sm text-gray-500 truncate"></div>
             <div class="flex justify-between items-center pt-4">
-                 <label for="simple-post-photo-input" class="cursor-pointer p-2 rounded-full hover:bg-gray-200" aria-label="Прикрепить файл">
+                 <label for="simple-post-photo-input" class="cursor-pointer p-2 rounded-full hover:bg-gray-200">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" style="color: var(--hint-color);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                     </svg>
                     <input id="simple-post-photo-input" type="file" class="sr-only" accept="image/*">
                 </label>
-                <!-- Кнопка публикации заменена на Telegram MainButton -->
+                <button onclick="handleSimplePostSave()" class="text-white font-bold py-2 px-6 rounded-full transition-all" style="background-color: var(--button-color);">Опубликовать</button>
             </div>
         </div>
     </div>
 
-    <!-- Модальное окно создания Спота/Маршрута (снизу вверх, 75%) -->
-    <div id="creation-modal" class="modal-overlay bottom-sheet-modal" role="dialog" aria-modal="true" aria-labelledby="creation-modal-title">
+    <!-- NEW: Модальное окно создания Спота/Маршрута (снизу вверх, 75%) -->
+    <div id="creation-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideCreationModal()">
         <div class="bottom-sheet-content" style="height: 75%; max-height: calc(100vh - env(safe-area-inset-top) - 1rem);">
-            <div class="grabber" id="creation-modal-grabber"></div>
+            <div class="grabber" onclick="hideCreationModal()"></div>
             <div id="creation-modal-body" class="flex-grow overflow-y-auto p-4 space-y-4">
                 <h2 id="creation-modal-title" class="text-2xl font-bold"></h2>
                 <p id="creation-modal-description" style="color: var(--hint-color);"></p>
@@ -454,38 +509,35 @@
                     </div>
                 </div>
                 <div class="flex justify-end space-x-3 pt-4">
-                    <button id="creation-modal-cancel-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full transition-all">Отмена</button>
-                    <!-- Кнопка сохранения заменена на Telegram MainButton -->
+                    <button onclick="hideCreationModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full transition-all">Отмена</button>
+                    <button id="save-creation-btn" class="text-white font-bold py-2 px-4 rounded-full transition-all" style="background-color: var(--button-color);">Сохранить</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Модальное окно деталей (выдвигается снизу) -->
-    <div id="detail-modal" class="modal-overlay bottom-sheet-modal" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title-placeholder">
+    <div id="detail-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideDetailModal()">
         <div class="bottom-sheet-content" style="height: 90%; max-height: calc(100vh - env(safe-area-inset-top) - 1rem);">
-            <div class="grabber" id="detail-modal-grabber"></div>
-            <div id="detail-modal-body" class="flex-grow overflow-y-auto">
-                <!-- Контент загружается динамически -->
-                 <h2 id="detail-modal-title-placeholder" class="sr-only">Детали</h2>
-            </div>
+            <div class="grabber" onclick="hideDetailModal()"></div>
+            <div id="detail-modal-body" class="flex-grow overflow-y-auto"></div>
         </div>
     </div>
 
     <!-- Модальное окно с комментариями (ДЛЯ ПОСТОВ) -->
-    <div id="comments-modal" class="modal-overlay bottom-sheet-modal" role="dialog" aria-modal="true" aria-labelledby="comments-modal-title">
+    <div id="comments-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideCommentsModal()">
         <div class="bottom-sheet-content" style="height: 75%;">
-             <div class="grabber" id="comments-modal-grabber"></div>
+             <div class="grabber" onclick="hideCommentsModal()"></div>
              <h2 id="comments-modal-title" class="text-xl font-bold px-4 pb-2 flex-shrink-0">Комментарии</h2>
             <div id="comments-modal-body" class="flex-grow overflow-y-auto p-4"></div>
             <div id="comment-input-container" class="flex-shrink-0 p-2 border-t" style="background-color: var(--secondary-bg-color); border-color: var(--bg-color);">
                 <div id="reply-indicator" class="hidden text-xs px-2 pb-1 flex justify-between items-center" style="color: var(--hint-color);">
                     <span id="reply-indicator-text"></span>
-                    <button id="cancel-reply-btn" class="font-bold text-xl" aria-label="Отменить ответ">&times;</button>
+                    <button onclick="cancelReply()" class="font-bold text-xl">&times;</button>
                 </div>
                 <div class="flex items-center space-x-2">
                     <textarea id="main-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
-                    <button id="main-comment-send-btn" class="flex-shrink-0 text-white rounded-full p-2 hover:opacity-80 disabled:opacity-50" style="background-color: var(--button-color);" aria-label="Отправить комментарий">
+                    <button id="main-comment-send-btn" onclick="postComment()" class="flex-shrink-0 text-white rounded-full p-2 hover:opacity-80 disabled:opacity-50" style="background-color: var(--button-color);">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transform rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                     </button>
                 </div>
@@ -498,7 +550,7 @@
         const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
         const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-        const MAP_TILE_URL_TEMPLATE = 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}';
+        const MAP_TILE_URL = 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}';
 
         // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И СОСТОЯНИЕ ---
         const tg = window.Telegram.WebApp;
@@ -509,8 +561,8 @@
         // Состояние режимов
         let currentMode = 'capture'; // 'capture', 'spots', 'routes'
         let isRunning = false; // Для режимов 'capture' и 'routes'
-        let geoWatchInterval = null; // ID интервала для отслеживания геолокации
-        let lastKnownLocation = null; // [lat, lng]
+        let geoWatchId = null;
+        let lastKnownLocation = null;
         
         // Данные режимов
         let currentRunPath = [];
@@ -527,6 +579,7 @@
         let routePolylinesLayer = L.layerGroup();
 
         let allProfilesData = [];
+        let lastCaptureData = null; // Для постов
         let currentEditContext = {}; // Для модалки создания/редактирования
         let currentDetailContext = {}; // Для модалки деталей
         let currentReplyTarget = { type: null, id: null, parentCommentId: null };
@@ -542,6 +595,7 @@
         const modeSwitcher = document.getElementById('mode-switcher');
         
         // Модальные окна
+        const editModal = document.getElementById('edit-modal');
         const detailModal = document.getElementById('detail-modal');
         const commentsModal = document.getElementById('comments-modal');
         const simplePostModal = document.getElementById('simple-post-modal');
@@ -553,33 +607,32 @@
         const profileAreaDisplay = document.getElementById('profile-area');
         const profileAvatarImg = document.getElementById('profile-avatar-img');
         const profileAvatarWrapper = document.getElementById('profile-avatar-wrapper');
+        const recenterBtn = document.getElementById('recenter-btn');
+        const requestGeoBtn = document.getElementById('request-geo-btn');
+        const scanQrBtn = document.getElementById('scan-qr-btn');
+        const inviteFriendBtn = document.getElementById('invite-friend-btn');
+        const donateBtn = document.getElementById('donate-btn');
+        const showQrBtn = document.getElementById('show-qr-btn');
+        const createSimplePostBtn = document.getElementById('create-simple-post-btn');
 
         // --- ФУНКЦИИ UI ---
-
-        /**
-         * Показывает указанный вид (section) и скрывает остальные.
-         * @param {string} viewId - ID секции, которую нужно показать.
-         */
         function showView(viewId) {
             tg.HapticFeedback.selectionChanged();
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById(viewId)?.classList.add('active');
-            
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === viewId));
+            document.getElementById(viewId).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`button[onclick="showView('${viewId}')"]`).classList.add('active');
             
             const isMapView = viewId === 'map-view';
             mainActionBtn.classList.toggle('hidden', !isMapView);
-            modeSwitcher.classList.toggle('hidden', !isMapView);
+            // Показываем свитчер только если есть гео и мы на карте
+            modeSwitcher.classList.toggle('hidden', !isMapView || !lastKnownLocation);
             
             if (isMapView) {
                 setTimeout(() => map?.invalidateSize(), 100);
             }
         }
 
-        /**
-         * Устанавливает текущий режим работы на карте (захват, споты, маршруты).
-         * @param {string} newMode - Новый режим ('capture', 'spots', 'routes').
-         */
         function setMode(newMode) {
             if (currentMode === newMode) return;
             
@@ -592,7 +645,7 @@
             currentMode = newMode;
 
             document.querySelectorAll('.mode-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.mode === newMode);
+                btn.classList.toggle('active', btn.id === `mode-${newMode}`);
             });
 
             map.off('click');
@@ -616,25 +669,32 @@
             updateMainActionButton();
         }
 
-        /**
-         * Обновляет вид и функциональность главной кнопки действия в зависимости от режима.
-         */
         function updateMainActionButton() {
             mainActionBtn.onclick = null;
-            let content = '';
             mainActionBtn.classList.remove('running');
+
+            // Если геолокация еще не получена, кнопка неактивна
+            if (!lastKnownLocation) {
+                mainActionBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>`;
+                mainActionBtn.disabled = true;
+                mainActionBtn.classList.remove('w-auto', 'px-8');
+                mainActionBtn.classList.add('w-20');
+                return;
+            }
+            
+            mainActionBtn.disabled = false;
+            mainActionBtn.style.backgroundColor = 'var(--button-color)'; // Reset color
 
             switch (currentMode) {
                 case 'capture':
                     if (isRunning) {
-                        content = `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" /></svg>`;
+                        mainActionBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" /></svg>`;
                         mainActionBtn.classList.add('running');
                         mainActionBtn.onclick = stopRun;
                     } else {
-                        content = `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>`;
+                        mainActionBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>`;
                         mainActionBtn.onclick = startRun;
                     }
-                    mainActionBtn.innerHTML = content;
                     mainActionBtn.classList.remove('w-auto', 'px-8');
                     mainActionBtn.classList.add('w-20');
                     break;
@@ -652,25 +712,19 @@
                     break;
                 case 'routes':
                      if (isRunning) {
-                        content = `<span>Завершить и сохранить</span>`;
+                        mainActionBtn.innerHTML = `<span>Завершить и сохранить</span>`;
                         mainActionBtn.classList.add('running');
                         mainActionBtn.onclick = stopRouteRecording;
                     } else {
-                        content = `<span>Начать запись маршрута</span>`;
+                        mainActionBtn.innerHTML = `<span>Начать запись маршрута</span>`;
                         mainActionBtn.onclick = startRouteRecording;
                     }
-                    mainActionBtn.innerHTML = content;
                     mainActionBtn.classList.add('w-auto', 'px-8');
                     mainActionBtn.classList.remove('w-20');
                     break;
             }
         }
         
-        /**
-         * Генерирует стабильный цвет на основе ID пользователя.
-         * @param {number|string} id - ID пользователя.
-         * @returns {string} - Строка цвета в формате HSL.
-         */
         function generateColorFromId(id) {
             const strId = String(id);
             let hash = 0;
@@ -683,32 +737,56 @@
 
         // --- ЛОГИКА МОДАЛЬНЫХ ОКОН ---
         
+        function showEditModal(type, context = {}) {
+            currentEditContext = { type, ...context };
+            const title = document.getElementById('edit-modal-title');
+            const description = document.getElementById('edit-modal-description');
+            const nameInput = document.getElementById('edit-modal-name');
+            const detailsInput = document.getElementById('edit-modal-details');
+            const detailsSection = document.getElementById('edit-modal-details-section');
+            const photoSection = document.getElementById('edit-modal-photo-section');
+            
+            nameInput.value = '';
+            detailsInput.value = '';
+            document.getElementById('edit-modal-photo-input').value = '';
+            document.getElementById('edit-modal-photo-preview').classList.add('hidden');
+            document.getElementById('edit-modal-photo-icon').classList.remove('hidden');
+
+            if (type === 'post') {
+                 title.textContent = 'Новое достижение!';
+                 description.textContent = 'Дайте название вашей новой территории.';
+                 detailsSection.style.display = 'none';
+                 photoSection.style.display = 'block';
+            }
+            
+            editModal.classList.add('visible');
+        }
+
+        function hideEditModal() {
+            editModal.classList.remove('visible');
+            currentEditContext = {};
+        }
+        
         function showSimplePostModal() {
             document.getElementById('simple-post-details').value = '';
             document.getElementById('simple-post-photo-input').value = '';
             document.getElementById('simple-post-filename').textContent = '';
             simplePostModal.classList.add('visible');
-            
-            tg.MainButton.setText('Опубликовать');
-            tg.MainButton.onClick(handleSimplePostSave);
-            tg.MainButton.show();
-            tg.BackButton.show();
         }
 
         function hideSimplePostModal() {
             simplePostModal.classList.remove('visible');
-            tg.MainButton.offClick(handleSimplePostSave);
-            tg.MainButton.hide();
-            tg.BackButton.hide();
         }
         
         function showCreationModal(type, context = {}) {
             currentEditContext = { type, ...context };
             const title = document.getElementById('creation-modal-title');
             const description = document.getElementById('creation-modal-description');
+            const nameInput = document.getElementById('creation-modal-name');
+            const detailsInput = document.getElementById('creation-modal-details');
             
-            document.getElementById('creation-modal-name').value = '';
-            document.getElementById('creation-modal-details').value = '';
+            nameInput.value = '';
+            detailsInput.value = '';
             document.getElementById('creation-modal-photo-input').value = '';
             document.getElementById('creation-modal-photo-preview').classList.add('hidden');
             document.getElementById('creation-modal-photo-icon').classList.remove('hidden');
@@ -722,32 +800,25 @@
             }
             
             creationModal.classList.add('visible');
-            
-            tg.MainButton.setText('Сохранить');
-            tg.MainButton.onClick(handleCreationSave);
-            tg.MainButton.show();
-            tg.BackButton.show();
         }
 
         function hideCreationModal() {
             creationModal.classList.remove('visible');
             currentEditContext = {};
-            tg.MainButton.offClick(handleCreationSave);
-            tg.MainButton.hide();
-            tg.BackButton.hide();
         }
 
-        function handleCreationSave() {
+        function handleSave() {
             const { type } = currentEditContext;
-            tg.MainButton.showProgress(); // Показываем индикатор загрузки
             if (type === 'spot') saveSpot();
             else if (type === 'route') saveRoute();
+            else if (type === 'post') handlePostSubmission();
         }
         
         function showDetailModal(type, id) {
-             currentDetailContext = { type, id: Number(id) };
+             currentDetailContext = { type, id };
              tg.HapticFeedback.impactOccurred('medium');
              tg.BackButton.show();
+             
              detailModal.classList.add('visible');
              loadDetailContent();
         }
@@ -764,29 +835,21 @@
             
             body.innerHTML = `<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
 
-            // Общая часть для кнопки "Поделиться"
-            const shareButtonHtml = `
-                <button class="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition" data-action="share" data-type="${type}" data-id="${id}">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                    </svg>
-                    <span class="text-sm font-medium text-gray-700">Поделиться</span>
-                </button>
-            `;
-
             const commentsHtml = `
                 <div id="detail-comments-section" class="mt-4">
                     <h3 class="text-xl font-bold px-4">Комментарии</h3>
-                    <div id="detail-comments-list" class="p-4 space-y-4"></div>
+                    <div id="detail-comments-list" class="p-4 space-y-4">
+                          <p class="text-center text-gray-500">Загрузка комментариев...</p>
+                    </div>
                 </div>
-                <div id="detail-comment-input-form" class="flex-shrink-0 p-2 border-t sticky bottom-0" style="background-color: var(--secondary-bg-color); border-color: var(--bg-color);">
+                <div id="detail-comment-input-form" class="flex-shrink-0 p-2 border-t" style="background-color: var(--secondary-bg-color); border-color: var(--bg-color);">
                      <div id="detail-reply-indicator" class="hidden text-xs px-2 pb-1 flex justify-between items-center" style="color: var(--hint-color);">
                          <span id="detail-reply-indicator-text"></span>
-                         <button data-action="cancel-detail-reply" class="font-bold text-xl">&times;</button>
+                         <button onclick="cancelDetailReply()" class="font-bold text-xl">&times;</button>
                      </div>
                     <div class="flex items-center space-x-2">
                         <textarea id="detail-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
-                        <button data-action="post-detail-comment" class="flex-shrink-0 text-white rounded-full p-2 hover:opacity-80 disabled:opacity-50" style="background-color: var(--button-color);">
+                        <button onclick="postDetailComment()" class="flex-shrink-0 text-white rounded-full p-2 hover:opacity-80 disabled:opacity-50" style="background-color: var(--button-color);">
                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transform rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                         </button>
                     </div>
@@ -795,18 +858,18 @@
 
             if (type === 'spot') {
                 const { data: spot, error } = await supabase.from('spots').select('*, profiles(id, name, photo_url), location_wkt:location::text').eq('id', id).single();
-                if (error || !spot) { body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали спота.</p>`; return; }
+                if (error || !spot) {
+                    body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали спота.</p>`;
+                    return;
+                }
                 const author = spot.profiles || { name: 'Аноним', photo_url: null };
                 const avatar = author.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${author.name.charAt(0)}`;
                 body.innerHTML = `
                     <div class="space-y-4 pb-4">
                         ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-64 object-cover" alt="Spot photo">` : ''}
                         <div class="px-4">
-                            <div class="flex justify-between items-start">
-                                <h2 class="text-3xl font-bold flex-1 pr-4">${spot.name}</h2>
-                                ${shareButtonHtml}
-                            </div>
-                            <div class="flex items-center space-x-3 mt-2 cursor-pointer" data-action="show-detail" data-type="user" data-id="${spot.user_id}">
+                            <h2 class="text-3xl font-bold">${spot.name}</h2>
+                            <div class="flex items-center space-x-3 mt-2 cursor-pointer" onclick="showDetailModal('user', ${spot.user_id})">
                                 <img src="${avatar}" class="w-8 h-8 rounded-full" alt="author avatar">
                                 <span class="font-semibold text-sm">Автор: ${author.name}</span>
                             </div>
@@ -818,18 +881,18 @@
                 loadAndRenderComments(type, id, 'detail-comments-list');
             } else if (type === 'route') {
                 const { data: route, error } = await supabase.from('routes').select('*, profiles(id, name, photo_url), path_wkt:path::text').eq('id', id).single();
-                if (error || !route) { body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали маршрута.</p>`; return; }
+                if (error || !route) {
+                    body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали маршрута.</p>`;
+                    return;
+                }
                 const author = route.profiles || { name: 'Аноним', photo_url: null };
                 const avatar = author.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${author.name.charAt(0)}`;
                 body.innerHTML = `
                     <div class="space-y-4 pb-4">
                         <div id="detail-mini-map" class="h-64 w-full bg-gray-200"></div>
                         <div class="px-4">
-                             <div class="flex justify-between items-start mt-4">
-                                <h2 class="text-3xl font-bold flex-1 pr-4">${route.name}</h2>
-                                ${shareButtonHtml}
-                            </div>
-                            <div class="flex items-center space-x-3 mt-2 cursor-pointer" data-action="show-detail" data-type="user" data-id="${route.user_id}">
+                            <h2 class="text-3xl font-bold">${route.name}</h2>
+                            <div class="flex items-center space-x-3 mt-2 cursor-pointer" onclick="showDetailModal('user', ${route.user_id})">
                                 <img src="${avatar}" class="w-8 h-8 rounded-full" alt="author avatar">
                                 <span class="font-semibold text-sm">Автор: ${author.name}</span>
                             </div>
@@ -843,14 +906,13 @@
                     const routeGeoJson = parseWKT(route.path_wkt);
                     if (mapContainer && !mapContainer._leaflet_id && routeGeoJson) {
                         const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
-                        L.tileLayer(MAP_TILE_URL_TEMPLATE, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
+                        L.tileLayer(MAP_TILE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
                         const routeLayer = L.geoJSON(routeGeoJson, { style: { color: '#ff7800', weight: 3 } }).addTo(miniMap);
                         miniMap.fitBounds(routeLayer.getBounds(), { padding: [10, 10] });
                     }
                 }, 100);
-                loadAndRenderComments(type, id, 'detail-comments-list');
+                 loadAndRenderComments(type, id, 'detail-comments-list');
             } else if (type === 'user') {
-                // Логика для профиля пользователя остается без изменений
                 const [profileRes, postsRes, spotsRes, routesRes] = await Promise.all([
                     supabase.from('profiles').select('*').eq('id', id).single(),
                     supabase.from('posts').select('*').eq('user_id', id).order('created_at', { ascending: false }),
@@ -858,7 +920,10 @@
                     supabase.from('routes').select('*, path_wkt:path::text').eq('user_id', id).order('created_at', { ascending: false })
                 ]);
 
-                if (profileRes.error) { body.innerHTML = `<p class="text-red-500 text-center">Не удалось загрузить профиль.</p>`; return; }
+                if (profileRes.error) {
+                    body.innerHTML = `<p class="text-red-500 text-center">Не удалось загрузить профиль.</p>`;
+                    return;
+                }
                 const profile = profileRes.data;
                 const posts = postsRes.data || [];
                 const spots = spotsRes.data || [];
@@ -890,10 +955,10 @@
                         </div>
                     </div>
                     
-                    <div class="flex border-b mt-4 px-4" id="user-profile-tabs">
-                        <div class="profile-tab active" data-profile-tab="posts">Посты (${posts.length})</div>
-                        <div class="profile-tab" data-profile-tab="spots">Споты (${spots.length})</div>
-                        <div class="profile-tab" data-profile-tab="routes">Маршруты (${routes.length})</div>
+                    <div class="flex border-b mt-4 px-4">
+                        <div id="tab-posts" class="profile-tab active" onclick="switchProfileTab('posts')">Посты (${posts.length})</div>
+                        <div id="tab-spots" class="profile-tab" onclick="switchProfileTab('spots')">Споты (${spots.length})</div>
+                        <div id="tab-routes" class="profile-tab" onclick="switchProfileTab('routes')">Маршруты (${routes.length})</div>
                     </div>
 
                     <div id="content-posts" class="profile-tab-content active p-4 space-y-4">
@@ -913,7 +978,7 @@
                             const mapContainer = body.querySelector(`#mini-map-${post.id}`);
                             if (mapContainer && !mapContainer._leaflet_id) {
                                 const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
-                                L.tileLayer(MAP_TILE_URL_TEMPLATE, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
+                                L.tileLayer(MAP_TILE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
                                 const territoryLayer = L.geoJSON(post.territory_captured, { style: { color: post.user_color, weight: 2, opacity: 0.8, fillColor: post.user_color, fillOpacity: 0.5 } }).addTo(miniMap);
                                 miniMap.fitBounds(territoryLayer.getBounds(), { padding: [10, 10] });
                             }
@@ -926,22 +991,28 @@
         function switchProfileTab(tabName) {
             document.querySelectorAll('#detail-modal .profile-tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('#detail-modal .profile-tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelector(`#detail-modal [data-profile-tab="${tabName}"]`)?.classList.add('active');
-            document.getElementById(`content-${tabName}`)?.classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            document.getElementById(`content-${tabName}`).classList.add('active');
         }
 
+        function generateMiniPostHTML(post) {
+            return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" data-action="show-post-comments" data-id="${post.id}">
+                        <p class="font-semibold">${post.title}</p>
+                        <p class="text-xs text-gray-400">${new Date(post.created_at).toLocaleDateString()}</p>
+                    </div>`;
+        }
         function generateMiniSpotHTML(spot) {
-             return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" data-action="navigate-map" data-type="spot" data-id="${spot.id}">
+             return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="navigateToMapObject('spot', ${spot.id})">
                          <p class="font-semibold">${spot.name}</p>
                          <p class="text-sm text-gray-600 truncate">${spot.description}</p>
                          <p class="text-xs text-gray-400">${new Date(spot.created_at).toLocaleDateString()}</p>
-                    </div>`;
+                      </div>`;
         }
         function generateMiniRouteHTML(route) {
-              return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" data-action="navigate-map" data-type="route" data-id="${route.id}">
-                          <p class="font-semibold">${route.name}</p>
-                          <p class="text-xs text-gray-400">${new Date(route.created_at).toLocaleDateString()}</p>
-                     </div>`;
+             return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="navigateToMapObject('route', ${route.id})">
+                         <p class="font-semibold">${route.name}</p>
+                         <p class="text-xs text-gray-400">${new Date(route.created_at).toLocaleDateString()}</p>
+                      </div>`;
         }
 
         function navigateToMapObject(type, id) {
@@ -970,22 +1041,41 @@
             }
         }
 
+        /**
+         * [FIXED] Более надежная функция для парсинга WKT-строк в GeoJSON.
+         * Использует регулярные выражения для извлечения координат, что делает ее
+         * устойчивой к префиксам (например, SRID) и вариациям в форматировании.
+         * @param {string | null} wkt - Строка в формате Well-Known Text (например, 'POINT(30 10)').
+         * @returns {object | null} GeoJSON-объект или null в случае ошибки.
+         */
         function parseWKT(wkt) {
-            if (!wkt || typeof wkt !== 'string') return null;
+            if (!wkt || typeof wkt !== 'string') {
+                return null;
+            }
+            
             try {
+                // Пытаемся распарсить как JSON (если это уже GeoJSON)
                 if (wkt.trim().startsWith('{')) {
                     const parsed = JSON.parse(wkt);
-                    if (parsed.type && parsed.coordinates) return parsed;
+                    if (parsed.type && parsed.coordinates) {
+                        return parsed;
+                    }
                 }
+
                 const match = wkt.match(/(POINT|LINESTRING|POLYGON|MULTIPOLYGON)\s*\((.+)\)/i);
-                if (!match) return null;
+                if (!match) {
+                    return null;
+                }
+
                 const type = match[1].toUpperCase();
                 let content = match[2];
+
                 if (type === 'POINT') {
                     const coords = content.match(/-?\d+(\.\d+)?/g);
                     if (!coords || coords.length < 2) return null;
                     return { type: 'Point', coordinates: [parseFloat(coords[0]), parseFloat(coords[1])] };
                 }
+
                 if (type === 'LINESTRING') {
                     const coordPairs = content.split(',');
                     const coordinates = coordPairs.map(pair => {
@@ -993,43 +1083,59 @@
                         if (!nums || nums.length < 2) return null;
                         return [parseFloat(nums[0]), parseFloat(nums[1])];
                     }).filter(p => p !== null);
+
                     if (coordinates.length < 2) return null;
                     return { type: 'LineString', coordinates: coordinates };
                 }
-                return null;
+                
+                // Добавим базовую поддержку POLYGON
+                if (type === 'POLYGON' || type === 'MULTIPOLYGON') {
+                    // Это очень упрощенный парсер, который может не работать со сложными полигонами (с дырками)
+                    // Он просто берет внешнее кольцо.
+                    const ringMatch = content.match(/\((.+?)\)/);
+                    if (!ringMatch) return null;
+                    const coordPairs = ringMatch[1].split(',');
+                     const coordinates = coordPairs.map(pair => {
+                        const nums = pair.trim().match(/-?\d+(\.\d+)?/g);
+                        if (!nums || nums.length < 2) return null;
+                        return [parseFloat(nums[0]), parseFloat(nums[1])];
+                    }).filter(p => p !== null);
+                    if (type === 'POLYGON') {
+                        return { type: 'Polygon', coordinates: [coordinates] };
+                    }
+                    if (type === 'MULTIPOLYGON') {
+                        return { type: 'MultiPolygon', coordinates: [[coordinates]] };
+                    }
+                }
+
             } catch (e) {
                 console.error("Failed to parse WKT or JSON:", wkt, e);
                 return null;
             }
+            return null;
         }
 
         // --- ОСНОВНАЯ ЛОГИКА И ИНИЦИАЛИЗАЦИЯ ---
-        
         async function main() {
             try {
                 tg.ready();
                 tg.expand();
-                tg.requestWriteAccess(); // NEW: Запрос на отправку сообщений
                 applyTheme(tg.themeParams);
                 setupStaticEventListeners();
 
                 if (!tg.initDataUnsafe?.user) {
-                    showFallbackScreen({ 
-                        title: 'Требуется Telegram', 
-                        message: 'Это приложение предназначено для работы исключительно внутри Telegram.' 
-                    });
+                    showFallbackScreen('Требуется Telegram', 'Это приложение предназначено для работы исключительно внутри Telegram.', false);
                     return;
                 }
                 telegramUser = tg.initDataUnsafe.user;
-
-                const initialPosition = await requestInitialGeo();
-                const initialCoords = initialPosition.coords;
                 
                 loaderText.textContent = 'Подключение к базе данных...';
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 
                 loaderText.textContent = 'Загрузка данных...';
-                initMap(initialCoords);
+                // Инициализируем карту с координатами по умолчанию (например, Москва)
+                initMap({ latitude: 55.751244, longitude: 37.618423 });
+                
                 await upsertUserProfile();
                 updateUI();
                 
@@ -1051,42 +1157,32 @@
 
             } catch (error) {
                 console.error("Критическая ошибка инициализации:", error);
-                let fallbackOptions;
-                if (error.message === 'GEOLOCATION_DENIED') {
-                     fallbackOptions = {
-                        title: "Доступ к геолокации необходим",
-                        message: "Для работы TerraRun требуется доступ к вашему местоположению. Нажмите кнопку ниже, чтобы предоставить разрешение.",
-                        button: { text: 'Включить гео', action: 'requestPermissionAndReload' }
-                     };
-                } else if (error.message.includes("is not a function")) {
-                     fallbackOptions = {
-                        title: "Обновите Telegram",
-                        message: "Функция геолокации недоступна. Пожалуйста, обновите ваше приложение Telegram до последней версии и попробуйте снова.",
-                        button: { text: 'Попробовать снова', action: 'reloadPage' }
-                    };
-                } else {
-                     fallbackOptions = {
-                        title: "Ошибка инициализации",
-                        message: error.message || "Не удалось запустить приложение. Пожалуйста, попробуйте перезагрузить его.",
-                        button: { text: 'Попробовать снова', action: 'reloadPage' }
-                    };
-                }
-                showFallbackScreen(fallbackOptions);
+                let message = error.message || "Не удалось запустить приложение. Пожалуйста, попробуйте перезагрузить его.";
+                showFallbackScreen("Ошибка инициализации", message, true);
             }
         }
 
         function initMap(coords) {
             if (map) return;
             const latLng = [coords.latitude, coords.longitude];
-            map = L.map('map', { zoomControl: false, attributionControl: false }).setView(latLng, 16);
-            L.tileLayer(MAP_TILE_URL_TEMPLATE, { maxZoom: 19, tileSize: 512, zoomOffset: -1, accessToken: MAPBOX_ACCESS_TOKEN }).addTo(map);
-            updateCurrentUserMarker(latLng);
+            // Устанавливаем более низкий зум по умолчанию
+            map = L.map('map', { zoomControl: false, attributionControl: false }).setView(latLng, 5);
+            
+            L.tileLayer(MAP_TILE_URL, {
+                maxZoom: 19,
+                tileSize: 512,
+                zoomOffset: -1,
+                accessToken: MAPBOX_ACCESS_TOKEN
+            }).addTo(map);
+            
+            // Не добавляем маркер пользователя при инициализации
             setTimeout(() => map?.invalidateSize(), 100);
         }
 
         function updateUI() {
             const name = telegramUser.first_name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
             profileName.textContent = name;
+            
             if (telegramUser.photo_url) {
                 profileAvatarImg.src = telegramUser.photo_url;
             } else {
@@ -1104,160 +1200,279 @@
             const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${telegramUser.first_name.charAt(0)}`;
             const icon = L.divIcon({
                 html: `<div class="avatar-marker current-user-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${userColor};"></div>`,
-                className: '', iconSize: [40, 40], iconAnchor: [20, 20]
+                className: '',
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
             });
+            
             if (currentUserMarker) {
                 currentUserMarker.setLatLng(latLng);
             } else {
                 currentUserMarker = L.marker(latLng, { icon: icon, zIndexOffset: 1000 }).addTo(map);
             }
         }
+        
+        // --- НОВАЯ ЛОГИКА ЗАПРОСА ГЕОЛОКАЦИИ ---
+        async function handleGeoRequest() {
+            const geoBtn = document.getElementById('request-geo-btn');
+            const geoLoader = document.getElementById('request-geo-loader');
+            const geoText = document.getElementById('request-geo-text');
+
+            geoText.textContent = 'Запрашиваем...';
+            geoLoader.classList.remove('hidden');
+            geoBtn.disabled = true;
+
+            try {
+                const position = await requestAndWatchGeo();
+                const latLng = [position.coords.latitude, position.coords.longitude];
+                
+                map.flyTo(latLng, 16);
+                updateCurrentUserMarker(latLng);
+
+                geoBtn.classList.add('hidden');
+                document.getElementById('recenter-btn').classList.remove('hidden');
+                document.getElementById('mode-switcher').classList.remove('hidden');
+                
+                updateMainActionButton(); // Активируем основную кнопку
+                tg.HapticFeedback.notificationOccurred('success');
+
+            } catch (error) {
+                console.error("Ошибка запроса геолокации:", error);
+                let title = "Ошибка геолокации";
+                let message = "Не удалось получить ваше местоположение. Попробуйте еще раз.";
+                if (error.code === 1) { // Geolocation permission denied
+                    title = "Доступ к геолокации запрещен";
+                    message = "Для работы основных функций приложения нужен доступ к геолокации. Пожалуйста, предоставьте разрешение в настройках вашего устройства и браузера.";
+                }
+                tg.showAlert(message);
+                
+                // Возвращаем кнопку в исходное состояние
+                geoText.textContent = 'Дать доступ к гео';
+                geoLoader.classList.add('hidden');
+                geoBtn.disabled = false;
+            }
+        }
+
 
         // --- ЛОГИКА РЕЖИМОВ ---
         
         function startRun() {
-            if (!lastKnownLocation) { tg.showAlert("Не удалось определить ваше местоположение. Попробуйте нажать кнопку 'Найти меня'."); return; }
+            if (!lastKnownLocation) {
+                tg.showAlert("Сначала определите свое местоположение."); return;
+            }
             isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
             tg.isClosingConfirmationEnabled = true;
             updateMainActionButton();
+            
             currentRunPath = [ [lastKnownLocation[1], lastKnownLocation[0]] ];
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
             currentPathPolyline = L.polyline([], { color: 'var(--destructive-color)', weight: 5, opacity: 0.9 }).addTo(map);
             currentPathPolyline.addLatLng(lastKnownLocation);
-            if (geoWatchInterval) clearInterval(geoWatchInterval);
-            geoWatchInterval = setInterval(trackUserPosition, 5000);
         }
-
         function stopRun() {
-             tg.showConfirm("Завершить пробежку и захватить территорию?", (ok) => { if (ok) processStop(); });
+             tg.showConfirm("Завершить пробежку и захватить территорию?", (ok) => {
+                   if (ok) processStop();
+             });
         }
         function processStop() {
             isRunning = false;
-            if (geoWatchInterval) { clearInterval(geoWatchInterval); geoWatchInterval = null; }
             tg.HapticFeedback.notificationOccurred('success');
             tg.isClosingConfirmationEnabled = false;
             updateMainActionButton();
-            if (currentRunPath.length > 3) { processRunPath(); } 
-            else { tg.showAlert('Слишком короткий маршрут для захвата.'); }
+            if (currentRunPath.length > 3) {
+                processRunPath();
+            } else {
+                tg.showAlert('Слишком короткий маршрут для захвата.');
+            }
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
         
         function handleMapClickForSpot(e) {
             const { lat, lng } = e.latlng;
             const locationWKT = `POINT(${lng} ${lat})`;
-            tg.showConfirm("Создать новый спот в этом месте?", (ok) => { if (ok) { showCreationModal('spot', { location: locationWKT }); } });
+            tg.showConfirm("Создать новый спот в этом месте?", (ok) => {
+                if (ok) {
+                    showCreationModal('spot', { location: locationWKT });
+                }
+            });
         }
 
+        // ** MODIFIED: Использует RPC для вставки **
         async function saveSpot() {
             const { location } = currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
             const description = document.getElementById('creation-modal-details').value.trim();
             const file = document.getElementById('creation-modal-photo-input').files[0];
-            if (!name || !description) { tg.showAlert("Название и описание обязательны."); tg.MainButton.hideProgress(); return; }
+
+            if (!name || !description) {
+                tg.showAlert("Название и описание обязательны."); return;
+            }
+            
             let photoUrl = null;
             if (file) {
                 const filePath = `${telegramUser.id}/spots/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                if (error) { console.error("Ошибка загрузки фото:", error); tg.showAlert("Ошибка загрузки фото."); tg.MainButton.hideProgress(); return; }
-                photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
+                if (error) { console.error("Ошибка загрузки фото:", error); tg.showAlert("Ошибка загрузки фото."); return; }
+                const { data: urlData } = supabase.storage.from('photo').getPublicUrl(data.path);
+                photoUrl = urlData.publicUrl;
             }
-            const { error } = await supabase.rpc('create_spot', { name_in: name, description_in: description, photo_url_in: photoUrl, location_wkt_in: location });
-            tg.MainButton.hideProgress();
+            
+            const { error } = await supabase.rpc('create_spot', {
+                user_id_in: telegramUser.id,
+                name_in: name,
+                description_in: description,
+                photo_url_in: photoUrl,
+                location_wkt_in: location // 'location' - это WKT строка
+            });
+
             if (error) {
                 console.error("Ошибка сохранения спота:", error); tg.showAlert("Не удалось сохранить спот.");
             } else {
                 tg.showAlert("Спот успешно создан!");
                 hideCreationModal();
-                tg.sendData(JSON.stringify({ type: 'new_spot', name: name }));
             }
         }
         
+        /**
+         * [FIXED] Более безопасная функция добавления спота на карту.
+         * Проверяет результат парсинга перед созданием слоя.
+         * @param {object} spot - Объект спота из базы данных.
+         */
         function addSpotToMap(spot) {
             try {
-                const geoJsonPoint = parseWKT(spot.location_wkt || spot.location);
-                if (!geoJsonPoint || geoJsonPoint.type !== 'Point') { console.warn(`Не удалось обработать геолокацию спота ${spot.id}:`, spot.location_wkt); return; }
-                const spotLayer = L.geoJSON(geoJsonPoint, { pointToLayer: (feature, latlng) => L.marker(latlng) }).on('click', () => showDetailModal('spot', spot.id));
+                const wkt = spot.location_wkt || spot.location;
+                const geoJsonPoint = parseWKT(wkt);
+
+                if (!geoJsonPoint || geoJsonPoint.type !== 'Point') {
+                    console.warn(`Не удалось обработать геолокацию спота ${spot.id}:`, wkt);
+                    return;
+                }
+
+                const spotLayer = L.geoJSON(geoJsonPoint, {
+                    pointToLayer: (feature, latlng) => L.marker(latlng)
+                }).on('click', () => showDetailModal('spot', spot.id));
+                
                 spotMarkersLayer.addLayer(spotLayer);
-            } catch (e) { console.error(`Ошибка при добавлении спота ${spot.id} на карту.`, e, spot); }
+            } catch (e) {
+                console.error(`Ошибка при добавлении спота ${spot.id} на карту.`, e, spot);
+            }
         }
 
         function startRouteRecording() {
-            if (!lastKnownLocation) { tg.showAlert("Сначала определите свое местоположение."); return; }
+            if (!lastKnownLocation) {
+                tg.showAlert("Сначала определите свое местоположение."); return;
+            }
             isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
             tg.isClosingConfirmationEnabled = true;
             updateMainActionButton();
+            
             currentRunPath = [ [lastKnownLocation[0], lastKnownLocation[1]] ];
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
             currentPathPolyline = L.polyline([], { color: 'var(--button-color)', weight: 5, opacity: 0.9 }).addTo(map);
             currentPathPolyline.addLatLng(lastKnownLocation);
-            if (geoWatchInterval) clearInterval(geoWatchInterval);
-            geoWatchInterval = setInterval(trackUserPosition, 5000);
         }
 
         function stopRouteRecording() {
             isRunning = false;
-            if (geoWatchInterval) { clearInterval(geoWatchInterval); geoWatchInterval = null; }
             tg.HapticFeedback.notificationOccurred('success');
             tg.isClosingConfirmationEnabled = false;
             updateMainActionButton();
+            
             if (currentRunPath.length < 2) {
                 tg.showAlert("Слишком короткий маршрут.");
                 if (currentPathPolyline) map.removeLayer(currentPathPolyline);
                 currentPathPolyline = null;
                 return;
             }
+            
             const pathCoordinates = currentRunPath.map(p => `${p[1]} ${p[0]}`).join(', ');
             const pathWKT = `LINESTRING(${pathCoordinates})`;
             showCreationModal('route', { path: pathWKT });
+
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
 
+        // ** MODIFIED: Использует RPC для вставки **
         async function saveRoute() {
             const { path } = currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
             const description = document.getElementById('creation-modal-details').value.trim();
-            if (!name) { tg.showAlert("Название обязательно."); tg.MainButton.hideProgress(); return; }
-            const { error } = await supabase.rpc('create_route', { name_in: name, description_in: description, path_wkt_in: path });
-            tg.MainButton.hideProgress();
+            
+            if (!name) { tg.showAlert("Название обязательно."); return; }
+
+            const { error } = await supabase.rpc('create_route', {
+                user_id_in: telegramUser.id,
+                name_in: name,
+                description_in: description,
+                path_wkt_in: path // 'path' - это WKT строка
+            });
+
             if (error) {
                 console.error("Ошибка сохранения маршрута:", error); tg.showAlert("Не удалось сохранить маршрут.");
             } else {
                 tg.showAlert("Маршрут сохранен!");
                 hideCreationModal();
-                tg.sendData(JSON.stringify({ type: 'new_route', name: name }));
             }
         }
         
+        /**
+         * [FIXED] Более безопасная функция добавления маршрута на карту.
+         * Проверяет результат парсинга перед созданием слоя.
+         * @param {object} route - Объект маршрута из базы данных.
+         */
         function addRouteToMap(route) {
             try {
-                const geoJsonLine = parseWKT(route.path_wkt || route.path);
-                if (!geoJsonLine || geoJsonLine.type !== 'LineString' || !Array.isArray(geoJsonLine.coordinates) || geoJsonLine.coordinates.length < 2) { console.warn(`Не удалось обработать путь для маршрута ${route.id}:`, route.path_wkt); return; }
-                const routeLayer = L.geoJSON(geoJsonLine, { style: { color: '#ff7800', weight: 3 } }).on('click', () => showDetailModal('route', route.id));
+                const wkt = route.path_wkt || route.path;
+                const geoJsonLine = parseWKT(wkt);
+
+                if (!geoJsonLine || geoJsonLine.type !== 'LineString' || !Array.isArray(geoJsonLine.coordinates) || geoJsonLine.coordinates.length < 2) {
+                    console.warn(`Не удалось обработать путь для маршрута ${route.id}:`, wkt);
+                    return;
+                }
+
+                const routeLayer = L.geoJSON(geoJsonLine, {
+                    style: { color: '#ff7800', weight: 3 }
+                }).on('click', () => showDetailModal('route', route.id));
                 routePolylinesLayer.addLayer(routeLayer);
-            } catch (e) { console.error(`Ошибка при добавлении маршрута ${route.id} на карту.`, e, route); }
+            } catch (e) {
+                console.error(`Ошибка при добавлении маршрута ${route.id} на карту.`, e, route);
+            }
         }
 
+        // --- ЗАГРУЗКА ДАННЫХ ---
         async function loadInitialMapData() {
-            const [{ data: spots, error: spotsError }, { data: routes, error: routesError }] = await Promise.all([
-                supabase.from('spots').select('*, location_wkt:location::text'),
-                supabase.from('routes').select('*, path_wkt:path::text')
-            ]);
-            if (spotsError) { console.error("Ошибка загрузки спотов:", spotsError); } 
-            else { allSpots = spots; spotMarkersLayer.clearLayers(); allSpots.forEach(addSpotToMap); }
-            if (routesError) { console.error("Ошибка загрузки маршрутов:", routesError); } 
-            else { allRoutes = routes; routePolylinesLayer.clearLayers(); allRoutes.forEach(addRouteToMap); }
+            const { data: spots, error: spotsError } = await supabase.from('spots').select('*, location_wkt:location::text');
+            if (spotsError) {
+                console.error("Ошибка загрузки спотов:", spotsError);
+            } else {
+                allSpots = spots;
+                spotMarkersLayer.clearLayers();
+                allSpots.forEach(addSpotToMap);
+            }
+
+            const { data: routes, error: routesError } = await supabase.from('routes').select('*, path_wkt:path::text');
+            if (routesError) {
+                console.error("Ошибка загрузки маршрутов:", routesError);
+            } else {
+                allRoutes = routes;
+                routePolylinesLayer.clearLayers();
+                allRoutes.forEach(addRouteToMap);
+            }
         }
 
+        // --- SUPABASE и ОБРАБОТЧИКИ ---
         function listenToRealtimeChanges() {
             supabase.channel('public-changes')
               .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, fetchAllProfilesAndDraw)
               .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => { renderFeed(); renderMyProfileContent(); })
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, renderFeed)
+              .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, renderFeed)
+              .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, renderFeed)
               .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload) => {
                   if (commentsModal.classList.contains('visible') && currentReplyTarget.type === 'post') {
-                      if ((payload.new?.post_id || payload.old?.post_id) === currentReplyTarget.id) {
+                      const changedPostId = payload.new?.post_id || payload.old?.post_id;
+                      if (changedPostId && changedPostId === currentReplyTarget.id) {
                           showPostComments(currentReplyTarget.id);
                       }
                   }
@@ -1277,141 +1492,200 @@
         function setupStaticEventListeners() {
             tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
             tg.onEvent('backButtonClicked', () => {
-                if (commentsModal.classList.contains('visible')) hideCommentsModal();
-                else if (detailModal.classList.contains('visible')) hideDetailModal();
-                else if (creationModal.classList.contains('visible')) hideCreationModal();
-                else if (simplePostModal.classList.contains('visible')) hideSimplePostModal();
+                if (commentsModal.classList.contains('visible')) {
+                    hideCommentsModal();
+                } else if (detailModal.classList.contains('visible')) {
+                    hideDetailModal();
+                } else if (creationModal.classList.contains('visible')) {
+                    hideCreationModal();
+                } else if (simplePostModal.classList.contains('visible')) {
+                    hideSimplePostModal();
+                }
             });
         }
 
         function setupDynamicEventListeners() {
-            document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
-            document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
-            document.getElementById('recenter-btn').addEventListener('click', () => { tg.HapticFeedback.impactOccurred('medium'); if (lastKnownLocation) map.flyTo(lastKnownLocation, 16); });
-            document.getElementById('scan-qr-btn').addEventListener('click', () => { tg.HapticFeedback.impactOccurred('light'); tg.showScanQrPopup({ text: 'Наведите на QR-код другого игрока' }); });
-            document.getElementById('invite-friend-btn').addEventListener('click', () => { tg.HapticFeedback.impactOccurred('light'); tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(`https://t.me/TerraRunBot/app`)}&text=${encodeURIComponent(`Присоединяйся ко мне в TerraRun!`)}`); });
-            document.getElementById('create-simple-post-btn').addEventListener('click', showSimplePostModal);
-            document.getElementById('simple-post-close-btn').addEventListener('click', hideSimplePostModal);
-            document.getElementById('simple-post-photo-input').addEventListener('change', (e) => { if (e.target.files[0]) document.getElementById('simple-post-filename').textContent = e.target.files[0].name; });
-            document.getElementById('creation-modal-cancel-btn').addEventListener('click', hideCreationModal);
-            document.getElementById('creation-modal-grabber').addEventListener('click', hideCreationModal);
+            document.getElementById('mode-capture').addEventListener('click', () => setMode('capture'));
+            document.getElementById('mode-spots').addEventListener('click', () => setMode('spots'));
+            document.getElementById('mode-routes').addEventListener('click', () => setMode('routes'));
+            
+            document.getElementById('save-edit-btn').addEventListener('click', handleSave);
+            document.getElementById('cancel-edit-btn').addEventListener('click', hideEditModal);
+            
+            document.getElementById('save-creation-btn').addEventListener('click', handleSave);
             document.getElementById('creation-modal-photo-input').addEventListener('change', (e) => {
-                if (e.target.files[0]) {
+                const file = e.target.files[0];
+                if (file) {
                     const preview = document.getElementById('creation-modal-photo-preview');
-                    preview.src = URL.createObjectURL(e.target.files[0]);
+                    preview.src = URL.createObjectURL(file);
                     preview.classList.remove('hidden');
                     document.getElementById('creation-modal-photo-icon').classList.add('hidden');
                 }
             });
-            document.getElementById('comments-modal-grabber').addEventListener('click', hideCommentsModal);
-            document.getElementById('main-comment-send-btn').addEventListener('click', postComment);
-            document.getElementById('cancel-reply-btn').addEventListener('click', cancelReply);
-            document.getElementById('detail-modal-grabber').addEventListener('click', hideDetailModal);
-            document.querySelectorAll('#profile-view .profile-tab').forEach(tab => tab.addEventListener('click', () => switchMainProfileTab(tab.dataset.profileTab)));
+            document.getElementById('simple-post-photo-input').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    document.getElementById('simple-post-filename').textContent = file.name;
+                }
+            });
+
+            // MODIFIED: Listener for new geo button
+            requestGeoBtn.addEventListener('click', handleGeoRequest);
+
+            recenterBtn.addEventListener('click', () => {
+                tg.HapticFeedback.impactOccurred('medium');
+                if (lastKnownLocation) map.flyTo(lastKnownLocation, 16);
+            });
+            
+            scanQrBtn.addEventListener('click', () => {
+                tg.HapticFeedback.impactOccurred('light');
+                tg.showScanQrPopup({ text: 'Наведите на QR-код другого игрока' });
+            });
+
+            inviteFriendBtn.addEventListener('click', () => {
+                tg.HapticFeedback.impactOccurred('light');
+                tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(`https://t.me/TerraRunBot/app`)}&text=${encodeURIComponent(`Присоединяйся ко мне в TerraRun и давай захватывать территории вместе!`)}`);
+            });
+            
+            createSimplePostBtn.addEventListener('click', showSimplePostModal);
+            
+            showQrBtn.addEventListener('click', () => { /* TODO: Implement */ });
+            donateBtn.addEventListener('click', () => { /* TODO: Implement */ });
+
             document.body.addEventListener('click', (event) => {
-                const button = event.target.closest('[data-action]');
+                const button = event.target.closest('button[data-action], div[data-action]');
                 if (!button) return;
-                const { action, id, type, postId, profileTab, parentCommentId, parentAuthorName } = button.dataset;
-                switch(action) {
-                    case 'like': toggleLike(button, postId); break;
-                    case 'comment': case 'show-post-comments': showPostComments(postId); break;
-                    case 'show-detail': showDetailModal(type, Number(id)); break;
-                    case 'navigate-map': navigateToMapObject(type, Number(id)); break;
-                    case 'switch-profile-tab': switchProfileTab(profileTab); break;
-                    case 'post-detail-comment': postDetailComment(); break;
-                    case 'cancel-detail-reply': cancelDetailReply(); break;
-                    case 'set-detail-reply': setDetailReplyMode(id, parentCommentId, parentAuthorName); break;
-                    case 'set-reply': setReplyMode(postId, parentCommentId, parentAuthorName); break;
-                    case 'share': shareObject(type, id); break;
+
+                const action = button.dataset.action;
+                const id = button.dataset.id || button.dataset.postId;
+
+                if (!action || !id) return;
+
+                if (action === 'like') {
+                    toggleLike(button, id);
+                } else if (action === 'comment' || action === 'show-post-comments') {
+                    showPostComments(id);
                 }
             });
         }
         
-        function showFallbackScreen(options) {
-            const { title, message, button } = options;
+        function showFallbackScreen(title, message, showRetryButton = false) {
             fallbackContent.innerHTML = `
-                <h1 class="text-2xl font-bold mb-4">${title}</h1>
+                <h1 class="text-2xl font-bold mb-4 ${showRetryButton ? 'text-red-500' : ''}">${title}</h1>
                 <p class="mb-6" style="color: var(--hint-color);">${message}</p>
-                ${button ? `<button id="fallback-action-btn" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">${button.text}</button>` : ''}
+                ${showRetryButton ? `<button onclick="window.location.reload()" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Попробовать снова</button>` : ''}
             `;
-            if (button) {
-                document.getElementById('fallback-action-btn').addEventListener('click', () => {
-                    if (button.action === 'reloadPage') window.location.reload();
-                    if (button.action === 'requestPermissionAndReload') requestPermissionAndReload();
-                });
-            }
             initialLoader.classList.add('hidden');
             fallbackScreen.classList.remove('hidden');
         }
 
         function applyTheme(themeParams) {
-              document.documentElement.style.setProperty('--bg-color', themeParams.bg_color || '#f3f4f6');
-              document.documentElement.style.setProperty('--secondary-bg-color', themeParams.secondary_bg_color || '#ffffff');
-              document.documentElement.style.setProperty('--text-color', themeParams.text_color || '#1f2937');
-              document.documentElement.style.setProperty('--hint-color', themeParams.hint_color || '#6b7280');
-              document.documentElement.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
-              document.documentElement.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
-              tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
-              tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
+             document.documentElement.style.setProperty('--bg-color', themeParams.bg_color || '#f3f4f6');
+             document.documentElement.style.setProperty('--secondary-bg-color', themeParams.secondary_bg_color || '#ffffff');
+             document.documentElement.style.setProperty('--text-color', themeParams.text_color || '#1f2937');
+             document.documentElement.style.setProperty('--hint-color', themeParams.hint_color || '#6b7280');
+             document.documentElement.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
+             document.documentElement.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
+             tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
+             tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
         }
 
-        function telegramRequestLocation() {
+        function requestAndWatchGeo() {
+            loaderText.textContent = 'Определение местоположения...';
             return new Promise((resolve, reject) => {
-                if (typeof tg.requestGeoLocation !== 'function') { return reject(new Error('tg.requestGeoLocation is not a function')); }
-                tg.requestGeoLocation((location) => { location ? resolve({ coords: location }) : reject(new Error('GEOLOCATION_DENIED')); });
-            });
-        }
-
-        async function trackUserPosition() {
-            try {
-                const position = await telegramRequestLocation();
-                const { latitude, longitude } = position.coords;
-                lastKnownLocation = [latitude, longitude];
-                updateCurrentUserMarker(lastKnownLocation);
-                if (isRunning && currentPathPolyline) {
-                    const newPoint = (currentMode === 'capture') ? [longitude, latitude] : [latitude, longitude];
-                    currentRunPath.push(newPoint);
-                    currentPathPolyline.addLatLng([latitude, longitude]);
+                if (!navigator.geolocation) {
+                    return reject(new Error("Геолокация не поддерживается вашим устройством."));
                 }
-            } catch (error) {
-                console.error("Ошибка отслеживания геолокации:", error);
-                if (isRunning) { tg.showAlert("Потерян доступ к геолокации. Пробежка остановлена."); processStop(); }
-            }
-        }
+                navigator.geolocation.getCurrentPosition(
+                    (initialPosition) => {
+                        const { latitude, longitude } = initialPosition.coords;
+                        lastKnownLocation = [latitude, longitude];
+                        
+                        if (geoWatchId) {
+                            navigator.geolocation.clearWatch(geoWatchId);
+                        }
 
-        async function requestInitialGeo() {
-            loaderText.textContent = 'Запрос доступа к местоположению...';
-            const initialPosition = await telegramRequestLocation();
-            lastKnownLocation = [initialPosition.coords.latitude, initialPosition.coords.longitude];
-            return initialPosition;
-        }
+                        geoWatchId = navigator.geolocation.watchPosition(
+                            (position) => {
+                                const { latitude, longitude } = position.coords;
+                                lastKnownLocation = [latitude, longitude];
+                                updateCurrentUserMarker(lastKnownLocation);
 
-        function requestPermissionAndReload() {
-            tg.requestGeoLocation((location) => { if (location) window.location.reload(); });
+                                if (isRunning && currentPathPolyline) {
+                                    const newPoint = (currentMode === 'capture') 
+                                        ? [longitude, latitude]
+                                        : [latitude, longitude];
+                                    currentRunPath.push(newPoint);
+                                    currentPathPolyline.addLatLng([latitude, longitude]);
+                                }
+                            },
+                            (err) => {
+                                console.error("Ошибка отслеживания геолокации:", err);
+                                tg.showAlert("Потерян доступ к геолокации.");
+                            },
+                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                        );
+                        resolve(initialPosition);
+                    },
+                    (err) => { reject(err); },
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                );
+            });
         }
         
         async function upsertUserProfile() {
-            if (!telegramUser) throw new Error("Пользователь Telegram не определен.");
+            if (!telegramUser) throw new Error("Пользователь Telegram не определен для upsertUserProfile.");
+
             const { data, error } = await supabase.from('profiles').select('*').eq('id', telegramUser.id).single();
-            if (error && error.code !== 'PGRST116') { console.error("Ошибка получения профиля:", error); throw error; } 
-            if (data) { userColor = data.color; userTerritory = data.territory; } 
-            else {
+            
+            if (error && error.code !== 'PGRST116') {
+                console.error("Ошибка получения профиля:", error); 
+                throw error; 
+            } 
+            
+            if (data) {
+                userColor = data.color;
+                userTerritory = parseWKT(data.territory_wkt) || parseWKT(data.territory) || data.territory;
+            } else {
                 userColor = generateColorFromId(telegramUser.id);
-                const { error: insertError } = await supabase.from('profiles').insert({ id: telegramUser.id, name: telegramUser.first_name, color: userColor, area: 0, photo_url: telegramUser.photo_url || null, territory: null });
-                if (insertError) { console.error("Ошибка создания профиля:", insertError); throw insertError; }
+                const { error: insertError } = await supabase.from('profiles').insert({ 
+                    id: telegramUser.id, 
+                    name: telegramUser.first_name, 
+                    color: userColor, 
+                    area: 0, 
+                    photo_url: telegramUser.photo_url || null, 
+                    territory: null 
+                });
+                if (insertError) { 
+                    console.error("Ошибка создания профиля:", insertError); 
+                    throw insertError; 
+                }
             }
         }
         
         async function processRunPath() {
             const startPoint = currentRunPath[0];
             const endPoint = currentRunPath[currentRunPath.length - 1];
-            if (turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' }) > 50) {
-                tg.showAlert('Маршрут не замкнут. Вернитесь к точке старта (в радиус 50м) для захвата.'); return;
+            const distance = turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' });
+            if (distance > 50) {
+                tg.showAlert('Маршрут не замкнут. Вернитесь к точке старта (в радиус 50м) для захвата.');
+                return;
             }
             currentRunPath.push(startPoint);
-            const polygonized = turf.polygonize(turf.lineString(currentRunPath));
-            if (polygonized.features.length === 0) { tg.showAlert('Не удалось сформировать замкнутую территорию. Вероятно, маршрут пересекал сам себя.'); return; }
-            let newCapture = polygonized.features.length > 1 ? turf.union(...polygonized.features) : polygonized.features[0];
+            const line = turf.lineString(currentRunPath);
+            const polygonized = turf.polygonize(line);
+            if (polygonized.features.length === 0) {
+                tg.showAlert('Не удалось сформировать замкнутую территорию. Вероятно, маршрут пересекал сам себя.');
+                return;
+            }
+            let newCapture = polygonized.features[0];
+            if (polygonized.features.length > 1) {
+                try {
+                    newCapture = turf.union(...polygonized.features);
+                } catch (e) {
+                    console.error("Turf union error:", e);
+                }
+            }
             updateTerritory(newCapture);
         }
 
@@ -1419,39 +1693,94 @@
             try {
                 let combinedTerritory = userTerritory ? turf.union(userTerritory, newCapture) : newCapture;
                 userTerritory = turf.cleanCoords(combinedTerritory);
+                
                 await saveUserData();
                 refreshAllStats();
                 tg.HapticFeedback.notificationOccurred('success');
-                tg.showConfirm("Территория захвачена! Создать пост об этом?", (ok) => { if (ok) showSimplePostModal(); });
-            } catch (error) { console.error("Ошибка в updateTerritory:", error); tg.showAlert("Ошибка обработки территории."); }
+                showEditModal('post', { captureData: newCapture });
+            } catch (error) {
+                console.error("Ошибка в updateTerritory:", error);
+                tg.showAlert("Ошибка обработки территории.");
+            }
         }
 
         async function saveUserData() {
             let area = userTerritory ? turf.area(userTerritory) : 0;
-            const { error } = await supabase.from('profiles').upsert({ id: telegramUser.id, name: telegramUser.first_name, photo_url: telegramUser.photo_url || null, color: userColor, territory: userTerritory, area: area, updated_at: new Date().toISOString() });
+            const userData = { id: telegramUser.id, name: telegramUser.first_name, photo_url: telegramUser.photo_url || null, color: userColor, territory: userTerritory, area: area, updated_at: new Date().toISOString() };
+            const { error } = await supabase.from('profiles').upsert(userData);
             if (error) console.error('Error saving user data:', error);
+        }
+
+        async function handlePostSubmission() {
+            const { captureData } = currentEditContext;
+            const title = document.getElementById('edit-modal-name').value.trim();
+            
+            if (!title) { tg.showAlert("Пожалуйста, введите название."); return; }
+
+            let photoUrl = null;
+            const file = document.getElementById('edit-modal-photo-input').files[0];
+            if (file) {
+                const filePath = `${telegramUser.id}/${Date.now()}_${file.name}`;
+                const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
+                if (error) { console.error("Error uploading photo:", error); tg.showAlert("Не удалось загрузить фото."); return; }
+                photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
+            }
+
+            const postData = {
+                user_id: telegramUser.id,
+                title: title,
+                description: null,
+                photo_url: photoUrl,
+                territory_captured: captureData,
+                area_captured: turf.area(captureData),
+                user_name: telegramUser.first_name,
+                user_avatar_url: telegramUser.photo_url,
+                user_color: userColor
+            };
+
+            const { error: postError } = await supabase.from('posts').insert(postData);
+            
+            if (postError) {
+                console.error("Error saving post:", postError); tg.showAlert("Не удалось сохранить пост.");
+            } else {
+                tg.showAlert("Пост успешно опубликован!");
+                hideEditModal();
+            }
         }
         
         async function handleSimplePostSave() {
-            tg.MainButton.showProgress();
             const description = document.getElementById('simple-post-details').value.trim();
-            if (!description) { tg.showAlert("Пожалуйста, введите текст поста."); tg.MainButton.hideProgress(); return; }
+            if (!description) {
+                tg.showAlert("Пожалуйста, введите текст поста.");
+                return;
+            }
+
             let photoUrl = null;
             const file = document.getElementById('simple-post-photo-input').files[0];
             if (file) {
                 const filePath = `${telegramUser.id}/posts/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                if (error) { console.error("Error uploading photo:", error); tg.showAlert("Не удалось загрузить фото."); tg.MainButton.hideProgress(); return; }
+                if (error) { console.error("Error uploading photo:", error); tg.showAlert("Не удалось загрузить фото."); return; }
                 photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
             }
-            const postData = { user_id: telegramUser.id, title: description.substring(0, 50) + (description.length > 50 ? '...' : ''), description: description, photo_url: photoUrl, user_name: telegramUser.first_name, user_avatar_url: telegramUser.photo_url, user_color: userColor };
+
+            const postData = {
+                user_id: telegramUser.id,
+                title: description.substring(0, 50) + (description.length > 50 ? '...' : ''),
+                description: description,
+                photo_url: photoUrl,
+                user_name: telegramUser.first_name,
+                user_avatar_url: telegramUser.photo_url,
+                user_color: userColor
+            };
+
             const { error: postError } = await supabase.from('posts').insert(postData);
-            tg.MainButton.hideProgress();
-            if (postError) { console.error("Error saving post:", postError); tg.showAlert("Не удалось сохранить пост."); } 
-            else {
+            
+            if (postError) {
+                console.error("Error saving post:", postError); tg.showAlert("Не удалось сохранить пост.");
+            } else {
                 tg.showAlert("Пост успешно опубликован!");
                 hideSimplePostModal();
-                tg.sendData(JSON.stringify({ type: 'new_post', title: postData.title, area: null }));
             }
         }
 
@@ -1460,20 +1789,23 @@
             let { data: profiles, error } = await supabase.from('profiles').select('*, territory_wkt:territory::text');
             if (error) { console.error("Error fetching profiles:", error); return; }
             allProfilesData = profiles;
+            
             territoriesLayerGroup.clearLayers();
             allUserLayers = {};
+
             profiles.forEach(profile => {
                 if (telegramUser && profile.id === telegramUser.id) {
                     userTerritory = parseWKT(profile.territory_wkt) || profile.territory;
                     userColor = profile.color;
                     refreshAllStats();
                 }
-                const territoryGeoJson = parseWKT(profile.territory_wkt);
+                const userLayerGroup = L.layerGroup();
+                const territoryGeoJson = parseWKT(profile.territory_wkt || profile.territory);
                 if (territoryGeoJson) {
-                    const userLayerGroup = L.geoJSON(territoryGeoJson, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } });
-                    territoriesLayerGroup.addLayer(userLayerGroup);
-                    allUserLayers[profile.id] = userLayerGroup;
+                    L.geoJSON(territoryGeoJson, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } }).addTo(userLayerGroup);
                 }
+                userLayerGroup.addTo(territoriesLayerGroup);
+                allUserLayers[profile.id] = userLayerGroup;
             });
             updateLeaderboard(profiles);
         }
@@ -1487,40 +1819,55 @@
                 const avatar = u.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${name.charAt(0)}`;
                 const area = u.area || 0;
                 const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
-                return `<li class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" data-action="show-detail" data-type="user" data-id="${u.id}">
+                return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showDetailModal('user', ${u.id})">
                             <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
                             <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
                             <div class="flex-grow">
                                 <p class="font-bold">${displayName}</p>
                                 <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
                             </div>
-                        </li>`
+                        </div>`
             }).join('');
         }
 
         function refreshAllStats() {
             let area = 0;
-            if (userTerritory) { try { area = turf.area(userTerritory); } catch(e) { console.warn("Could not calculate area", e); area = 0; } }
+            if (userTerritory) {
+                try {
+                    area = turf.area(userTerritory);
+                } catch(e) {
+                    console.warn("Could not calculate area for user territory", e);
+                    area = 0;
+                }
+            }
             if (isNaN(area)) area = 0;
-            profileAreaDisplay.textContent = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
+            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
+            profileAreaDisplay.textContent = formattedArea;
         }
 
         async function renderFeed() {
             const { data: posts, error: postsError } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
             if (postsError) { console.error("Error fetching posts:", postsError); return; }
-            if (posts.length === 0) { feedContainer.innerHTML = '<p class="text-center text-gray-500">В ленте пока нет постов.</p>'; return; }
             const postIds = posts.map(p => p.id);
-            const { data: likes } = await supabase.from('likes').select('*').in('post_id', postIds);
-            const { data: comments } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
-            const likesByPost = (likes || []).reduce((acc, like) => { (acc[like.post_id] = acc[like.post_id] || []).push(like); return acc; }, {});
-            const commentsByPost = (comments || []).reduce((acc, comment) => { (acc[comment.post_id] = acc[comment.post_id] || []).push(comment); return acc; }, {});
-            feedContainer.innerHTML = posts.map(post => generatePostHTML(post, likesByPost[post.id] || [], commentsByPost[post.id] || [])).join('');
+            if (postIds.length === 0) {
+                feedContainer.innerHTML = '<p class="text-center text-gray-500">В ленте пока нет постов.</p>';
+                return;
+            }
+            const { data: likes, error: likesError } = await supabase.from('likes').select('*').in('post_id', postIds);
+            const { data: comments, error: commentsError } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
+            if (likesError || commentsError) { console.error("Error fetching activity:", likesError, commentsError); return; }
+            const likesByPost = likes.reduce((acc, like) => { (acc[like.post_id] = acc[like.post_id] || []).push(like); return acc; }, {});
+            const commentsByPost = comments.reduce((acc, comment) => { (acc[comment.post_id] = acc[comment.post_id] || []).push(comment); return acc; }, {});
+            
+            const feedHTML = posts.map(post => generatePostHTML(post, likesByPost[post.id] || [], commentsByPost[post.id] || [])).join('');
+            feedContainer.innerHTML = feedHTML || '<p class="text-center text-gray-500">В ленте пока нет постов.</p>';
+            
             posts.forEach(post => {
                 if (post.territory_captured) {
                     const mapContainer = document.getElementById(`mini-map-${post.id}`);
                     if (mapContainer && !mapContainer._leaflet_id) {
                         const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
-                        L.tileLayer(MAP_TILE_URL_TEMPLATE, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
+                        L.tileLayer(MAP_TILE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
                         const territoryLayer = L.geoJSON(post.territory_captured, { style: { color: post.user_color, weight: 2, opacity: 0.8, fillColor: post.user_color, fillOpacity: 0.5 } }).addTo(miniMap);
                         miniMap.fitBounds(territoryLayer.getBounds(), { padding: [10, 10] });
                     }
@@ -1533,9 +1880,9 @@
             const area = post.area_captured || 0;
             const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
             const userHasLiked = telegramUser && likes.some(like => like.user_id === telegramUser.id);
-            return `<article class="card-bg rounded-2xl shadow-lg overflow-hidden" id="post-${post.id}">
+            return `<div class="card-bg rounded-2xl shadow-lg overflow-hidden" id="post-${post.id}">
                         <div class="p-4">
-                            <div class="flex items-center space-x-3 cursor-pointer" data-action="show-detail" data-type="user" data-id="${post.user_id}"><img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar"><div><p class="font-bold">${post.user_name}</p><p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p></div></div>
+                            <div class="flex items-center space-x-3 cursor-pointer" onclick="showDetailModal('user', ${post.user_id})"><img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar"><div><p class="font-bold">${post.user_name}</p><p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p></div></div>
                             <p class="mt-4 font-semibold">${post.title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
                             ${post.description ? `<p class="mt-2 text-sm" style="color: var(--text-color);">${post.description.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>` : ''}
                         </div>
@@ -1554,46 +1901,48 @@
                                 </button>
                             </div>
                         </div>
-                    </article>`;
+                    </div>`;
         }
 
         async function toggleLike(buttonElement, postId) {
-            if (!telegramUser) { tg.showAlert('Пользователь не определен.'); return; }
+            if (!telegramUser) {
+                tg.showAlert('Пользователь не определен. Попробуйте перезагрузить приложение.');
+                return;
+            }
             tg.HapticFeedback.impactOccurred('light');
+            
             const hasLiked = buttonElement.classList.contains('liked');
             const countSpan = buttonElement.querySelector('[data-likes-count]');
             let currentCount = parseInt(countSpan.textContent, 10);
+
             buttonElement.classList.toggle('liked');
             countSpan.textContent = hasLiked ? currentCount - 1 : currentCount + 1;
+
             try {
-                if (hasLiked) { await supabase.from('likes').delete().match({ post_id: postId, user_id: telegramUser.id }); } 
-                else { await supabase.from('likes').insert({ post_id: postId, user_id: telegramUser.id }); }
+                if (hasLiked) {
+                    await supabase.from('likes').delete().match({ post_id: postId, user_id: telegramUser.id });
+                } else {
+                    await supabase.from('likes').insert({ post_id: postId, user_id: telegramUser.id });
+                }
             } catch (error) {
                 console.error("Ошибка лайка:", error);
                 buttonElement.classList.toggle('liked');
                 countSpan.textContent = currentCount;
-                tg.showAlert('Не удалось поставить лайк.');
+                tg.showAlert('Не удалось поставить лайк. Попробуйте снова.');
             }
         }
         
-        // --- СИСТЕМА КОММЕНТАРИЕВ И "ПОДЕЛИТЬСЯ" ---
-
-        /**
-         * NEW: Поделиться спотом или маршрутом через inline-режим бота.
-         * @param {string} type - 'spot' или 'route'.
-         * @param {number} id - ID объекта.
-         */
-        function shareObject(type, id) {
-            if (!type || !id) return;
-            const query = `${type}_${id}`;
-            tg.switchInlineQuery(query, []);
-        }
+        // --- СИСТЕМА КОММЕНТАРИЕВ ---
 
         async function fetchComments(type, id) {
             let query = supabase.from('comments').select('*, profiles(id, name, photo_url)');
-            if (type === 'post') query = query.eq('post_id', id);
-            else if (type === 'spot') query = query.eq('spot_id', id);
-            else if (type === 'route') query = query.eq('route_id', id);
+            if (type === 'post') {
+                query = query.eq('post_id', id);
+            } else if (type === 'spot') {
+                query = query.eq('spot_id', id);
+            } else if (type === 'route') {
+                query = query.eq('route_id', id);
+            }
             const { data, error } = await query.order('created_at', { ascending: true });
             return { data, error };
         }
@@ -1601,23 +1950,28 @@
         async function showPostComments(postId) {
             tg.HapticFeedback.impactOccurred('medium');
             tg.BackButton.show();
-            currentReplyTarget = { type: 'post', id: Number(postId), parentCommentId: null };
+            currentReplyTarget = { type: 'post', id: postId, parentCommentId: null };
             cancelReply();
+            
             const modalBody = document.getElementById('comments-modal-body');
             modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>';
             commentsModal.classList.add('visible');
+            
             const { data: comments, error } = await fetchComments('post', postId);
             if (error) { modalBody.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
+
             renderCommentTree(comments, modalBody);
         }
 
         async function loadAndRenderComments(type, id, containerId) {
-              const container = document.getElementById(containerId);
-              if (!container) return;
-              container.innerHTML = '<p class="text-center text-gray-500">Загрузка...</p>';
-              const { data: comments, error } = await fetchComments(type, id);
-              if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка</p>`; return; }
-              renderCommentTree(comments, container, 'detail');
+             const container = document.getElementById(containerId);
+             if (!container) return;
+             container.innerHTML = '<p class="text-center text-gray-500">Загрузка комментариев...</p>';
+             
+             const { data: comments, error } = await fetchComments(type, id);
+             if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
+
+             renderCommentTree(comments, container, 'detail');
         }
 
         function renderCommentTree(comments, container, context = 'post') {
@@ -1634,9 +1988,10 @@
         function generateCommentHTML(comment, commentsByParent, context = 'post') {
             const replies = commentsByParent[comment.id] || [];
             const profileName = comment.profiles ? comment.profiles.name : 'Аноним';
-            const avatar = comment.profiles?.photo_url || `https://placehold.co/32x32/E5E7EB/4B5563?text=${profileName.charAt(0)}`;
-            const replyAction = context === 'post' ? 'set-reply' : 'set-detail-reply';
+            const avatar = comment.profiles ? (comment.profiles.photo_url || `https://placehold.co/32x32/E5E7EB/4B5563?text=${profileName.charAt(0)}`) : 'https://placehold.co/32x32';
+            const replyFn = context === 'post' ? 'setReplyMode' : 'setDetailReplyMode';
             const parentId = comment.post_id || comment.spot_id || comment.route_id;
+
             return `<div class="flex items-start space-x-3 mt-4">
                         <img src="${avatar}" class="w-8 h-8 rounded-full">
                         <div class="flex-1">
@@ -1645,7 +2000,7 @@
                                 <p class="text-sm">${comment.content}</p>
                             </div>
                             <div class="text-xs mt-1">
-                                <button data-action="${replyAction}" data-post-id="${parentId}" data-parent-comment-id="${comment.id}" data-parent-author-name="${profileName.replace(/'/g, "\\'")}" class="font-medium" style="color: var(--hint-color);">Ответить</button>
+                                <button onclick="${replyFn}('${parentId}', ${comment.id}, '${profileName.replace(/'/g, "\\'")}')" class="font-medium" style="color: var(--hint-color);">Ответить</button>
                             </div>
                             <div class="pl-4 border-l-2">${replies.map(reply => generateCommentHTML(reply, commentsByParent, context)).join('')}</div>
                         </div>
@@ -1653,7 +2008,7 @@
         }
         
         function setReplyMode(postId, parentCommentId, parentAuthorName) {
-            currentReplyTarget = { type: 'post', id: Number(postId), parentCommentId: Number(parentCommentId) };
+            currentReplyTarget = { type: 'post', id: postId, parentCommentId };
             document.getElementById('reply-indicator-text').textContent = `Ответ: ${parentAuthorName}`;
             document.getElementById('reply-indicator').classList.remove('hidden');
             document.getElementById('main-comment-input').focus();
@@ -1665,17 +2020,24 @@
         }
 
         async function postComment() {
-            const { id, parentCommentId } = currentReplyTarget;
+            const { type, id, parentCommentId } = currentReplyTarget;
             if (!id || !telegramUser) return;
             const inputElement = document.getElementById('main-comment-input');
             const content = inputElement.value.trim();
             if (!content) return;
-            const { error } = await supabase.from('comments').insert({ post_id: id, user_id: telegramUser.id, parent_comment_id: parentCommentId, content: content });
+            
+            const commentData = { 
+                post_id: id,
+                user_id: telegramUser.id, 
+                parent_comment_id: parentCommentId, 
+                content: content 
+            };
+            const { error } = await supabase.from('comments').insert(commentData);
             if (error) { tg.showAlert('Ошибка отправки'); } else { inputElement.value = ''; cancelReply(); }
         }
 
         function setDetailReplyMode(id, parentCommentId, parentAuthorName) {
-            currentDetailContext.replyTo = { parentCommentId: Number(parentCommentId) };
+            currentDetailContext.replyTo = { parentCommentId };
             document.getElementById('detail-reply-indicator-text').textContent = `Ответ: ${parentAuthorName}`;
             document.getElementById('detail-reply-indicator').classList.remove('hidden');
             document.getElementById('detail-comment-input').focus();
@@ -1692,12 +2054,30 @@
             const inputElement = document.getElementById('detail-comment-input');
             const content = inputElement.value.trim();
             if (!content) return;
-            const commentData = { user_id: telegramUser.id, parent_comment_id: replyTo ? replyTo.parentCommentId : null, content: content };
-            if (type === 'spot') commentData.spot_id = id;
-            else if (type === 'route') commentData.route_id = id;
+
+            const parentCommentId = replyTo ? replyTo.parentCommentId : null;
+
+            const commentData = {
+                user_id: telegramUser.id,
+                parent_comment_id: parentCommentId,
+                content: content
+            };
+            if (type === 'spot') {
+                commentData.spot_id = id;
+            } else if (type === 'route') {
+                commentData.route_id = id;
+            }
+
             const { error } = await supabase.from('comments').insert(commentData);
-            if (error) { tg.showAlert('Ошибка отправки комментария.'); console.error("Comment post error:", error); } 
-            else { inputElement.value = ''; cancelDetailReply(); loadAndRenderComments(type, id, 'detail-comments-list'); }
+
+            if (error) { 
+                tg.showAlert('Ошибка отправки комментария.'); 
+                console.error("Comment post error:", error);
+            } else { 
+                inputElement.value = ''; 
+                cancelDetailReply();
+                loadAndRenderComments(type, id, 'detail-comments-list');
+            }
         }
 
 
@@ -1711,11 +2091,13 @@
         async function renderMyProfileContent() {
             if (!telegramUser) return;
             const userId = telegramUser.id;
+
             const [postsRes, spotsRes, routesRes] = await Promise.all([
                 supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
                 supabase.from('spots').select('*, location_wkt:location::text').eq('user_id', userId).order('created_at', { ascending: false }),
                 supabase.from('routes').select('*, path_wkt:path::text').eq('user_id', userId).order('created_at', { ascending: false })
             ]);
+
             const posts = postsRes.data || [];
             const postIds = posts.map(p => p.id);
             const likesByPost = {};
@@ -1729,16 +2111,40 @@
             const postsContainer = document.getElementById('profile-content-posts');
             postsContainer.innerHTML = posts.length > 0 ? posts.map(p => generatePostHTML(p, likesByPost[p.id] || [], commentsByPost[p.id] || [])).join('') : '<p class="text-center text-gray-500 py-4">У вас нет постов.</p>';
             document.getElementById('profile-tab-posts').textContent = `Посты (${posts.length})`;
+
             const spots = spotsRes.data || [];
             const spotsContainer = document.getElementById('profile-content-spots');
             spotsContainer.innerHTML = spots.length > 0 ? spots.map(generateMiniSpotHTML).join('') : '<p class="text-center text-gray-500 py-4">У вас нет спотов.</p>';
             document.getElementById('profile-tab-spots').textContent = `Споты (${spots.length})`;
+
             const routes = routesRes.data || [];
             const routesContainer = document.getElementById('profile-content-routes');
             routesContainer.innerHTML = routes.length > 0 ? routes.map(generateMiniRouteHTML).join('') : '<p class="text-center text-gray-500 py-4">У вас нет маршрутов.</p>';
             document.getElementById('profile-tab-routes').textContent = `Маршруты (${routes.length})`;
         }
 
+
+        // --- ПРИВЯЗКА ГЛОБАЛЬНЫХ ФУНКЦИЙ И ЗАПУСК ---
+        window.showView = showView;
+        window.hideEditModal = hideEditModal;
+        window.hideDetailModal = hideDetailModal;
+        window.toggleLike = toggleLike;
+        window.showPostComments = showPostComments;
+        window.hideCommentsModal = hideCommentsModal;
+        window.setReplyMode = setReplyMode;
+        window.cancelReply = cancelReply;
+        window.postComment = postComment;
+        window.showDetailModal = showDetailModal;
+        window.switchProfileTab = switchProfileTab;
+        window.switchMainProfileTab = switchMainProfileTab;
+        window.navigateToMapObject = navigateToMapObject;
+        window.hideSimplePostModal = hideSimplePostModal;
+        window.handleSimplePostSave = handleSimplePostSave;
+        window.hideCreationModal = hideCreationModal;
+        window.postDetailComment = postDetailComment;
+        window.setDetailReplyMode = setDetailReplyMode;
+        window.cancelDetailReply = cancelDetailReply;
+        
         document.addEventListener('DOMContentLoaded', main);
     </script>
 
