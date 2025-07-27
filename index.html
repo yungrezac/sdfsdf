@@ -998,7 +998,6 @@
             event.target.value = '';
         }
         
-        // FIX: Added function to generate user profile HTML
         async function generateUserProfileDetailHTML(profile, posts, spots, routes, events, likesByPost, commentsByPost) {
             const profileName = escapeHTML(profile.name);
             const avatar = profile.photo_url || `https://placehold.co/96x96/E2E8F0/4A5568?text=${profileName.charAt(0)}`;
@@ -1091,7 +1090,6 @@
                 setTimeout(() => renderMiniMapForEvent(event), 100);
                 loadAndRenderComments('event', id, 'event-comments-list');
             } else if (type === 'user') {
-                // FIX: Correctly load user profile data
                 const [profileRes, postsRes, spotsRes, routesRes, eventsRes] = await Promise.all([
                     supabase.from('profiles').select('*').eq('id', id).single(),
                     supabase.from('posts').select('*').eq('user_id', id).order('created_at', { ascending: false }),
@@ -1633,6 +1631,31 @@
                 routeCollection.add(routePolyline);
             } catch (e) {
                 console.error(`Ошибка при добавлении маршрута ${route.id} на карту.`, e, route);
+            }
+        }
+
+        // FIX: Added the missing addEventToMap function
+        function addEventToMap(event) {
+            try {
+                const wkt = event.meeting_point_wkt || event.meeting_point;
+                const geoJsonPoint = parseWKT(wkt);
+
+                if (!geoJsonPoint || geoJsonPoint.type !== 'Point') {
+                    console.warn(`Не удалось обработать геолокацию мероприятия ${event.id}:`, wkt);
+                    return;
+                }
+                
+                const coords = [geoJsonPoint.coordinates[1], geoJsonPoint.coordinates[0]]; // lat, long
+                const eventPlacemark = new ymaps.Placemark(coords, {
+                    hintContent: escapeHTML(event.title)
+                }, {
+                    preset: 'islands#greenDotIcon' // A distinct icon for events
+                });
+                eventPlacemark.events.add('click', () => showDetailModal('event', event.id));
+                
+                eventCollection.add(eventPlacemark);
+            } catch (e) {
+                console.error(`Ошибка при добавлении мероприятия ${event.id} на карту.`, e, event);
             }
         }
         
