@@ -50,8 +50,7 @@
         body {
             padding-top: constant(safe-area-inset-top);
             padding-top: env(safe-area-inset-top);
-            padding-bottom: constant(safe-area-inset-bottom);
-            padding-bottom: env(safe-area-inset-bottom);
+            /* Нижний отступ убран отсюда и будет управляться для каждого view отдельно */
         }
 
         body {
@@ -61,25 +60,38 @@
             transition: background-color 0.3s, color 0.3s;
             font-family: 'Inter', sans-serif;
         }
-        #map, .mini-map, #detail-mini-map {
+        .mini-map, #detail-mini-map { /* Убрал #map из этого правила */
             z-index: 10;
             background-color: var(--bg-color);
         }
+        
+        /* --- ИЗМЕНЕНО --- Карта теперь на весь экран */
         #map {
-            position: absolute;
+            position: fixed; /* Изменено на fixed, чтобы покрывать весь экран */
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 80px; /* Высота навбара */
+            width: 100%;
+            height: 100%;
+            z-index: 1; /* Низкий z-index, чтобы быть под элементами UI */
         }
+        
+        /* --- ИЗМЕНЕНО --- View теперь занимают всю высоту */
         .view {
             display: none;
-            height: calc(100vh - 80px - env(safe-area-inset-bottom));
+            height: 100vh; /* Все view теперь занимают 100% высоты */
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             transition: opacity 0.3s ease-in-out;
             background-color: var(--bg-color);
+            box-sizing: border-box; /* Важно для корректного расчета высоты с padding */
         }
+        
+        /* --- ДОБАВЛЕНО --- Отступ для контента, чтобы не перекрываться навбаром */
+        #feed-view, #top-view, #profile-view {
+            /* p-4 уже дает 1rem, добавляем высоту навбара */
+            padding-bottom: calc(80px + 1rem + env(safe-area-inset-bottom));
+        }
+
         .view.active {
             display: block;
         }
@@ -176,6 +188,20 @@
             background-color: var(--button-color);
             color: var(--button-text-color);
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        
+        /* --- ДОБАВЛЕНО --- Позиционирование кнопки действия на карте */
+        #map-action-container {
+            position: fixed;
+            left: 0;
+            right: 0;
+            z-index: 20;
+            display: flex;
+            justify-content: center;
+            pointer-events: none;
+            /* Позиционируем над навбаром с отступом */
+            bottom: calc(80px + 1rem + env(safe-area-inset-bottom));
+            transition: bottom 0.3s ease-in-out;
         }
         
         /* Стили для модальных окон */
@@ -339,7 +365,8 @@
             </div>
             
             <!-- Основная кнопка действия на карте -->
-            <div id="map-action-container" class="hidden fixed bottom-[100px] left-0 right-0 z-20 flex justify-center pointer-events-none">
+            <!-- --- ИЗМЕНЕНО --- Удален класс bottom-[100px], позиция управляется через CSS -->
+            <div id="map-action-container" class="hidden">
                 <button id="map-action-btn" class="text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 flex items-center gap-2 pointer-events-auto">
                     <i id="map-action-icon" class="fa-solid fa-play h-5 w-5"></i>
                     <span id="map-action-text"></span>
@@ -1769,16 +1796,16 @@
              
              const buttonColorRgb = hexToRgb(themeParams.button_color || '#3b82f6');
              if (buttonColorRgb) {
-                root.style.setProperty('--button-color-rgb', buttonColorRgb.join(', '));
+                 root.style.setProperty('--button-color-rgb', buttonColorRgb.join(', '));
              }
              const secondaryBgRgb = hexToRgb(themeParams.secondary_bg_color || '#ffffff');
              if (secondaryBgRgb) {
-                root.style.setProperty('--secondary-bg-color-rgb', secondaryBgRgb.join(', '));
+                 root.style.setProperty('--secondary-bg-color-rgb', secondaryBgRgb.join(', '));
              }
 
              tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
              tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
-        }
+         }
         
         async function upsertUserProfile() {
             if (!telegramUser) throw new Error("Пользователь Telegram не определен для upsertUserProfile.");
@@ -2152,14 +2179,14 @@
         }
 
         async function loadAndRenderComments(type, id, containerId) {
-             const container = document.getElementById(containerId);
-             if (!container) return;
-             container.innerHTML = '<p class="text-center text-gray-500">Загрузка комментариев...</p>';
-             
-             const { data: comments, error } = await fetchComments(type, id);
-             if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
+              const container = document.getElementById(containerId);
+              if (!container) return;
+              container.innerHTML = '<p class="text-center text-gray-500">Загрузка комментариев...</p>';
+              
+              const { data: comments, error } = await fetchComments(type, id);
+              if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
 
-             renderCommentTree(comments, container, 'detail');
+              renderCommentTree(comments, container, 'detail');
         }
 
         function renderCommentTree(comments, container, context = 'post') {
