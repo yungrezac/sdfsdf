@@ -308,7 +308,7 @@
                 <div id="map-controls-right" class="flex flex-col items-end gap-2">
                     <button id="request-geo-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-lg flex items-center gap-2 pointer-events-all">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        <span id="request-geo-text">Дать доступ к гео</span>
+                        <span id="request-geo-text">Включить геолокацию</span>
                         <svg id="request-geo-loader" class="animate-spin h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     </button>
                     <button id="recenter-btn" class="hidden bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg pointer-events-all">
@@ -1218,41 +1218,53 @@
             }
         }
         
-        // --- НОВАЯ ЛОГИКА ЗАПРОСА ГЕОЛОКАЦИИ ЧЕРЕЗ БОТА ---
+        // --- NEW: Continuous Geolocation Logic ---
         function handleGeoRequest() {
             const geoBtn = document.getElementById('request-geo-btn');
             const geoLoader = document.getElementById('request-geo-loader');
             const geoText = document.getElementById('request-geo-text');
 
-            geoText.textContent = 'Ждем ответа...';
+            geoText.textContent = 'Запрашиваем доступ...';
             geoLoader.classList.remove('hidden');
             geoBtn.disabled = true;
-            
-            // Показываем кнопку запроса геолокации в интерфейсе Telegram
-            tg.requestLocation(handleLocationReceived);
+
+            tg.requestGeoLocationAccess({
+                allow_write_access: false // Only need to read location
+            }, (accessGranted) => {
+                if (accessGranted) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                    startContinuousLocationUpdate();
+                } else {
+                    tg.HapticFeedback.notificationOccurred('error');
+                    showCustomAlert("Вы не предоставили доступ к геолокации. Вы можете включить его в профиле бота.");
+                    geoText.textContent = 'Включить геолокацию';
+                    geoLoader.classList.add('hidden');
+                    geoBtn.disabled = false;
+                }
+            });
         }
 
-        function handleLocationReceived(location) {
-            if (location) {
-                const latLng = [location.latitude, location.longitude];
+        function startContinuousLocationUpdate() {
+            requestGeoBtn.classList.add('hidden');
+            recenterBtn.classList.remove('hidden');
+            modeSwitcher.classList.remove('hidden');
+            
+            tg.onEvent('viewportChanged', handleViewportChanged);
+            
+            // Initial position update
+            if (tg.viewportHeight) {
+                 handleViewportChanged({ isStateStable: true });
+            }
+        }
+        
+        function handleViewportChanged(event) {
+            if (event.isStateStable) {
+                // We can get the location from the viewport center
+                const { latitude, longitude } = map.getCenter();
+                const latLng = [latitude, longitude];
                 lastKnownLocation = latLng;
-                
-                map.flyTo(latLng, 16);
                 updateCurrentUserMarker(latLng);
-
-                requestGeoBtn.classList.add('hidden');
-                recenterBtn.classList.remove('hidden');
-                modeSwitcher.classList.remove('hidden');
-                
-                updateMainButton(); // Активируем основную кнопку
-                tg.HapticFeedback.notificationOccurred('success');
-            } else {
-                showCustomAlert("Не удалось получить геолокацию. Попробуйте еще раз.");
-                const geoText = document.getElementById('request-geo-text');
-                const geoLoader = document.getElementById('request-geo-loader');
-                geoText.textContent = 'Дать доступ к гео';
-                geoLoader.classList.add('hidden');
-                requestGeoBtn.disabled = false;
+                updateMainButton();
             }
         }
 
