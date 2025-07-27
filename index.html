@@ -27,6 +27,10 @@
     <!-- Подключение QR Code Generator -->
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
+    <!-- Иконочные шрифты -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+
+
     <style>
         :root {
             --bg-color: #f3f4f6;
@@ -36,7 +40,9 @@
             --button-color: #3b82f6;
             --button-text-color: #ffffff;
             --destructive-color: #ef4444;
-            --star-color: #facc15; /* Желтый для звезд */
+            --success-color: #28a745;
+            --star-color: #facc15;
+            --border-color: #e5e7eb;
         }
 
         /* Адаптация под безопасные зоны iOS */
@@ -52,6 +58,7 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             transition: background-color 0.3s, color 0.3s;
+            font-family: 'Inter', sans-serif;
         }
         #map, .mini-map, #detail-mini-map {
             z-index: 10;
@@ -91,6 +98,7 @@
             height: calc(80px + env(safe-area-inset-bottom));
             padding-bottom: env(safe-area-inset-bottom);
             background-color: color-mix(in srgb, var(--secondary-bg-color) 80%, transparent);
+            border-top: 1px solid var(--border-color);
         }
         .fade-in {
             animation: fadeIn 0.5s ease-in-out;
@@ -134,7 +142,7 @@
             z-index: 20;
             display: flex;
             justify-content: space-between;
-            align-items: flex-start; /* Changed to flex-start */
+            align-items: flex-start;
             padding: 0 1rem;
             pointer-events: none; /* Позволяет кликать сквозь контейнер */
         }
@@ -222,24 +230,6 @@
             cursor: grab;
         }
         
-        /* Стили для звездного рейтинга */
-        .star-rating {
-            display: inline-flex;
-            flex-direction: row-reverse;
-            justify-content: center;
-        }
-        .star-rating input { display: none; }
-        .star-rating label {
-            color: #ccc;
-            cursor: pointer;
-            font-size: 2rem;
-            transition: color 0.2s;
-        }
-        .star-rating input:checked ~ label,
-        .star-rating label:hover,
-        .star-rating label:hover ~ label {
-            color: var(--star-color);
-        }
         /* Стили для табов в профиле */
         .profile-tab {
             flex-grow: 1;
@@ -262,15 +252,25 @@
             display: block;
         }
         
-        /* NEW: Стили для комментариев в модальном окне деталей */
+        /* Стили для комментариев в модальном окне деталей */
         #detail-comments-section {
-            border-top: 1px solid var(--bg-color);
+            border-top: 1px solid var(--border-color);
             padding: 1rem;
         }
         #detail-comment-input-form {
             padding: 0.5rem 1rem 1rem;
-            border-top: 1px solid var(--bg-color);
+            border-top: 1px solid var(--border-color);
             background-color: var(--secondary-bg-color);
+        }
+
+        /* Скелетная загрузка */
+        .skeleton {
+            background-color: #e2e8f0;
+            border-radius: 0.5rem;
+            animation: pulse-bg 1.5s infinite;
+        }
+        @keyframes pulse-bg {
+            50% { background-color: #cbd5e1; }
         }
     </style>
 </head>
@@ -293,7 +293,7 @@
         <div id="map-view" class="view active">
             <div id="map"></div>
             
-            <!-- MODIFIED: Панель управления на карте -->
+            <!-- Панель управления на карте -->
             <div id="map-top-panel">
                 <div class="w-12"></div> <!-- Пустой див для баланса слева -->
                 
@@ -307,12 +307,12 @@
 
                 <div id="map-controls-right" class="flex flex-col items-end gap-2">
                     <button id="request-geo-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-lg flex items-center gap-2 pointer-events-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        <i class="fa-solid fa-location-arrow h-5 w-5"></i>
                         <span id="request-geo-text">Дать доступ к гео</span>
                         <svg id="request-geo-loader" class="animate-spin h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     </button>
                     <button id="recenter-btn" class="hidden bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg pointer-events-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        <i class="fa-solid fa-location-crosshairs h-6 w-6 text-gray-700"></i>
                     </button>
                 </div>
             </div>
@@ -323,7 +323,7 @@
             <div class="flex justify-between items-center mb-6 px-2">
                 <h1 class="text-3xl font-bold">Лента</h1>
                 <button id="create-simple-post-btn" class="p-2 rounded-full hover:bg-gray-200" style="background-color: var(--secondary-bg-color);">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" style="color: var(--button-color);" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                    <i class="fa-solid fa-plus h-7 w-7" style="color: var(--button-color);"></i>
                 </button>
             </div>
             <div id="feed-container" class="space-y-4"></div>
@@ -334,7 +334,7 @@
             <div class="flex justify-between items-center mb-6 px-2">
                 <h1 class="text-3xl font-bold">Топ Бегунов</h1>
                 <button id="scan-qr-btn" class="p-2 rounded-full hover:bg-gray-200" style="background-color: var(--secondary-bg-color);">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" style="color: var(--hint-color);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><line x1="14" y1="14" x2="21" y2="14"></line><line x1="14" y1="17.5" x2="21" y2="17.5"></line><line x1="14" y1="21" x2="21" y2="21"></line></svg>
+                    <i class="fa-solid fa-qrcode h-7 w-7" style="color: var(--hint-color);"></i>
                 </button>
             </div>
             <div id="leaderboard" class="space-y-3"></div>
@@ -352,24 +352,24 @@
                     <p class="text-sm mt-2" style="color: var(--hint-color);">Общая площадь</p>
                     <p id="profile-area" class="text-3xl font-bold" style="color: var(--button-color);">0 м²</p>
                 </div>
-                <div class="w-full pt-4 mt-4 border-t" style="border-color: color-mix(in srgb, var(--bg-color) 70%, transparent);">
+                <div class="w-full pt-4 mt-4 border-t" style="border-color: var(--border-color);">
                     <div class="grid grid-cols-3 gap-4 text-center">
                         <button id="invite-friend-btn" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
-                            <div class="p-3 rounded-full" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent);"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" style="color: var(--button-color);" viewBox="0 0 20 20" fill="currentColor"><path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 11a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1v-1z" /></svg></div>
+                            <div class="p-3 rounded-full" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent);"><i class="fa-solid fa-user-plus h-6 w-6" style="color: var(--button-color);"></i></div>
                             <span class="text-xs font-medium" style="color: var(--hint-color);">Пригласить</span>
                         </button>
                         <button id="show-qr-btn" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
-                            <div class="p-3 rounded-full" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent);"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" style="color: var(--button-color);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><line x1="14" y1="14" x2="21" y2="14"></line><line x1="14" y1="17.5" x2="21" y2="17.5"></line><line x1="14" y1="21" x2="21" y2="21"></line></svg></div>
+                            <div class="p-3 rounded-full" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent);"><i class="fa-solid fa-qrcode h-6 w-6" style="color: var(--button-color);"></i></div>
                             <span class="text-xs font-medium" style="color: var(--hint-color);">Мой QR</span>
                         </button>
                         <button id="donate-btn" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
-                            <div class="p-3 rounded-full" style="background-color: color-mix(in srgb, #28a745 15%, transparent);"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" style="color: #28a745;" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" /></svg></div>
+                            <div class="p-3 rounded-full" style="background-color: color-mix(in srgb, var(--success-color) 15%, transparent);"><i class="fa-solid fa-heart h-6 w-6" style="color: var(--success-color);"></i></div>
                             <span class="text-xs font-medium" style="color: var(--hint-color);">Поддержать</span>
                         </button>
                     </div>
                 </div>
             </div>
-             <!-- NEW TABS -->
+             <!-- Табы -->
             <div class="flex border-b mt-6 sticky top-0 z-10" style="background-color: var(--bg-color);">
                 <div id="profile-tab-posts" class="profile-tab active" onclick="switchMainProfileTab('posts')">Посты</div>
                 <div id="profile-tab-spots" class="profile-tab" onclick="switchMainProfileTab('spots')">Споты</div>
@@ -383,68 +383,26 @@
     </div>
 
     <!-- Нижний навбар -->
-    <nav id="bottom-navbar" class="hidden fixed bottom-0 left-0 right-0 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] flex justify-around items-center z-20">
-        <button class="nav-btn active flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('map-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg><span>Карта</span></button>
-        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('feed-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3h2m0 0h2" /></svg><span>Лента</span></button>
-        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('top-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg><span>Топ</span></button>
-        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('profile-view')"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg><span>Профиль</span></button>
+    <nav id="bottom-navbar" class="hidden fixed bottom-0 left-0 right-0 backdrop-blur-md flex justify-around items-center z-20">
+        <button class="nav-btn active flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('map-view')"><i class="fa-solid fa-map-location-dot h-7 w-7"></i><span>Карта</span></button>
+        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('feed-view')"><i class="fa-solid fa-newspaper h-7 w-7"></i><span>Лента</span></button>
+        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('top-view')"><i class="fa-solid fa-ranking-star h-7 w-7"></i><span>Топ</span></button>
+        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('profile-view')"><i class="fa-solid fa-user h-7 w-7"></i><span>Профиль</span></button>
     </nav>
     
-    <!-- Модальное окно создания поста-достижения (старое) -->
-    <div id="edit-modal" class="modal-overlay justify-center items-center p-4" onclick="if(event.target === this) hideEditModal()">
-        <div class="card-bg rounded-2xl shadow-2xl p-6 w-full max-w-md fade-in space-y-4">
-            <h2 id="edit-modal-title" class="text-2xl font-bold"></h2>
-            <p id="edit-modal-description" style="color: var(--hint-color);"></p>
-            <div>
-                <label for="edit-modal-name" class="block text-sm font-medium">Название</label>
-                <input type="text" id="edit-modal-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Например, 'Красивый вид'">
-            </div>
-            <div id="edit-modal-details-section">
-                <label for="edit-modal-details" class="block text-sm font-medium">Описание</label>
-                <textarea id="edit-modal-details" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Опишите это место, маршрут или просто поделитесь мыслями..."></textarea>
-            </div>
-            <div id="edit-modal-photo-section">
-                <label for="edit-modal-photo-input" class="block text-sm font-medium">Фото</label>
-                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                    <div class="space-y-1 text-center">
-                        <img id="edit-modal-photo-preview" src="" alt="Предпросмотр фото" class="hidden mx-auto h-24 w-auto mb-4 rounded">
-                        <svg id="edit-modal-photo-icon" class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                        <div class="flex text-sm text-gray-600">
-                            <label id="edit-modal-photo-input-label" for="edit-modal-photo-input" class="relative cursor-pointer rounded-md font-medium" style="color: var(--button-color);">
-                                <span>Загрузите файл</span>
-                                <input id="edit-modal-photo-input" name="edit-modal-photo-input" type="file" class="sr-only" accept="image/*">
-                            </label>
-                            <p class="pl-1">или перетащите</p>
-                        </div>
-                        <p class="text-xs text-gray-500">PNG, JPG до 10MB</p>
-                    </div>
-                </div>
-            </div>
-            <div class="flex justify-end space-x-3">
-                <button id="cancel-edit-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full transition-all">Отмена</button>
-                <button id="save-edit-btn" class="text-white font-bold py-2 px-4 rounded-full transition-all flex items-center justify-center" style="background-color: var(--button-color); color: var(--button-text-color)">
-                    <span id="save-edit-text">Сохранить</span>
-                    <svg id="save-edit-loader" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- NEW: Модальное окно создания простого поста (сверху вниз, 45%) -->
+    <!-- Модальное окно создания простого поста (сверху вниз, 45%) -->
     <div id="simple-post-modal" class="modal-overlay" onclick="if(event.target === this) hideSimplePostModal()">
         <div id="simple-post-content" class="card-bg rounded-b-2xl shadow-2xl p-6 w-full max-w-lg space-y-4" style="height: 45vh;">
             <div class="flex justify-between items-center">
                 <h2 class="text-2xl font-bold">Новый пост</h2>
-                <button onclick="hideSimplePostModal()" class="p-2 rounded-full hover:bg-gray-200">&times;</button>
+                <button onclick="hideSimplePostModal()" class="p-2 rounded-full hover:bg-gray-200"><i class="fa-solid fa-times"></i></button>
             </div>
             <p style="color: var(--hint-color);">Поделитесь своими мыслями с сообществом.</p>
             <textarea id="simple-post-details" class="mt-1 block w-full h-1/3 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Что у вас нового?"></textarea>
             <div id="simple-post-filename" class="text-sm text-gray-500 truncate"></div>
             <div class="flex justify-between items-center pt-4">
                  <label for="simple-post-photo-input" class="cursor-pointer p-2 rounded-full hover:bg-gray-200">
-                     <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" style="color: var(--hint-color);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                       <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                     </svg>
+                     <i class="fa-solid fa-paperclip h-7 w-7" style="color: var(--hint-color);"></i>
                      <input id="simple-post-photo-input" type="file" class="sr-only" accept="image/*">
                  </label>
                 <button onclick="handleSimplePostSave()" class="text-white font-bold py-2 px-6 rounded-full transition-all" style="background-color: var(--button-color);">Опубликовать</button>
@@ -452,7 +410,7 @@
         </div>
     </div>
 
-    <!-- NEW: Модальное окно создания Спота/Маршрута (снизу вверх, 75%) -->
+    <!-- Модальное окно создания Спота/Маршрута/Поста (снизу вверх, 75%) -->
     <div id="creation-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideCreationModal()">
         <div class="bottom-sheet-content" style="height: 75%; max-height: calc(100vh - env(safe-area-inset-top) - 1rem);">
             <div class="grabber" onclick="hideCreationModal()"></div>
@@ -463,16 +421,16 @@
                     <label for="creation-modal-name" class="block text-sm font-medium">Название</label>
                     <input type="text" id="creation-modal-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Например, 'Красивый вид'">
                 </div>
-                <div>
+                <div id="creation-modal-details-section">
                     <label for="creation-modal-details" class="block text-sm font-medium">Описание</label>
                     <textarea id="creation-modal-details" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Опишите это место или маршрут..."></textarea>
                 </div>
-                <div>
+                <div id="creation-modal-photo-section">
                     <label for="creation-modal-photo-input" class="block text-sm font-medium">Фото</label>
                     <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                         <div class="space-y-1 text-center">
                             <img id="creation-modal-photo-preview" src="" alt="Предпросмотр фото" class="hidden mx-auto h-24 w-auto mb-4 rounded">
-                            <svg id="creation-modal-photo-icon" class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                            <i id="creation-modal-photo-icon" class="fa-solid fa-image mx-auto h-12 w-12 text-gray-400"></i>
                             <div class="flex text-sm text-gray-600">
                                 <label for="creation-modal-photo-input" class="relative cursor-pointer rounded-md font-medium" style="color: var(--button-color);">
                                     <span>Загрузите файл</span>
@@ -506,7 +464,7 @@
              <div class="grabber" onclick="hideCommentsModal()"></div>
              <h2 id="comments-modal-title" class="text-xl font-bold px-4 pb-2 flex-shrink-0">Комментарии</h2>
             <div id="comments-modal-body" class="flex-grow overflow-y-auto p-4"></div>
-            <div id="comment-input-container" class="flex-shrink-0 p-2 border-t" style="background-color: var(--secondary-bg-color); border-color: var(--bg-color);">
+            <div id="comment-input-container" class="flex-shrink-0 p-2 border-t" style="background-color: var(--secondary-bg-color); border-color: var(--border-color);">
                 <div id="reply-indicator" class="hidden text-xs px-2 pb-1 flex justify-between items-center" style="color: var(--hint-color);">
                     <span id="reply-indicator-text"></span>
                     <button onclick="cancelReply()" class="font-bold text-xl">&times;</button>
@@ -514,14 +472,14 @@
                 <div class="flex items-center space-x-2">
                     <textarea id="main-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
                     <button id="main-comment-send-btn" onclick="postComment()" class="flex-shrink-0 text-white rounded-full p-2 hover:opacity-80 disabled:opacity-50" style="background-color: var(--button-color);">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transform rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                        <i class="fa-solid fa-paper-plane h-6 w-6"></i>
                     </button>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- NEW: Модальное окно для QR-кода -->
+    <!-- Модальное окно для QR-кода -->
     <div id="qr-modal" class="modal-overlay justify-center items-center p-4" onclick="if(event.target === this) hideQrModal()">
         <div class="card-bg rounded-2xl shadow-2xl p-6 w-full max-w-xs fade-in space-y-4 flex flex-col items-center">
             <h2 class="text-2xl font-bold">Мой QR-код</h2>
@@ -565,7 +523,6 @@
         let routePolylinesLayer = L.layerGroup();
 
         let allProfilesData = [];
-        let lastCaptureData = null; // Для постов
         let currentEditContext = {}; // Для модалки создания/редактирования
         let currentDetailContext = {}; // Для модалки деталей
         let currentReplyTarget = { type: null, id: null, parentCommentId: null };
@@ -580,7 +537,6 @@
         const modeSwitcher = document.getElementById('mode-switcher');
         
         // Модальные окна
-        const editModal = document.getElementById('edit-modal');
         const detailModal = document.getElementById('detail-modal');
         const commentsModal = document.getElementById('comments-modal');
         const simplePostModal = document.getElementById('simple-post-modal');
@@ -637,7 +593,7 @@
             tg.HapticFeedback.selectionChanged();
             currentMode = newMode;
             
-            // NEW: Save mode to cloud storage
+            // Сохраняем режим в облачное хранилище Telegram
             tg.CloudStorage.setItem('currentMode', newMode);
 
             document.querySelectorAll('.mode-btn').forEach(btn => {
@@ -665,7 +621,6 @@
             updateMainButton();
         }
 
-        // NEW: Replaced updateMainActionButton with updateMainButton
         function updateMainButton() {
             if (!lastKnownLocation) {
                 tg.MainButton.setText("Определение геолокации...");
@@ -674,7 +629,7 @@
             }
             
             tg.MainButton.enable();
-            tg.MainButton.offClick(mainButtonHandler); // Remove previous listener
+            tg.MainButton.offClick(mainButtonHandler); // Удаляем предыдущий обработчик
 
             switch (currentMode) {
                 case 'capture':
@@ -703,7 +658,6 @@
             tg.MainButton.onClick(mainButtonHandler);
         }
         
-        // NEW: Single handler for the Main Button
         function mainButtonHandler() {
             switch (currentMode) {
                 case 'capture':
@@ -734,36 +688,6 @@
 
         // --- ЛОГИКА МОДАЛЬНЫХ ОКОН ---
         
-        function showEditModal(type, context = {}) {
-            currentEditContext = { type, ...context };
-            const title = document.getElementById('edit-modal-title');
-            const description = document.getElementById('edit-modal-description');
-            const nameInput = document.getElementById('edit-modal-name');
-            const detailsInput = document.getElementById('edit-modal-details');
-            const detailsSection = document.getElementById('edit-modal-details-section');
-            const photoSection = document.getElementById('edit-modal-photo-section');
-            
-            nameInput.value = '';
-            detailsInput.value = '';
-            document.getElementById('edit-modal-photo-input').value = '';
-            document.getElementById('edit-modal-photo-preview').classList.add('hidden');
-            document.getElementById('edit-modal-photo-icon').classList.remove('hidden');
-
-            if (type === 'post') {
-                 title.textContent = 'Новое достижение!';
-                 description.textContent = 'Дайте название вашей новой территории.';
-                 detailsSection.style.display = 'none';
-                 photoSection.style.display = 'block';
-            }
-            
-            editModal.classList.add('visible');
-        }
-
-        function hideEditModal() {
-            editModal.classList.remove('visible');
-            currentEditContext = {};
-        }
-        
         function showSimplePostModal() {
             document.getElementById('simple-post-details').value = '';
             document.getElementById('simple-post-photo-input').value = '';
@@ -781,6 +705,8 @@
             const description = document.getElementById('creation-modal-description');
             const nameInput = document.getElementById('creation-modal-name');
             const detailsInput = document.getElementById('creation-modal-details');
+            const detailsSection = document.getElementById('creation-modal-details-section');
+            const photoSection = document.getElementById('creation-modal-photo-section');
             
             nameInput.value = '';
             detailsInput.value = '';
@@ -788,12 +714,23 @@
             document.getElementById('creation-modal-photo-preview').classList.add('hidden');
             document.getElementById('creation-modal-photo-icon').classList.remove('hidden');
 
+            // Скрываем все секции по умолчанию
+            detailsSection.style.display = 'none';
+            photoSection.style.display = 'none';
+
             if (type === 'spot') {
                 title.textContent = 'Создать новый спот';
                 description.textContent = 'Отметьте интересное место на карте для других.';
+                detailsSection.style.display = 'block';
+                photoSection.style.display = 'block';
             } else if (type === 'route') {
                 title.textContent = 'Сохранить новый маршрут';
                 description.textContent = 'Дайте название и описание вашему маршруту.';
+                detailsSection.style.display = 'block';
+            } else if (type === 'post') {
+                title.textContent = 'Новое достижение!';
+                description.textContent = `Вы захватили ${context.area_captured_formatted}. Дайте название вашей новой территории.`;
+                photoSection.style.display = 'block';
             }
             
             creationModal.classList.add('visible');
@@ -839,7 +776,7 @@
                           <p class="text-center text-gray-500">Загрузка комментариев...</p>
                     </div>
                 </div>
-                <div id="detail-comment-input-form" class="flex-shrink-0 p-2 border-t" style="background-color: var(--secondary-bg-color); border-color: var(--bg-color);">
+                <div id="detail-comment-input-form" class="flex-shrink-0 p-2 border-t" style="background-color: var(--secondary-bg-color); border-color: var(--border-color);">
                      <div id="detail-reply-indicator" class="hidden text-xs px-2 pb-1 flex justify-between items-center" style="color: var(--hint-color);">
                          <span id="detail-reply-indicator-text"></span>
                          <button onclick="cancelDetailReply()" class="font-bold text-xl">&times;</button>
@@ -847,7 +784,7 @@
                     <div class="flex items-center space-x-2">
                         <textarea id="detail-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
                         <button onclick="postDetailComment()" class="flex-shrink-0 text-white rounded-full p-2 hover:opacity-80 disabled:opacity-50" style="background-color: var(--button-color);">
-                           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transform rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                           <i class="fa-solid fa-paper-plane h-6 w-6"></i>
                         </button>
                     </div>
                 </div>
@@ -992,12 +929,6 @@
             document.getElementById(`content-${tabName}`).classList.add('active');
         }
 
-        function generateMiniPostHTML(post) {
-            return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" data-action="show-post-comments" data-id="${post.id}">
-                        <p class="font-semibold">${post.title}</p>
-                        <p class="text-xs text-gray-400">${new Date(post.created_at).toLocaleDateString()}</p>
-                    </div>`;
-        }
         function generateMiniSpotHTML(spot) {
              return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="navigateToMapObject('spot', ${spot.id})">
                          <p class="font-semibold">${spot.name}</p>
@@ -1039,10 +970,8 @@
         }
 
         /**
-         * [FIXED] Более надежная функция для парсинга WKT-строк в GeoJSON.
-         * Использует регулярные выражения для извлечения координат, что делает ее
-         * устойчивой к префиксам (например, SRID) и вариациям в форматировании.
-         * @param {string | null} wkt - Строка в формате Well-Known Text (например, 'POINT(30 10)').
+         * Улучшенная функция для парсинга WKT-строк в GeoJSON.
+         * @param {string | null} wkt - Строка в формате Well-Known Text.
          * @returns {object | null} GeoJSON-объект или null в случае ошибки.
          */
         function parseWKT(wkt) {
@@ -1085,10 +1014,8 @@
                     return { type: 'LineString', coordinates: coordinates };
                 }
                 
-                // Добавим базовую поддержку POLYGON
                 if (type === 'POLYGON' || type === 'MULTIPOLYGON') {
-                    // Это очень упрощенный парсер, который может не работать со сложными полигонами (с дырками)
-                    // Он просто берет внешнее кольцо.
+                    // Упрощенный парсер для внешнего кольца
                     const ringMatch = content.match(/\((.+?)\)/);
                     if (!ringMatch) return null;
                     const coordPairs = ringMatch[1].split(',');
@@ -1145,13 +1072,13 @@
 
                 listenToRealtimeChanges();
                 setupDynamicEventListeners();
-                handleStartParam(); // NEW: Обработка параметра start
+                handleStartParam(); // Обработка параметра start
 
                 initialLoader.classList.add('hidden');
                 appContainer.classList.remove('hidden');
                 bottomNavbar.classList.remove('hidden');
                 
-                // NEW: Load last used mode from cloud storage
+                // Загружаем последний использованный режим из облачного хранилища
                 tg.CloudStorage.getItem('currentMode', (error, value) => {
                     if (error) {
                         console.error("CloudStorage error:", error);
@@ -1181,7 +1108,6 @@
                 accessToken: MAPBOX_ACCESS_TOKEN
             }).addTo(map);
             
-            // Не добавляем маркер пользователя при инициализации
             setTimeout(() => map?.invalidateSize(), 100);
         }
 
@@ -1218,7 +1144,7 @@
             }
         }
         
-        // --- CORRECTED Geolocation Logic ---
+        // --- Логика геолокации ---
         function handleGeoRequest() {
             const geoBtn = document.getElementById('request-geo-btn');
             const geoLoader = document.getElementById('request-geo-loader');
@@ -1228,7 +1154,7 @@
             geoLoader.classList.remove('hidden');
             geoBtn.disabled = true;
             
-            // Use one-time location request for this button's action
+            // Используем одноразовый запрос местоположения
             tg.requestLocation(handleLocationReceived);
         }
 
@@ -1249,7 +1175,7 @@
                 recenterBtn.classList.remove('hidden');
                 modeSwitcher.classList.remove('hidden');
                 
-                updateMainButton(); // Activate the main button
+                updateMainButton(); // Активируем главную кнопку
             } else {
                 tg.HapticFeedback.notificationOccurred('error');
                 showCustomAlert("Не удалось получить геолокацию. Попробуйте еще раз.");
@@ -1300,7 +1226,6 @@
             });
         }
 
-        // ** MODIFIED: Использует RPC для вставки **
         async function saveSpot() {
             const { location } = currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
@@ -1325,7 +1250,7 @@
                 name_in: name,
                 description_in: description,
                 photo_url_in: photoUrl,
-                location_wkt_in: location // 'location' - это WKT строка
+                location_wkt_in: location
             });
 
             if (error) {
@@ -1336,11 +1261,6 @@
             }
         }
         
-        /**
-         * [FIXED] Более безопасная функция добавления спота на карту.
-         * Проверяет результат парсинга перед созданием слоя.
-         * @param {object} spot - Объект спота из базы данных.
-         */
         function addSpotToMap(spot) {
             try {
                 const wkt = spot.location_wkt || spot.location;
@@ -1396,7 +1316,6 @@
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
 
-        // ** MODIFIED: Использует RPC для вставки **
         async function saveRoute() {
             const { path } = currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
@@ -1408,7 +1327,7 @@
                 user_id_in: telegramUser.id,
                 name_in: name,
                 description_in: description,
-                path_wkt_in: path // 'path' - это WKT строка
+                path_wkt_in: path
             });
 
             if (error) {
@@ -1419,11 +1338,6 @@
             }
         }
         
-        /**
-         * [FIXED] Более безопасная функция добавления маршрута на карту.
-         * Проверяет результат парсинга перед созданием слоя.
-         * @param {object} route - Объект маршрута из базы данных.
-         */
         function addRouteToMap(route) {
             try {
                 const wkt = route.path_wkt || route.path;
@@ -1520,10 +1434,6 @@
                     }
                 }
             });
-            // NEW: Settings Button
-            tg.SettingsButton.onClick(() => {
-                tg.openTelegramLink(`https://t.me/${BOT_USERNAME}`);
-            });
         }
 
         function setupDynamicEventListeners() {
@@ -1531,10 +1441,8 @@
             document.getElementById('mode-spots').addEventListener('click', () => setMode('spots'));
             document.getElementById('mode-routes').addEventListener('click', () => setMode('routes'));
             
-            document.getElementById('save-edit-btn').addEventListener('click', handleSave);
-            document.getElementById('cancel-edit-btn').addEventListener('click', hideEditModal);
-            
             document.getElementById('save-creation-btn').addEventListener('click', handleSave);
+            
             document.getElementById('creation-modal-photo-input').addEventListener('change', (e) => {
                 const file = e.target.files[0];
                 if (file) {
@@ -1551,7 +1459,6 @@
                 }
             });
 
-            // MODIFIED: Listener for new geo button
             requestGeoBtn.addEventListener('click', handleGeoRequest);
 
             recenterBtn.addEventListener('click', () => {
@@ -1618,6 +1525,7 @@
              document.documentElement.style.setProperty('--hint-color', themeParams.hint_color || '#6b7280');
              document.documentElement.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
              document.documentElement.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
+             document.documentElement.style.setProperty('--border-color', themeParams.bg_color ? colorMix(themeParams.bg_color, '#000000', 0.1) : '#e5e7eb');
              tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
              tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
         }
@@ -1686,7 +1594,13 @@
                 await saveUserData();
                 refreshAllStats();
                 tg.HapticFeedback.notificationOccurred('success');
-                showEditModal('post', { captureData: newCapture });
+                const area = turf.area(newCapture);
+                const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
+                showCreationModal('post', { 
+                    captureData: newCapture,
+                    area_captured: area,
+                    area_captured_formatted: formattedArea
+                });
             } catch (error) {
                 console.error("Ошибка в updateTerritory:", error);
                 showCustomAlert("Ошибка обработки территории.");
@@ -1701,13 +1615,13 @@
         }
 
         async function handlePostSubmission() {
-            const { captureData } = currentEditContext;
-            const title = document.getElementById('edit-modal-name').value.trim();
+            const { captureData, area_captured } = currentEditContext;
+            const title = document.getElementById('creation-modal-name').value.trim();
             
             if (!title) { showCustomAlert("Пожалуйста, введите название."); return; }
 
             let photoUrl = null;
-            const file = document.getElementById('edit-modal-photo-input').files[0];
+            const file = document.getElementById('creation-modal-photo-input').files[0];
             if (file) {
                 const filePath = `${telegramUser.id}/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
@@ -1721,7 +1635,7 @@
                 description: null,
                 photo_url: photoUrl,
                 territory_captured: captureData,
-                area_captured: turf.area(captureData),
+                area_captured: area_captured,
                 user_name: telegramUser.first_name,
                 user_avatar_url: telegramUser.photo_url,
                 user_color: userColor
@@ -1733,7 +1647,7 @@
                 console.error("Error saving post:", postError); showCustomAlert("Не удалось сохранить пост.");
             } else {
                 showCustomAlert("Пост успешно опубликован!");
-                hideEditModal();
+                hideCreationModal();
             }
         }
         
@@ -1881,11 +1795,11 @@
                             ${post.area_captured ? `<p class="font-semibold">Захвачено: <span class="font-bold" style="color: var(--button-color);">${formattedArea}</span></p>` : ''}
                             <div class="flex items-center space-x-6 mt-3" style="color: var(--hint-color);">
                                 <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" data-action="like" data-post-id="${post.id}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>
+                                    <i class="fa-solid fa-heart h-6 w-6"></i>
                                     <span data-likes-count>${likes.length}</span>
                                 </button>
                                 <button class="flex items-center space-x-1 hover:text-blue-500 transition" data-action="comment" data-post-id="${post.id}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                    <i class="fa-solid fa-comment h-6 w-6"></i>
                                     <span>${comments.length}</span>
                                 </button>
                             </div>
@@ -2112,7 +2026,7 @@
             document.getElementById('profile-tab-routes').textContent = `Маршруты (${routes.length})`;
         }
         
-        // --- NEW: QR Code Modal ---
+        // --- QR Code Modal ---
         function showQrModal() {
             tg.HapticFeedback.impactOccurred('light');
             const qrContainer = document.getElementById('qrcode');
@@ -2134,7 +2048,7 @@
             tg.BackButton.hide();
         }
         
-        // --- NEW: Handle Start Param ---
+        // --- Handle Start Param ---
         function handleStartParam() {
             const startParam = tg.initDataUnsafe.start_param;
             if (startParam) {
@@ -2145,7 +2059,7 @@
             }
         }
         
-        // --- NEW: Custom Alert/Confirm ---
+        // --- Custom Alert/Confirm ---
         function showCustomAlert(message) {
             tg.showAlert(message);
         }
@@ -2159,7 +2073,6 @@
 
         // --- ПРИВЯЗКА ГЛОБАЛЬНЫХ ФУНКЦИЙ И ЗАПУСК ---
         window.showView = showView;
-        window.hideEditModal = hideEditModal;
         window.hideDetailModal = hideDetailModal;
         window.toggleLike = toggleLike;
         window.showPostComments = showPostComments;
