@@ -416,7 +416,7 @@
                     </svg>
                     <input id="simple-post-photo-input" type="file" class="sr-only" accept="image/*">
                 </label>
-                <button id="simple-post-save-btn" class="text-white font-bold py-2 px-6 rounded-full transition-all" style="background-color: var(--button-color);">Опубликовать</button>
+                <!-- Кнопка публикации заменена на Telegram MainButton -->
             </div>
         </div>
     </div>
@@ -455,7 +455,7 @@
                 </div>
                 <div class="flex justify-end space-x-3 pt-4">
                     <button id="creation-modal-cancel-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full transition-all">Отмена</button>
-                    <button id="save-creation-btn" class="text-white font-bold py-2 px-4 rounded-full transition-all" style="background-color: var(--button-color);">Сохранить</button>
+                    <!-- Кнопка сохранения заменена на Telegram MainButton -->
                 </div>
             </div>
         </div>
@@ -572,7 +572,6 @@
             modeSwitcher.classList.toggle('hidden', !isMapView);
             
             if (isMapView) {
-                // Даем карте время на перерасчет размера после смены display
                 setTimeout(() => map?.invalidateSize(), 100);
             }
         }
@@ -598,7 +597,6 @@
 
             map.off('click');
             
-            // Скрываем все слои и показываем только нужный
             if (map.hasLayer(territoriesLayerGroup)) map.removeLayer(territoriesLayerGroup);
             if (map.hasLayer(spotMarkersLayer)) map.removeLayer(spotMarkersLayer);
             if (map.hasLayer(routePolylinesLayer)) map.removeLayer(routePolylinesLayer);
@@ -685,40 +683,32 @@
 
         // --- ЛОГИКА МОДАЛЬНЫХ ОКОН ---
         
-        /**
-         * Показывает модальное окно для создания простого поста.
-         */
         function showSimplePostModal() {
             document.getElementById('simple-post-details').value = '';
             document.getElementById('simple-post-photo-input').value = '';
             document.getElementById('simple-post-filename').textContent = '';
             simplePostModal.classList.add('visible');
+            
+            tg.MainButton.setText('Опубликовать');
+            tg.MainButton.onClick(handleSimplePostSave);
+            tg.MainButton.show();
             tg.BackButton.show();
         }
 
-        /**
-         * Скрывает модальное окно создания простого поста.
-         */
         function hideSimplePostModal() {
             simplePostModal.classList.remove('visible');
+            tg.MainButton.offClick(handleSimplePostSave);
+            tg.MainButton.hide();
             tg.BackButton.hide();
         }
         
-        /**
-         * Показывает модальное окно для создания спота или маршрута.
-         * @param {string} type - 'spot' или 'route'.
-         * @param {object} context - Дополнительные данные (например, геолокация).
-         */
         function showCreationModal(type, context = {}) {
             currentEditContext = { type, ...context };
             const title = document.getElementById('creation-modal-title');
             const description = document.getElementById('creation-modal-description');
-            const nameInput = document.getElementById('creation-modal-name');
-            const detailsInput = document.getElementById('creation-modal-details');
             
-            // Сброс полей
-            nameInput.value = '';
-            detailsInput.value = '';
+            document.getElementById('creation-modal-name').value = '';
+            document.getElementById('creation-modal-details').value = '';
             document.getElementById('creation-modal-photo-input').value = '';
             document.getElementById('creation-modal-photo-preview').classList.add('hidden');
             document.getElementById('creation-modal-photo-icon').classList.remove('hidden');
@@ -732,65 +722,62 @@
             }
             
             creationModal.classList.add('visible');
+            
+            tg.MainButton.setText('Сохранить');
+            tg.MainButton.onClick(handleCreationSave);
+            tg.MainButton.show();
             tg.BackButton.show();
         }
 
-        /**
-         * Скрывает модальное окно создания спота/маршрута.
-         */
         function hideCreationModal() {
             creationModal.classList.remove('visible');
             currentEditContext = {};
+            tg.MainButton.offClick(handleCreationSave);
+            tg.MainButton.hide();
             tg.BackButton.hide();
         }
 
-        /**
-         * Обрабатывает сохранение из модального окна создания.
-         */
         function handleCreationSave() {
             const { type } = currentEditContext;
+            tg.MainButton.showProgress(); // Показываем индикатор загрузки
             if (type === 'spot') saveSpot();
             else if (type === 'route') saveRoute();
         }
         
-        /**
-         * Показывает модальное окно с детальной информацией.
-         * @param {string} type - 'spot', 'route' или 'user'.
-         * @param {number} id - ID объекта.
-         */
         function showDetailModal(type, id) {
-             currentDetailContext = { type, id };
+             currentDetailContext = { type, id: Number(id) };
              tg.HapticFeedback.impactOccurred('medium');
              tg.BackButton.show();
-             
              detailModal.classList.add('visible');
              loadDetailContent();
         }
         
-        /**
-         * Скрывает модальное окно с детальной информацией.
-         */
         function hideDetailModal() {
             tg.BackButton.hide();
             detailModal.classList.remove('visible');
             currentDetailContext = {};
         }
 
-        /**
-         * Загружает и отображает контент в модальном окне деталей.
-         */
         async function loadDetailContent() {
             const { type, id } = currentDetailContext;
             const body = document.getElementById('detail-modal-body');
             
             body.innerHTML = `<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
 
+            // Общая часть для кнопки "Поделиться"
+            const shareButtonHtml = `
+                <button class="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition" data-action="share" data-type="${type}" data-id="${id}">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Поделиться</span>
+                </button>
+            `;
+
             const commentsHtml = `
                 <div id="detail-comments-section" class="mt-4">
                     <h3 class="text-xl font-bold px-4">Комментарии</h3>
-                    <div id="detail-comments-list" class="p-4 space-y-4">
-                        <p class="text-center text-gray-500">Загрузка комментариев...</p>
-                    </div>
+                    <div id="detail-comments-list" class="p-4 space-y-4"></div>
                 </div>
                 <div id="detail-comment-input-form" class="flex-shrink-0 p-2 border-t sticky bottom-0" style="background-color: var(--secondary-bg-color); border-color: var(--bg-color);">
                      <div id="detail-reply-indicator" class="hidden text-xs px-2 pb-1 flex justify-between items-center" style="color: var(--hint-color);">
@@ -808,17 +795,17 @@
 
             if (type === 'spot') {
                 const { data: spot, error } = await supabase.from('spots').select('*, profiles(id, name, photo_url), location_wkt:location::text').eq('id', id).single();
-                if (error || !spot) {
-                    body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали спота.</p>`;
-                    return;
-                }
+                if (error || !spot) { body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали спота.</p>`; return; }
                 const author = spot.profiles || { name: 'Аноним', photo_url: null };
                 const avatar = author.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${author.name.charAt(0)}`;
                 body.innerHTML = `
                     <div class="space-y-4 pb-4">
                         ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-64 object-cover" alt="Spot photo">` : ''}
                         <div class="px-4">
-                            <h2 class="text-3xl font-bold">${spot.name}</h2>
+                            <div class="flex justify-between items-start">
+                                <h2 class="text-3xl font-bold flex-1 pr-4">${spot.name}</h2>
+                                ${shareButtonHtml}
+                            </div>
                             <div class="flex items-center space-x-3 mt-2 cursor-pointer" data-action="show-detail" data-type="user" data-id="${spot.user_id}">
                                 <img src="${avatar}" class="w-8 h-8 rounded-full" alt="author avatar">
                                 <span class="font-semibold text-sm">Автор: ${author.name}</span>
@@ -831,17 +818,17 @@
                 loadAndRenderComments(type, id, 'detail-comments-list');
             } else if (type === 'route') {
                 const { data: route, error } = await supabase.from('routes').select('*, profiles(id, name, photo_url), path_wkt:path::text').eq('id', id).single();
-                if (error || !route) {
-                    body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали маршрута.</p>`;
-                    return;
-                }
+                if (error || !route) { body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали маршрута.</p>`; return; }
                 const author = route.profiles || { name: 'Аноним', photo_url: null };
                 const avatar = author.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${author.name.charAt(0)}`;
                 body.innerHTML = `
                     <div class="space-y-4 pb-4">
                         <div id="detail-mini-map" class="h-64 w-full bg-gray-200"></div>
                         <div class="px-4">
-                            <h2 class="text-3xl font-bold">${route.name}</h2>
+                             <div class="flex justify-between items-start mt-4">
+                                <h2 class="text-3xl font-bold flex-1 pr-4">${route.name}</h2>
+                                ${shareButtonHtml}
+                            </div>
                             <div class="flex items-center space-x-3 mt-2 cursor-pointer" data-action="show-detail" data-type="user" data-id="${route.user_id}">
                                 <img src="${avatar}" class="w-8 h-8 rounded-full" alt="author avatar">
                                 <span class="font-semibold text-sm">Автор: ${author.name}</span>
@@ -863,6 +850,7 @@
                 }, 100);
                 loadAndRenderComments(type, id, 'detail-comments-list');
             } else if (type === 'user') {
+                // Логика для профиля пользователя остается без изменений
                 const [profileRes, postsRes, spotsRes, routesRes] = await Promise.all([
                     supabase.from('profiles').select('*').eq('id', id).single(),
                     supabase.from('posts').select('*').eq('user_id', id).order('created_at', { ascending: false }),
@@ -870,10 +858,7 @@
                     supabase.from('routes').select('*, path_wkt:path::text').eq('user_id', id).order('created_at', { ascending: false })
                 ]);
 
-                if (profileRes.error) {
-                    body.innerHTML = `<p class="text-red-500 text-center">Не удалось загрузить профиль.</p>`;
-                    return;
-                }
+                if (profileRes.error) { body.innerHTML = `<p class="text-red-500 text-center">Не удалось загрузить профиль.</p>`; return; }
                 const profile = profileRes.data;
                 const posts = postsRes.data || [];
                 const spots = spotsRes.data || [];
@@ -938,10 +923,6 @@
             }
         }
         
-        /**
-         * Переключает табы в модальном окне профиля пользователя.
-         * @param {string} tabName - 'posts', 'spots', или 'routes'.
-         */
         function switchProfileTab(tabName) {
             document.querySelectorAll('#detail-modal .profile-tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('#detail-modal .profile-tab-content').forEach(c => c.classList.remove('active'));
@@ -963,11 +944,6 @@
                      </div>`;
         }
 
-        /**
-         * Переходит на карту и центрируется на выбранном объекте.
-         * @param {string} type - 'spot' или 'route'.
-         * @param {number} id - ID объекта.
-         */
         function navigateToMapObject(type, id) {
             hideDetailModal(); 
             showView('map-view');
@@ -994,37 +970,22 @@
             }
         }
 
-        /**
-         * Надежная функция для парсинга WKT-строк в GeoJSON.
-         * @param {string | null} wkt - Строка в формате Well-Known Text.
-         * @returns {object | null} GeoJSON-объект или null в случае ошибки.
-         */
         function parseWKT(wkt) {
-            if (!wkt || typeof wkt !== 'string') {
-                return null;
-            }
-            
+            if (!wkt || typeof wkt !== 'string') return null;
             try {
-                // Пытаемся распарсить как JSON (если данные уже в формате GeoJSON)
                 if (wkt.trim().startsWith('{')) {
                     const parsed = JSON.parse(wkt);
-                    if (parsed.type && parsed.coordinates) {
-                        return parsed;
-                    }
+                    if (parsed.type && parsed.coordinates) return parsed;
                 }
-
                 const match = wkt.match(/(POINT|LINESTRING|POLYGON|MULTIPOLYGON)\s*\((.+)\)/i);
                 if (!match) return null;
-
                 const type = match[1].toUpperCase();
                 let content = match[2];
-
                 if (type === 'POINT') {
                     const coords = content.match(/-?\d+(\.\d+)?/g);
                     if (!coords || coords.length < 2) return null;
                     return { type: 'Point', coordinates: [parseFloat(coords[0]), parseFloat(coords[1])] };
                 }
-
                 if (type === 'LINESTRING') {
                     const coordPairs = content.split(',');
                     const coordinates = coordPairs.map(pair => {
@@ -1032,33 +993,23 @@
                         if (!nums || nums.length < 2) return null;
                         return [parseFloat(nums[0]), parseFloat(nums[1])];
                     }).filter(p => p !== null);
-
                     if (coordinates.length < 2) return null;
                     return { type: 'LineString', coordinates: coordinates };
                 }
-                
-                // Добавим поддержку полигонов, если понадобится в будущем
-                if (type === 'POLYGON' || type === 'MULTIPOLYGON') {
-                    // Для простоты, пока возвращаем null, но можно реализовать парсинг
-                    return null;
-                }
-
+                return null;
             } catch (e) {
                 console.error("Failed to parse WKT or JSON:", wkt, e);
                 return null;
             }
-            return null;
         }
 
         // --- ОСНОВНАЯ ЛОГИКА И ИНИЦИАЛИЗАЦИЯ ---
         
-        /**
-         * Главная функция приложения. Запускается после загрузки DOM.
-         */
         async function main() {
             try {
                 tg.ready();
                 tg.expand();
+                tg.requestWriteAccess(); // NEW: Запрос на отправку сообщений
                 applyTheme(tg.themeParams);
                 setupStaticEventListeners();
 
@@ -1075,7 +1026,6 @@
                 const initialCoords = initialPosition.coords;
                 
                 loaderText.textContent = 'Подключение к базе данных...';
-                
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 
                 loaderText.textContent = 'Загрузка данных...';
@@ -1102,7 +1052,6 @@
             } catch (error) {
                 console.error("Критическая ошибка инициализации:", error);
                 let fallbackOptions;
-
                 if (error.message === 'GEOLOCATION_DENIED') {
                      fallbackOptions = {
                         title: "Доступ к геолокации необходим",
@@ -1126,33 +1075,18 @@
             }
         }
 
-        /**
-         * Инициализирует карту Leaflet.
-         * @param {object} coords - Объект с latitude и longitude.
-         */
         function initMap(coords) {
             if (map) return;
             const latLng = [coords.latitude, coords.longitude];
             map = L.map('map', { zoomControl: false, attributionControl: false }).setView(latLng, 16);
-            
-            L.tileLayer(MAP_TILE_URL_TEMPLATE, {
-                maxZoom: 19,
-                tileSize: 512,
-                zoomOffset: -1,
-                accessToken: MAPBOX_ACCESS_TOKEN
-            }).addTo(map);
-            
+            L.tileLayer(MAP_TILE_URL_TEMPLATE, { maxZoom: 19, tileSize: 512, zoomOffset: -1, accessToken: MAPBOX_ACCESS_TOKEN }).addTo(map);
             updateCurrentUserMarker(latLng);
             setTimeout(() => map?.invalidateSize(), 100);
         }
 
-        /**
-         * Обновляет элементы интерфейса на основе данных пользователя.
-         */
         function updateUI() {
             const name = telegramUser.first_name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
             profileName.textContent = name;
-            
             if (telegramUser.photo_url) {
                 profileAvatarImg.src = telegramUser.photo_url;
             } else {
@@ -1165,20 +1099,13 @@
             renderMyProfileContent();
         }
         
-        /**
-         * Обновляет маркер текущего пользователя на карте.
-         * @param {Array<number>} latLng - Массив [latitude, longitude].
-         */
         function updateCurrentUserMarker(latLng) {
             if (!map) return;
             const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${telegramUser.first_name.charAt(0)}`;
             const icon = L.divIcon({
                 html: `<div class="avatar-marker current-user-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${userColor};"></div>`,
-                className: '',
-                iconSize: [40, 40],
-                iconAnchor: [20, 20]
+                className: '', iconSize: [40, 40], iconAnchor: [20, 20]
             });
-            
             if (currentUserMarker) {
                 currentUserMarker.setLatLng(latLng);
             } else {
@@ -1189,54 +1116,37 @@
         // --- ЛОГИКА РЕЖИМОВ ---
         
         function startRun() {
-            if (!lastKnownLocation) {
-                tg.showAlert("Не удалось определить ваше местоположение. Попробуйте нажать кнопку 'Найти меня'."); return;
-            }
+            if (!lastKnownLocation) { tg.showAlert("Не удалось определить ваше местоположение. Попробуйте нажать кнопку 'Найти меня'."); return; }
             isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
             tg.isClosingConfirmationEnabled = true;
             updateMainActionButton();
-            
             currentRunPath = [ [lastKnownLocation[1], lastKnownLocation[0]] ];
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
             currentPathPolyline = L.polyline([], { color: 'var(--destructive-color)', weight: 5, opacity: 0.9 }).addTo(map);
             currentPathPolyline.addLatLng(lastKnownLocation);
-
             if (geoWatchInterval) clearInterval(geoWatchInterval);
             geoWatchInterval = setInterval(trackUserPosition, 5000);
         }
 
         function stopRun() {
-             tg.showConfirm("Завершить пробежку и захватить территорию?", (ok) => {
-                   if (ok) processStop();
-             });
+             tg.showConfirm("Завершить пробежку и захватить территорию?", (ok) => { if (ok) processStop(); });
         }
         function processStop() {
             isRunning = false;
-            if (geoWatchInterval) {
-                clearInterval(geoWatchInterval);
-                geoWatchInterval = null;
-            }
-
+            if (geoWatchInterval) { clearInterval(geoWatchInterval); geoWatchInterval = null; }
             tg.HapticFeedback.notificationOccurred('success');
             tg.isClosingConfirmationEnabled = false;
             updateMainActionButton();
-            if (currentRunPath.length > 3) {
-                processRunPath();
-            } else {
-                tg.showAlert('Слишком короткий маршрут для захвата.');
-            }
+            if (currentRunPath.length > 3) { processRunPath(); } 
+            else { tg.showAlert('Слишком короткий маршрут для захвата.'); }
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
         
         function handleMapClickForSpot(e) {
             const { lat, lng } = e.latlng;
             const locationWKT = `POINT(${lng} ${lat})`;
-            tg.showConfirm("Создать новый спот в этом месте?", (ok) => {
-                if (ok) {
-                    showCreationModal('spot', { location: locationWKT });
-                }
-            });
+            tg.showConfirm("Создать новый спот в этом месте?", (ok) => { if (ok) { showCreationModal('spot', { location: locationWKT }); } });
         }
 
         async function saveSpot() {
@@ -1244,96 +1154,63 @@
             const name = document.getElementById('creation-modal-name').value.trim();
             const description = document.getElementById('creation-modal-details').value.trim();
             const file = document.getElementById('creation-modal-photo-input').files[0];
-
-            if (!name || !description) {
-                tg.showAlert("Название и описание обязательны."); return;
-            }
-            
+            if (!name || !description) { tg.showAlert("Название и описание обязательны."); tg.MainButton.hideProgress(); return; }
             let photoUrl = null;
             if (file) {
                 const filePath = `${telegramUser.id}/spots/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                if (error) { console.error("Ошибка загрузки фото:", error); tg.showAlert("Ошибка загрузки фото."); return; }
-                const { data: urlData } = supabase.storage.from('photo').getPublicUrl(data.path);
-                photoUrl = urlData.publicUrl;
+                if (error) { console.error("Ошибка загрузки фото:", error); tg.showAlert("Ошибка загрузки фото."); tg.MainButton.hideProgress(); return; }
+                photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
             }
-            
-            // ID пользователя берется из сессии на сервере через RPC
-            const { error } = await supabase.rpc('create_spot', {
-                name_in: name,
-                description_in: description,
-                photo_url_in: photoUrl,
-                location_wkt_in: location
-            });
-
+            const { error } = await supabase.rpc('create_spot', { name_in: name, description_in: description, photo_url_in: photoUrl, location_wkt_in: location });
+            tg.MainButton.hideProgress();
             if (error) {
                 console.error("Ошибка сохранения спота:", error); tg.showAlert("Не удалось сохранить спот.");
             } else {
                 tg.showAlert("Спот успешно создан!");
                 hideCreationModal();
+                tg.sendData(JSON.stringify({ type: 'new_spot', name: name }));
             }
         }
         
         function addSpotToMap(spot) {
             try {
-                const wkt = spot.location_wkt || spot.location;
-                const geoJsonPoint = parseWKT(wkt);
-
-                if (!geoJsonPoint || geoJsonPoint.type !== 'Point') {
-                    console.warn(`Не удалось обработать геолокацию спота ${spot.id}:`, wkt);
-                    return;
-                }
-
-                const spotLayer = L.geoJSON(geoJsonPoint, {
-                    pointToLayer: (feature, latlng) => L.marker(latlng)
-                }).on('click', () => showDetailModal('spot', spot.id));
-                
+                const geoJsonPoint = parseWKT(spot.location_wkt || spot.location);
+                if (!geoJsonPoint || geoJsonPoint.type !== 'Point') { console.warn(`Не удалось обработать геолокацию спота ${spot.id}:`, spot.location_wkt); return; }
+                const spotLayer = L.geoJSON(geoJsonPoint, { pointToLayer: (feature, latlng) => L.marker(latlng) }).on('click', () => showDetailModal('spot', spot.id));
                 spotMarkersLayer.addLayer(spotLayer);
-            } catch (e) {
-                console.error(`Ошибка при добавлении спота ${spot.id} на карту.`, e, spot);
-            }
+            } catch (e) { console.error(`Ошибка при добавлении спота ${spot.id} на карту.`, e, spot); }
         }
 
         function startRouteRecording() {
-            if (!lastKnownLocation) {
-                tg.showAlert("Сначала определите свое местоположение."); return;
-            }
+            if (!lastKnownLocation) { tg.showAlert("Сначала определите свое местоположение."); return; }
             isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
             tg.isClosingConfirmationEnabled = true;
             updateMainActionButton();
-            
             currentRunPath = [ [lastKnownLocation[0], lastKnownLocation[1]] ];
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
             currentPathPolyline = L.polyline([], { color: 'var(--button-color)', weight: 5, opacity: 0.9 }).addTo(map);
             currentPathPolyline.addLatLng(lastKnownLocation);
-
             if (geoWatchInterval) clearInterval(geoWatchInterval);
             geoWatchInterval = setInterval(trackUserPosition, 5000);
         }
 
         function stopRouteRecording() {
             isRunning = false;
-            if (geoWatchInterval) {
-                clearInterval(geoWatchInterval);
-                geoWatchInterval = null;
-            }
-
+            if (geoWatchInterval) { clearInterval(geoWatchInterval); geoWatchInterval = null; }
             tg.HapticFeedback.notificationOccurred('success');
             tg.isClosingConfirmationEnabled = false;
             updateMainActionButton();
-            
             if (currentRunPath.length < 2) {
                 tg.showAlert("Слишком короткий маршрут.");
                 if (currentPathPolyline) map.removeLayer(currentPathPolyline);
                 currentPathPolyline = null;
                 return;
             }
-            
             const pathCoordinates = currentRunPath.map(p => `${p[1]} ${p[0]}`).join(', ');
             const pathWKT = `LINESTRING(${pathCoordinates})`;
             showCreationModal('route', { path: pathWKT });
-
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
 
@@ -1341,74 +1218,46 @@
             const { path } = currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
             const description = document.getElementById('creation-modal-details').value.trim();
-            
-            if (!name) { tg.showAlert("Название обязательно."); return; }
-
-            const { error } = await supabase.rpc('create_route', {
-                name_in: name,
-                description_in: description,
-                path_wkt_in: path
-            });
-
+            if (!name) { tg.showAlert("Название обязательно."); tg.MainButton.hideProgress(); return; }
+            const { error } = await supabase.rpc('create_route', { name_in: name, description_in: description, path_wkt_in: path });
+            tg.MainButton.hideProgress();
             if (error) {
                 console.error("Ошибка сохранения маршрута:", error); tg.showAlert("Не удалось сохранить маршрут.");
             } else {
                 tg.showAlert("Маршрут сохранен!");
                 hideCreationModal();
+                tg.sendData(JSON.stringify({ type: 'new_route', name: name }));
             }
         }
         
         function addRouteToMap(route) {
             try {
-                const wkt = route.path_wkt || route.path;
-                const geoJsonLine = parseWKT(wkt);
-
-                if (!geoJsonLine || geoJsonLine.type !== 'LineString' || !Array.isArray(geoJsonLine.coordinates) || geoJsonLine.coordinates.length < 2) {
-                    console.warn(`Не удалось обработать путь для маршрута ${route.id}:`, wkt);
-                    return;
-                }
-
-                const routeLayer = L.geoJSON(geoJsonLine, {
-                    style: { color: '#ff7800', weight: 3 }
-                }).on('click', () => showDetailModal('route', route.id));
+                const geoJsonLine = parseWKT(route.path_wkt || route.path);
+                if (!geoJsonLine || geoJsonLine.type !== 'LineString' || !Array.isArray(geoJsonLine.coordinates) || geoJsonLine.coordinates.length < 2) { console.warn(`Не удалось обработать путь для маршрута ${route.id}:`, route.path_wkt); return; }
+                const routeLayer = L.geoJSON(geoJsonLine, { style: { color: '#ff7800', weight: 3 } }).on('click', () => showDetailModal('route', route.id));
                 routePolylinesLayer.addLayer(routeLayer);
-            } catch (e) {
-                console.error(`Ошибка при добавлении маршрута ${route.id} на карту.`, e, route);
-            }
+            } catch (e) { console.error(`Ошибка при добавлении маршрута ${route.id} на карту.`, e, route); }
         }
 
-        // --- ЗАГРУЗКА ДАННЫХ ---
         async function loadInitialMapData() {
-            const { data: spots, error: spotsError } = await supabase.from('spots').select('*, location_wkt:location::text');
-            if (spotsError) {
-                console.error("Ошибка загрузки спотов:", spotsError);
-            } else {
-                allSpots = spots;
-                spotMarkersLayer.clearLayers();
-                allSpots.forEach(addSpotToMap);
-            }
-
-            const { data: routes, error: routesError } = await supabase.from('routes').select('*, path_wkt:path::text');
-            if (routesError) {
-                console.error("Ошибка загрузки маршрутов:", routesError);
-            } else {
-                allRoutes = routes;
-                routePolylinesLayer.clearLayers();
-                allRoutes.forEach(addRouteToMap);
-            }
+            const [{ data: spots, error: spotsError }, { data: routes, error: routesError }] = await Promise.all([
+                supabase.from('spots').select('*, location_wkt:location::text'),
+                supabase.from('routes').select('*, path_wkt:path::text')
+            ]);
+            if (spotsError) { console.error("Ошибка загрузки спотов:", spotsError); } 
+            else { allSpots = spots; spotMarkersLayer.clearLayers(); allSpots.forEach(addSpotToMap); }
+            if (routesError) { console.error("Ошибка загрузки маршрутов:", routesError); } 
+            else { allRoutes = routes; routePolylinesLayer.clearLayers(); allRoutes.forEach(addRouteToMap); }
         }
 
-        // --- SUPABASE и ОБРАБОТЧИКИ ---
         function listenToRealtimeChanges() {
             supabase.channel('public-changes')
               .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, fetchAllProfilesAndDraw)
               .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => { renderFeed(); renderMyProfileContent(); })
-              .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, renderFeed)
-              .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, renderFeed)
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, renderFeed)
               .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload) => {
                   if (commentsModal.classList.contains('visible') && currentReplyTarget.type === 'post') {
-                      const changedPostId = payload.new?.post_id || payload.old?.post_id;
-                      if (changedPostId && changedPostId === currentReplyTarget.id) {
+                      if ((payload.new?.post_id || payload.old?.post_id) === currentReplyTarget.id) {
                           showPostComments(currentReplyTarget.id);
                       }
                   }
@@ -1428,118 +1277,52 @@
         function setupStaticEventListeners() {
             tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
             tg.onEvent('backButtonClicked', () => {
-                if (commentsModal.classList.contains('visible')) {
-                    hideCommentsModal();
-                } else if (detailModal.classList.contains('visible')) {
-                    hideDetailModal();
-                } else if (creationModal.classList.contains('visible')) {
-                    hideCreationModal();
-                } else if (simplePostModal.classList.contains('visible')) {
-                    hideSimplePostModal();
-                }
+                if (commentsModal.classList.contains('visible')) hideCommentsModal();
+                else if (detailModal.classList.contains('visible')) hideDetailModal();
+                else if (creationModal.classList.contains('visible')) hideCreationModal();
+                else if (simplePostModal.classList.contains('visible')) hideSimplePostModal();
             });
         }
 
         function setupDynamicEventListeners() {
-            // Навигация
-            document.querySelectorAll('.nav-btn').forEach(button => {
-                button.addEventListener('click', () => showView(button.dataset.view));
-            });
-            // Переключение режимов карты
-            document.querySelectorAll('.mode-btn').forEach(button => {
-                button.addEventListener('click', () => setMode(button.dataset.mode));
-            });
-            // Кнопки на главной странице
-            document.getElementById('recenter-btn').addEventListener('click', () => {
-                tg.HapticFeedback.impactOccurred('medium');
-                if (lastKnownLocation) map.flyTo(lastKnownLocation, 16);
-            });
-            document.getElementById('scan-qr-btn').addEventListener('click', () => {
-                tg.HapticFeedback.impactOccurred('light');
-                tg.showScanQrPopup({ text: 'Наведите на QR-код другого игрока' });
-            });
-            document.getElementById('invite-friend-btn').addEventListener('click', () => {
-                tg.HapticFeedback.impactOccurred('light');
-                tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(`https://t.me/TerraRunBot/app`)}&text=${encodeURIComponent(`Присоединяйся ко мне в TerraRun и давай захватывать территории вместе!`)}`);
-            });
+            document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
+            document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+            document.getElementById('recenter-btn').addEventListener('click', () => { tg.HapticFeedback.impactOccurred('medium'); if (lastKnownLocation) map.flyTo(lastKnownLocation, 16); });
+            document.getElementById('scan-qr-btn').addEventListener('click', () => { tg.HapticFeedback.impactOccurred('light'); tg.showScanQrPopup({ text: 'Наведите на QR-код другого игрока' }); });
+            document.getElementById('invite-friend-btn').addEventListener('click', () => { tg.HapticFeedback.impactOccurred('light'); tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(`https://t.me/TerraRunBot/app`)}&text=${encodeURIComponent(`Присоединяйся ко мне в TerraRun!`)}`); });
             document.getElementById('create-simple-post-btn').addEventListener('click', showSimplePostModal);
-            // TODO: Добавить обработчики для show-qr-btn и donate-btn
-            
-            // Модальное окно создания поста
             document.getElementById('simple-post-close-btn').addEventListener('click', hideSimplePostModal);
-            document.getElementById('simple-post-save-btn').addEventListener('click', handleSimplePostSave);
-            document.getElementById('simple-post-photo-input').addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    document.getElementById('simple-post-filename').textContent = file.name;
-                }
-            });
-
-            // Модальное окно создания спота/маршрута
-            document.getElementById('save-creation-btn').addEventListener('click', handleCreationSave);
+            document.getElementById('simple-post-photo-input').addEventListener('change', (e) => { if (e.target.files[0]) document.getElementById('simple-post-filename').textContent = e.target.files[0].name; });
             document.getElementById('creation-modal-cancel-btn').addEventListener('click', hideCreationModal);
             document.getElementById('creation-modal-grabber').addEventListener('click', hideCreationModal);
             document.getElementById('creation-modal-photo-input').addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
+                if (e.target.files[0]) {
                     const preview = document.getElementById('creation-modal-photo-preview');
-                    preview.src = URL.createObjectURL(file);
+                    preview.src = URL.createObjectURL(e.target.files[0]);
                     preview.classList.remove('hidden');
                     document.getElementById('creation-modal-photo-icon').classList.add('hidden');
                 }
             });
-
-            // Модальное окно комментариев
             document.getElementById('comments-modal-grabber').addEventListener('click', hideCommentsModal);
             document.getElementById('main-comment-send-btn').addEventListener('click', postComment);
             document.getElementById('cancel-reply-btn').addEventListener('click', cancelReply);
-
-            // Модальное окно деталей
             document.getElementById('detail-modal-grabber').addEventListener('click', hideDetailModal);
-
-            // Табы в профиле
-            document.querySelectorAll('#profile-view .profile-tab').forEach(tab => {
-                tab.addEventListener('click', () => switchMainProfileTab(tab.dataset.profileTab));
-            });
-
-            // Делегирование событий для динамического контента
+            document.querySelectorAll('#profile-view .profile-tab').forEach(tab => tab.addEventListener('click', () => switchMainProfileTab(tab.dataset.profileTab)));
             document.body.addEventListener('click', (event) => {
                 const button = event.target.closest('[data-action]');
                 if (!button) return;
-
-                const { action, id, type, postId, profileTab } = button.dataset;
-
+                const { action, id, type, postId, profileTab, parentCommentId, parentAuthorName } = button.dataset;
                 switch(action) {
-                    case 'like':
-                        toggleLike(button, postId);
-                        break;
-                    case 'comment':
-                    case 'show-post-comments':
-                        showPostComments(postId);
-                        break;
-                    case 'show-detail':
-                        showDetailModal(type, Number(id));
-                        break;
-                    case 'navigate-map':
-                        navigateToMapObject(type, Number(id));
-                        break;
-                    case 'switch-profile-tab':
-                        switchProfileTab(profileTab);
-                        break;
-                    case 'post-detail-comment':
-                        postDetailComment();
-                        break;
-                    case 'cancel-detail-reply':
-                        cancelDetailReply();
-                        break;
-                    case 'set-detail-reply':
-                        const { parentId, authorName } = button.dataset;
-                        setDetailReplyMode(id, parentId, authorName);
-                        break;
-                    case 'set-reply':
-                        const { parentCommentId, parentAuthorName } = button.dataset;
-                        setReplyMode(postId, parentCommentId, parentAuthorName);
-                        break;
+                    case 'like': toggleLike(button, postId); break;
+                    case 'comment': case 'show-post-comments': showPostComments(postId); break;
+                    case 'show-detail': showDetailModal(type, Number(id)); break;
+                    case 'navigate-map': navigateToMapObject(type, Number(id)); break;
+                    case 'switch-profile-tab': switchProfileTab(profileTab); break;
+                    case 'post-detail-comment': postDetailComment(); break;
+                    case 'cancel-detail-reply': cancelDetailReply(); break;
+                    case 'set-detail-reply': setDetailReplyMode(id, parentCommentId, parentAuthorName); break;
+                    case 'set-reply': setReplyMode(postId, parentCommentId, parentAuthorName); break;
+                    case 'share': shareObject(type, id); break;
                 }
             });
         }
@@ -1574,17 +1357,8 @@
 
         function telegramRequestLocation() {
             return new Promise((resolve, reject) => {
-                if (typeof tg.requestGeoLocation !== 'function') {
-                    return reject(new Error('tg.requestGeoLocation is not a function'));
-                }
-
-                tg.requestGeoLocation((location) => {
-                    if (location) {
-                        resolve({ coords: location });
-                    } else {
-                        reject(new Error('GEOLOCATION_DENIED'));
-                    }
-                });
+                if (typeof tg.requestGeoLocation !== 'function') { return reject(new Error('tg.requestGeoLocation is not a function')); }
+                tg.requestGeoLocation((location) => { location ? resolve({ coords: location }) : reject(new Error('GEOLOCATION_DENIED')); });
             });
         }
 
@@ -1594,92 +1368,50 @@
                 const { latitude, longitude } = position.coords;
                 lastKnownLocation = [latitude, longitude];
                 updateCurrentUserMarker(lastKnownLocation);
-
                 if (isRunning && currentPathPolyline) {
-                    const newPoint = (currentMode === 'capture') 
-                        ? [longitude, latitude] 
-                        : [latitude, longitude];
+                    const newPoint = (currentMode === 'capture') ? [longitude, latitude] : [latitude, longitude];
                     currentRunPath.push(newPoint);
                     currentPathPolyline.addLatLng([latitude, longitude]);
                 }
             } catch (error) {
                 console.error("Ошибка отслеживания геолокации:", error);
-                if (isRunning) {
-                    tg.showAlert("Потерян доступ к геолокации. Пробежка остановлена.");
-                    processStop();
-                }
+                if (isRunning) { tg.showAlert("Потерян доступ к геолокации. Пробежка остановлена."); processStop(); }
             }
         }
 
         async function requestInitialGeo() {
             loaderText.textContent = 'Запрос доступа к местоположению...';
             const initialPosition = await telegramRequestLocation();
-            const { latitude, longitude } = initialPosition.coords;
-            lastKnownLocation = [latitude, longitude];
+            lastKnownLocation = [initialPosition.coords.latitude, initialPosition.coords.longitude];
             return initialPosition;
         }
 
         function requestPermissionAndReload() {
-            tg.requestGeoLocation((location) => {
-                if (location) {
-                    window.location.reload();
-                }
-            });
+            tg.requestGeoLocation((location) => { if (location) window.location.reload(); });
         }
         
         async function upsertUserProfile() {
-            if (!telegramUser) throw new Error("Пользователь Telegram не определен для upsertUserProfile.");
-
+            if (!telegramUser) throw new Error("Пользователь Telegram не определен.");
             const { data, error } = await supabase.from('profiles').select('*').eq('id', telegramUser.id).single();
-            
-            if (error && error.code !== 'PGRST116') { // PGRST116 - no rows returned
-                console.error("Ошибка получения профиля:", error); 
-                throw error; 
-            } 
-            
-            if (data) {
-                userColor = data.color;
-                userTerritory = data.territory;
-            } else {
+            if (error && error.code !== 'PGRST116') { console.error("Ошибка получения профиля:", error); throw error; } 
+            if (data) { userColor = data.color; userTerritory = data.territory; } 
+            else {
                 userColor = generateColorFromId(telegramUser.id);
-                const { error: insertError } = await supabase.from('profiles').insert({ 
-                    id: telegramUser.id, 
-                    name: telegramUser.first_name, 
-                    color: userColor, 
-                    area: 0, 
-                    photo_url: telegramUser.photo_url || null, 
-                    territory: null 
-                });
-                if (insertError) { 
-                    console.error("Ошибка создания профиля:", insertError); 
-                    throw insertError; 
-                }
+                const { error: insertError } = await supabase.from('profiles').insert({ id: telegramUser.id, name: telegramUser.first_name, color: userColor, area: 0, photo_url: telegramUser.photo_url || null, territory: null });
+                if (insertError) { console.error("Ошибка создания профиля:", insertError); throw insertError; }
             }
         }
         
         async function processRunPath() {
             const startPoint = currentRunPath[0];
             const endPoint = currentRunPath[currentRunPath.length - 1];
-            const distance = turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' });
-            if (distance > 50) {
-                tg.showAlert('Маршрут не замкнут. Вернитесь к точке старта (в радиус 50м) для захвата.');
-                return;
+            if (turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' }) > 50) {
+                tg.showAlert('Маршрут не замкнут. Вернитесь к точке старта (в радиус 50м) для захвата.'); return;
             }
             currentRunPath.push(startPoint);
-            const line = turf.lineString(currentRunPath);
-            const polygonized = turf.polygonize(line);
-            if (polygonized.features.length === 0) {
-                tg.showAlert('Не удалось сформировать замкнутую территорию. Вероятно, маршрут пересекал сам себя.');
-                return;
-            }
-            let newCapture = polygonized.features[0];
-            if (polygonized.features.length > 1) {
-                try {
-                    newCapture = turf.union(...polygonized.features);
-                } catch (e) {
-                    console.error("Turf union error:", e);
-                }
-            }
+            const polygonized = turf.polygonize(turf.lineString(currentRunPath));
+            if (polygonized.features.length === 0) { tg.showAlert('Не удалось сформировать замкнутую территорию. Вероятно, маршрут пересекал сам себя.'); return; }
+            let newCapture = polygonized.features.length > 1 ? turf.union(...polygonized.features) : polygonized.features[0];
             updateTerritory(newCapture);
         }
 
@@ -1687,74 +1419,39 @@
             try {
                 let combinedTerritory = userTerritory ? turf.union(userTerritory, newCapture) : newCapture;
                 userTerritory = turf.cleanCoords(combinedTerritory);
-                
                 await saveUserData();
                 refreshAllStats();
                 tg.HapticFeedback.notificationOccurred('success');
-                // Вместо старой модалки, предложим создать пост с территорией
-                tg.showConfirm("Территория захвачена! Создать пост об этом?", (ok) => {
-                    if (ok) {
-                        showSimplePostModal(); // Можно расширить, чтобы передавать данные
-                    }
-                });
-
-            } catch (error) {
-                console.error("Ошибка в updateTerritory:", error);
-                tg.showAlert("Ошибка обработки территории.");
-            }
+                tg.showConfirm("Территория захвачена! Создать пост об этом?", (ok) => { if (ok) showSimplePostModal(); });
+            } catch (error) { console.error("Ошибка в updateTerritory:", error); tg.showAlert("Ошибка обработки территории."); }
         }
 
         async function saveUserData() {
             let area = userTerritory ? turf.area(userTerritory) : 0;
-            const userData = { id: telegramUser.id, name: telegramUser.first_name, photo_url: telegramUser.photo_url || null, color: userColor, territory: userTerritory, area: area, updated_at: new Date().toISOString() };
-            const { error } = await supabase.from('profiles').upsert(userData);
+            const { error } = await supabase.from('profiles').upsert({ id: telegramUser.id, name: telegramUser.first_name, photo_url: telegramUser.photo_url || null, color: userColor, territory: userTerritory, area: area, updated_at: new Date().toISOString() });
             if (error) console.error('Error saving user data:', error);
         }
         
         async function handleSimplePostSave() {
+            tg.MainButton.showProgress();
             const description = document.getElementById('simple-post-details').value.trim();
-            if (!description) {
-                tg.showAlert("Пожалуйста, введите текст поста.");
-                return;
-            }
-
+            if (!description) { tg.showAlert("Пожалуйста, введите текст поста."); tg.MainButton.hideProgress(); return; }
             let photoUrl = null;
             const file = document.getElementById('simple-post-photo-input').files[0];
             if (file) {
                 const filePath = `${telegramUser.id}/posts/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                if (error) { console.error("Error uploading photo:", error); tg.showAlert("Не удалось загрузить фото."); return; }
+                if (error) { console.error("Error uploading photo:", error); tg.showAlert("Не удалось загрузить фото."); tg.MainButton.hideProgress(); return; }
                 photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
             }
-
-            const postData = {
-                user_id: telegramUser.id,
-                title: description.substring(0, 50) + (description.length > 50 ? '...' : ''),
-                description: description,
-                photo_url: photoUrl,
-                user_name: telegramUser.first_name,
-                user_avatar_url: telegramUser.photo_url,
-                user_color: userColor
-                // territory_captured можно добавить здесь, если нужно
-            };
-
+            const postData = { user_id: telegramUser.id, title: description.substring(0, 50) + (description.length > 50 ? '...' : ''), description: description, photo_url: photoUrl, user_name: telegramUser.first_name, user_avatar_url: telegramUser.photo_url, user_color: userColor };
             const { error: postError } = await supabase.from('posts').insert(postData);
-            
-            if (postError) {
-                console.error("Error saving post:", postError); tg.showAlert("Не удалось сохранить пост.");
-            } else {
+            tg.MainButton.hideProgress();
+            if (postError) { console.error("Error saving post:", postError); tg.showAlert("Не удалось сохранить пост."); } 
+            else {
                 tg.showAlert("Пост успешно опубликован!");
                 hideSimplePostModal();
-                try {
-                    const dataToSend = {
-                        type: 'new_post',
-                        title: postData.title,
-                        area: null
-                    };
-                    tg.sendData(JSON.stringify(dataToSend));
-                } catch (e) {
-                    console.error('Не удалось отправить данные боту:', e);
-                }
+                tg.sendData(JSON.stringify({ type: 'new_post', title: postData.title, area: null }));
             }
         }
 
@@ -1763,23 +1460,20 @@
             let { data: profiles, error } = await supabase.from('profiles').select('*, territory_wkt:territory::text');
             if (error) { console.error("Error fetching profiles:", error); return; }
             allProfilesData = profiles;
-            
             territoriesLayerGroup.clearLayers();
             allUserLayers = {};
-
             profiles.forEach(profile => {
                 if (telegramUser && profile.id === telegramUser.id) {
                     userTerritory = parseWKT(profile.territory_wkt) || profile.territory;
                     userColor = profile.color;
                     refreshAllStats();
                 }
-                const userLayerGroup = L.layerGroup();
                 const territoryGeoJson = parseWKT(profile.territory_wkt);
                 if (territoryGeoJson) {
-                    L.geoJSON(territoryGeoJson, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } }).addTo(userLayerGroup);
+                    const userLayerGroup = L.geoJSON(territoryGeoJson, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } });
+                    territoriesLayerGroup.addLayer(userLayerGroup);
+                    allUserLayers[profile.id] = userLayerGroup;
                 }
-                userLayerGroup.addTo(territoriesLayerGroup);
-                allUserLayers[profile.id] = userLayerGroup;
             });
             updateLeaderboard(profiles);
         }
@@ -1806,36 +1500,21 @@
 
         function refreshAllStats() {
             let area = 0;
-            if (userTerritory) {
-                try {
-                    area = turf.area(userTerritory);
-                } catch(e) {
-                    console.warn("Could not calculate area for user territory", e);
-                    area = 0;
-                }
-            }
+            if (userTerritory) { try { area = turf.area(userTerritory); } catch(e) { console.warn("Could not calculate area", e); area = 0; } }
             if (isNaN(area)) area = 0;
-            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
-            profileAreaDisplay.textContent = formattedArea;
+            profileAreaDisplay.textContent = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
         }
 
         async function renderFeed() {
             const { data: posts, error: postsError } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
             if (postsError) { console.error("Error fetching posts:", postsError); return; }
+            if (posts.length === 0) { feedContainer.innerHTML = '<p class="text-center text-gray-500">В ленте пока нет постов.</p>'; return; }
             const postIds = posts.map(p => p.id);
-            if (postIds.length === 0) {
-                feedContainer.innerHTML = '<p class="text-center text-gray-500">В ленте пока нет постов.</p>';
-                return;
-            }
-            const { data: likes, error: likesError } = await supabase.from('likes').select('*').in('post_id', postIds);
-            const { data: comments, error: commentsError } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
-            if (likesError || commentsError) { console.error("Error fetching activity:", likesError, commentsError); return; }
-            const likesByPost = likes.reduce((acc, like) => { (acc[like.post_id] = acc[like.post_id] || []).push(like); return acc; }, {});
-            const commentsByPost = comments.reduce((acc, comment) => { (acc[comment.post_id] = acc[comment.post_id] || []).push(comment); return acc; }, {});
-            
-            const feedHTML = posts.map(post => generatePostHTML(post, likesByPost[post.id] || [], commentsByPost[post.id] || [])).join('');
-            feedContainer.innerHTML = feedHTML || '<p class="text-center text-gray-500">В ленте пока нет постов.</p>';
-            
+            const { data: likes } = await supabase.from('likes').select('*').in('post_id', postIds);
+            const { data: comments } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
+            const likesByPost = (likes || []).reduce((acc, like) => { (acc[like.post_id] = acc[like.post_id] || []).push(like); return acc; }, {});
+            const commentsByPost = (comments || []).reduce((acc, comment) => { (acc[comment.post_id] = acc[comment.post_id] || []).push(comment); return acc; }, {});
+            feedContainer.innerHTML = posts.map(post => generatePostHTML(post, likesByPost[post.id] || [], commentsByPost[post.id] || [])).join('');
             posts.forEach(post => {
                 if (post.territory_captured) {
                     const mapContainer = document.getElementById(`mini-map-${post.id}`);
@@ -1879,44 +1558,42 @@
         }
 
         async function toggleLike(buttonElement, postId) {
-            if (!telegramUser) {
-                tg.showAlert('Пользователь не определен. Попробуйте перезагрузить приложение.');
-                return;
-            }
+            if (!telegramUser) { tg.showAlert('Пользователь не определен.'); return; }
             tg.HapticFeedback.impactOccurred('light');
-            
             const hasLiked = buttonElement.classList.contains('liked');
             const countSpan = buttonElement.querySelector('[data-likes-count]');
             let currentCount = parseInt(countSpan.textContent, 10);
-
             buttonElement.classList.toggle('liked');
             countSpan.textContent = hasLiked ? currentCount - 1 : currentCount + 1;
-
             try {
-                if (hasLiked) {
-                    await supabase.from('likes').delete().match({ post_id: postId, user_id: telegramUser.id });
-                } else {
-                    await supabase.from('likes').insert({ post_id: postId, user_id: telegramUser.id });
-                }
+                if (hasLiked) { await supabase.from('likes').delete().match({ post_id: postId, user_id: telegramUser.id }); } 
+                else { await supabase.from('likes').insert({ post_id: postId, user_id: telegramUser.id }); }
             } catch (error) {
                 console.error("Ошибка лайка:", error);
                 buttonElement.classList.toggle('liked');
                 countSpan.textContent = currentCount;
-                tg.showAlert('Не удалось поставить лайк. Попробуйте снова.');
+                tg.showAlert('Не удалось поставить лайк.');
             }
         }
         
-        // --- СИСТЕМА КОММЕНТАРИЕВ ---
+        // --- СИСТЕМА КОММЕНТАРИЕВ И "ПОДЕЛИТЬСЯ" ---
+
+        /**
+         * NEW: Поделиться спотом или маршрутом через inline-режим бота.
+         * @param {string} type - 'spot' или 'route'.
+         * @param {number} id - ID объекта.
+         */
+        function shareObject(type, id) {
+            if (!type || !id) return;
+            const query = `${type}_${id}`;
+            tg.switchInlineQuery(query, []);
+        }
 
         async function fetchComments(type, id) {
             let query = supabase.from('comments').select('*, profiles(id, name, photo_url)');
-            if (type === 'post') {
-                query = query.eq('post_id', id);
-            } else if (type === 'spot') {
-                query = query.eq('spot_id', id);
-            } else if (type === 'route') {
-                query = query.eq('route_id', id);
-            }
+            if (type === 'post') query = query.eq('post_id', id);
+            else if (type === 'spot') query = query.eq('spot_id', id);
+            else if (type === 'route') query = query.eq('route_id', id);
             const { data, error } = await query.order('created_at', { ascending: true });
             return { data, error };
         }
@@ -1926,25 +1603,20 @@
             tg.BackButton.show();
             currentReplyTarget = { type: 'post', id: Number(postId), parentCommentId: null };
             cancelReply();
-            
             const modalBody = document.getElementById('comments-modal-body');
             modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>';
             commentsModal.classList.add('visible');
-            
             const { data: comments, error } = await fetchComments('post', postId);
             if (error) { modalBody.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
-
             renderCommentTree(comments, modalBody);
         }
 
         async function loadAndRenderComments(type, id, containerId) {
               const container = document.getElementById(containerId);
               if (!container) return;
-              container.innerHTML = '<p class="text-center text-gray-500">Загрузка комментариев...</p>';
-              
+              container.innerHTML = '<p class="text-center text-gray-500">Загрузка...</p>';
               const { data: comments, error } = await fetchComments(type, id);
-              if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
-
+              if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка</p>`; return; }
               renderCommentTree(comments, container, 'detail');
         }
 
@@ -1962,10 +1634,9 @@
         function generateCommentHTML(comment, commentsByParent, context = 'post') {
             const replies = commentsByParent[comment.id] || [];
             const profileName = comment.profiles ? comment.profiles.name : 'Аноним';
-            const avatar = comment.profiles ? (comment.profiles.photo_url || `https://placehold.co/32x32/E5E7EB/4B5563?text=${profileName.charAt(0)}`) : 'https://placehold.co/32x32';
+            const avatar = comment.profiles?.photo_url || `https://placehold.co/32x32/E5E7EB/4B5563?text=${profileName.charAt(0)}`;
             const replyAction = context === 'post' ? 'set-reply' : 'set-detail-reply';
             const parentId = comment.post_id || comment.spot_id || comment.route_id;
-
             return `<div class="flex items-start space-x-3 mt-4">
                         <img src="${avatar}" class="w-8 h-8 rounded-full">
                         <div class="flex-1">
@@ -1994,19 +1665,12 @@
         }
 
         async function postComment() {
-            const { type, id, parentCommentId } = currentReplyTarget;
+            const { id, parentCommentId } = currentReplyTarget;
             if (!id || !telegramUser) return;
             const inputElement = document.getElementById('main-comment-input');
             const content = inputElement.value.trim();
             if (!content) return;
-            
-            const commentData = { 
-                post_id: id,
-                user_id: telegramUser.id, 
-                parent_comment_id: parentCommentId, 
-                content: content 
-            };
-            const { error } = await supabase.from('comments').insert(commentData);
+            const { error } = await supabase.from('comments').insert({ post_id: id, user_id: telegramUser.id, parent_comment_id: parentCommentId, content: content });
             if (error) { tg.showAlert('Ошибка отправки'); } else { inputElement.value = ''; cancelReply(); }
         }
 
@@ -2028,30 +1692,12 @@
             const inputElement = document.getElementById('detail-comment-input');
             const content = inputElement.value.trim();
             if (!content) return;
-
-            const parentCommentId = replyTo ? replyTo.parentCommentId : null;
-
-            const commentData = {
-                user_id: telegramUser.id,
-                parent_comment_id: parentCommentId,
-                content: content
-            };
-            if (type === 'spot') {
-                commentData.spot_id = id;
-            } else if (type === 'route') {
-                commentData.route_id = id;
-            }
-
+            const commentData = { user_id: telegramUser.id, parent_comment_id: replyTo ? replyTo.parentCommentId : null, content: content };
+            if (type === 'spot') commentData.spot_id = id;
+            else if (type === 'route') commentData.route_id = id;
             const { error } = await supabase.from('comments').insert(commentData);
-
-            if (error) { 
-                tg.showAlert('Ошибка отправки комментария.'); 
-                console.error("Comment post error:", error);
-            } else { 
-                inputElement.value = ''; 
-                cancelDetailReply();
-                loadAndRenderComments(type, id, 'detail-comments-list');
-            }
+            if (error) { tg.showAlert('Ошибка отправки комментария.'); console.error("Comment post error:", error); } 
+            else { inputElement.value = ''; cancelDetailReply(); loadAndRenderComments(type, id, 'detail-comments-list'); }
         }
 
 
@@ -2065,13 +1711,11 @@
         async function renderMyProfileContent() {
             if (!telegramUser) return;
             const userId = telegramUser.id;
-
             const [postsRes, spotsRes, routesRes] = await Promise.all([
                 supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
                 supabase.from('spots').select('*, location_wkt:location::text').eq('user_id', userId).order('created_at', { ascending: false }),
                 supabase.from('routes').select('*, path_wkt:path::text').eq('user_id', userId).order('created_at', { ascending: false })
             ]);
-
             const posts = postsRes.data || [];
             const postIds = posts.map(p => p.id);
             const likesByPost = {};
@@ -2085,12 +1729,10 @@
             const postsContainer = document.getElementById('profile-content-posts');
             postsContainer.innerHTML = posts.length > 0 ? posts.map(p => generatePostHTML(p, likesByPost[p.id] || [], commentsByPost[p.id] || [])).join('') : '<p class="text-center text-gray-500 py-4">У вас нет постов.</p>';
             document.getElementById('profile-tab-posts').textContent = `Посты (${posts.length})`;
-
             const spots = spotsRes.data || [];
             const spotsContainer = document.getElementById('profile-content-spots');
             spotsContainer.innerHTML = spots.length > 0 ? spots.map(generateMiniSpotHTML).join('') : '<p class="text-center text-gray-500 py-4">У вас нет спотов.</p>';
             document.getElementById('profile-tab-spots').textContent = `Споты (${spots.length})`;
-
             const routes = routesRes.data || [];
             const routesContainer = document.getElementById('profile-content-routes');
             routesContainer.innerHTML = routes.length > 0 ? routes.map(generateMiniRouteHTML).join('') : '<p class="text-center text-gray-500 py-4">У вас нет маршрутов.</p>';
