@@ -122,25 +122,6 @@
             fill: var(--destructive-color);
             color: var(--destructive-color);
         }
-        #main-action-btn {
-            position: fixed;
-            bottom: calc(5.5rem + env(safe-area-inset-bottom)); /* 88px + safe area */
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 30;
-            transition: all 0.3s ease-in-out;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
-        }
-        #main-action-btn:disabled {
-            background-color: var(--hint-color) !important;
-            cursor: not-allowed;
-        }
-        #main-action-btn.running {
-            background-color: var(--destructive-color);
-        }
-        #main-action-btn.hidden {
-            bottom: -100px;
-        }
         #initial-loader {
             background-color: var(--bg-color);
         }
@@ -399,11 +380,6 @@
             <div id="profile-content-spots" class="profile-tab-content mt-4 space-y-4"></div>
             <div id="profile-content-routes" class="profile-tab-content mt-4 space-y-4"></div>
         </div>
-        
-        <!-- Главная плавающая кнопка действия -->
-        <button id="main-action-btn" class="hidden w-20 h-20 px-8 rounded-full text-white items-center justify-center transition-all" style="background-color: var(--button-color);">
-            <!-- Содержимое кнопки будет меняться в JS -->
-        </button>
     </div>
 
     <!-- Нижний навбар -->
@@ -601,7 +577,6 @@
         const fallbackContent = document.getElementById('fallback-content');
         const appContainer = document.getElementById('app-container');
         const bottomNavbar = document.getElementById('bottom-navbar');
-        const mainActionBtn = document.getElementById('main-action-btn');
         const modeSwitcher = document.getElementById('mode-switcher');
         
         // Модальные окна
@@ -635,7 +610,14 @@
             document.querySelector(`button[onclick="showView('${viewId}')"]`).classList.add('active');
             
             const isMapView = viewId === 'map-view';
-            mainActionBtn.classList.toggle('hidden', !isMapView);
+            
+            if (isMapView) {
+                updateMainButton();
+                tg.MainButton.show();
+            } else {
+                tg.MainButton.hide();
+            }
+
             // Показываем свитчер только если есть гео и мы на карте
             modeSwitcher.classList.toggle('hidden', !isMapView || !lastKnownLocation);
             
@@ -644,7 +626,7 @@
             }
         }
 
-        function setMode(newMode) {
+        async function setMode(newMode) {
             if (currentMode === newMode) return;
             
             if (isRunning) {
@@ -654,6 +636,9 @@
 
             tg.HapticFeedback.selectionChanged();
             currentMode = newMode;
+            
+            // NEW: Save mode to cloud storage
+            tg.CloudStorage.setItem('currentMode', newMode);
 
             document.querySelectorAll('.mode-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.id === `mode-${newMode}`);
@@ -677,61 +662,62 @@
                     map.addLayer(routePolylinesLayer);
                     break;
             }
-            updateMainActionButton();
+            updateMainButton();
         }
 
-        function updateMainActionButton() {
-            mainActionBtn.onclick = null;
-            mainActionBtn.classList.remove('running');
-
-            // Если геолокация еще не получена, кнопка неактивна
+        // NEW: Replaced updateMainActionButton with updateMainButton
+        function updateMainButton() {
             if (!lastKnownLocation) {
-                mainActionBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>`;
-                mainActionBtn.disabled = true;
-                mainActionBtn.classList.remove('w-auto', 'px-8');
-                mainActionBtn.classList.add('w-20');
+                tg.MainButton.setText("Определение геолокации...");
+                tg.MainButton.disable();
                 return;
             }
             
-            mainActionBtn.disabled = false;
-            mainActionBtn.style.backgroundColor = 'var(--button-color)'; // Reset color
+            tg.MainButton.enable();
+            tg.MainButton.offClick(mainButtonHandler); // Remove previous listener
 
             switch (currentMode) {
                 case 'capture':
                     if (isRunning) {
-                        mainActionBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" /></svg>`;
-                        mainActionBtn.classList.add('running');
-                        mainActionBtn.onclick = stopRun;
+                        tg.MainButton.setText("Остановить захват");
+                        tg.MainButton.setParams({ color: 'var(--destructive-color)' });
                     } else {
-                        mainActionBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>`;
-                        mainActionBtn.onclick = startRun;
+                        tg.MainButton.setText("Начать захват");
+                        tg.MainButton.setParams({ color: 'var(--button-color)' });
                     }
-                    mainActionBtn.classList.remove('w-auto', 'px-8');
-                    mainActionBtn.classList.add('w-20');
                     break;
                 case 'spots':
-                    mainActionBtn.innerHTML = `<span>Добавить спот здесь</span>`;
-                    mainActionBtn.onclick = () => {
-                         if(lastKnownLocation) {
-                             handleMapClickForSpot({latlng: L.latLng(lastKnownLocation)});
-                         } else {
-                             showCustomAlert("Определяем ваше местоположение...");
-                         }
-                    };
-                    mainActionBtn.classList.add('w-auto', 'px-8');
-                    mainActionBtn.classList.remove('w-20');
+                    tg.MainButton.setText("Добавить спот здесь");
+                    tg.MainButton.setParams({ color: 'var(--button-color)' });
                     break;
                 case 'routes':
-                     if (isRunning) {
-                         mainActionBtn.innerHTML = `<span>Завершить и сохранить</span>`;
-                         mainActionBtn.classList.add('running');
-                         mainActionBtn.onclick = stopRouteRecording;
-                     } else {
-                         mainActionBtn.innerHTML = `<span>Начать запись маршрута</span>`;
-                         mainActionBtn.onclick = startRouteRecording;
-                     }
-                    mainActionBtn.classList.add('w-auto', 'px-8');
-                    mainActionBtn.classList.remove('w-20');
+                    if (isRunning) {
+                        tg.MainButton.setText("Завершить и сохранить маршрут");
+                        tg.MainButton.setParams({ color: 'var(--destructive-color)' });
+                    } else {
+                        tg.MainButton.setText("Начать запись маршрута");
+                        tg.MainButton.setParams({ color: 'var(--button-color)' });
+                    }
+                    break;
+            }
+            tg.MainButton.onClick(mainButtonHandler);
+        }
+        
+        // NEW: Single handler for the Main Button
+        function mainButtonHandler() {
+            switch (currentMode) {
+                case 'capture':
+                    isRunning ? stopRun() : startRun();
+                    break;
+                case 'spots':
+                    if(lastKnownLocation) {
+                        handleMapClickForSpot({latlng: L.latLng(lastKnownLocation)});
+                    } else {
+                        showCustomAlert("Определяем ваше местоположение...");
+                    }
+                    break;
+                case 'routes':
+                    isRunning ? stopRouteRecording() : startRouteRecording();
                     break;
             }
         }
@@ -1165,7 +1151,15 @@
                 appContainer.classList.remove('hidden');
                 bottomNavbar.classList.remove('hidden');
                 
-                setMode('capture');
+                // NEW: Load last used mode from cloud storage
+                tg.CloudStorage.getItem('currentMode', (error, value) => {
+                    if (error) {
+                        console.error("CloudStorage error:", error);
+                        setMode('capture');
+                        return;
+                    }
+                    setMode(value || 'capture');
+                });
 
             } catch (error) {
                 console.error("Критическая ошибка инициализации:", error);
@@ -1202,7 +1196,7 @@
                 profileAvatarImg.src = `https://placehold.co/96x96/E2E8F0/4A5568?text=${initial}`;
             }
             profileAvatarWrapper.style.borderColor = userColor;
-            updateMainActionButton();
+            updateMainButton();
             refreshAllStats();
             renderMyProfileContent();
         }
@@ -1250,7 +1244,7 @@
                 recenterBtn.classList.remove('hidden');
                 modeSwitcher.classList.remove('hidden');
                 
-                updateMainActionButton(); // Активируем основную кнопку
+                updateMainButton(); // Активируем основную кнопку
                 tg.HapticFeedback.notificationOccurred('success');
             } else {
                 showCustomAlert("Не удалось получить геолокацию. Попробуйте еще раз.");
@@ -1272,7 +1266,7 @@
             isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
             tg.isClosingConfirmationEnabled = true;
-            updateMainActionButton();
+            updateMainButton();
             
             currentRunPath = [ [lastKnownLocation[1], lastKnownLocation[0]] ];
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
@@ -1286,7 +1280,7 @@
             isRunning = false;
             tg.HapticFeedback.notificationOccurred('success');
             tg.isClosingConfirmationEnabled = false;
-            updateMainActionButton();
+            updateMainButton();
             if (currentRunPath.length > 3) {
                 processRunPath();
             } else {
@@ -1371,7 +1365,7 @@
             isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
             tg.isClosingConfirmationEnabled = true;
-            updateMainActionButton();
+            updateMainButton();
             
             currentRunPath = [ [lastKnownLocation[0], lastKnownLocation[1]] ];
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
@@ -1383,7 +1377,7 @@
             isRunning = false;
             tg.HapticFeedback.notificationOccurred('success');
             tg.isClosingConfirmationEnabled = false;
-            updateMainActionButton();
+            updateMainButton();
             
             if (currentRunPath.length < 2) {
                 showCustomAlert("Слишком короткий маршрут.");
@@ -1511,12 +1505,21 @@
             });
             tg.onEvent('qrTextReceived', (data) => {
                 if (data.data) {
-                    const url = new URL(data.data);
-                    const userId = url.searchParams.get('start');
-                    if (userId) {
-                        showDetailModal('user', parseInt(userId));
+                    try {
+                        const url = new URL(data.data);
+                        const userId = url.searchParams.get('start');
+                        if (userId) {
+                            showDetailModal('user', parseInt(userId));
+                        }
+                    } catch (e) {
+                        console.error("Invalid QR code data", e);
+                        showCustomAlert("Неверный QR-код.");
                     }
                 }
+            });
+            // NEW: Settings Button
+            tg.SettingsButton.onClick(() => {
+                tg.openTelegramLink(`https://t.me/${BOT_USERNAME}`);
             });
         }
 
@@ -1568,6 +1571,7 @@
             
             showQrBtn.addEventListener('click', showQrModal);
             donateBtn.addEventListener('click', () => {
+                // Замените 'YOUR_PAYMENT_PROVIDER_TOKEN' на ваш реальный токен
                 tg.openInvoice('YOUR_PAYMENT_PROVIDER_TOKEN', (status) => {
                     if (status === 'paid') {
                         showCustomAlert('Спасибо за вашу поддержку!');
