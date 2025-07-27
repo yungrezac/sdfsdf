@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TerraRun | Карта</title>
+    <title>TerraRun | Обновление</title>
 
     <!-- Подключение Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -44,13 +44,13 @@
             --star-color: #facc15;
             --border-color: #e5e7eb;
             --button-color-rgb: 59, 130, 246;
+            --secondary-bg-color-rgb: 255, 255, 255;
         }
 
         /* Адаптация под безопасные зоны iOS */
         body {
             padding-top: constant(safe-area-inset-top);
             padding-top: env(safe-area-inset-top);
-            /* Нижний отступ убран отсюда и будет управляться для каждого view отдельно */
         }
 
         body {
@@ -60,35 +60,31 @@
             transition: background-color 0.3s, color 0.3s;
             font-family: 'Inter', sans-serif;
         }
-        .mini-map, #detail-mini-map { /* Убрал #map из этого правила */
+        .mini-map, #detail-mini-map, #event-map-picker {
             z-index: 10;
             background-color: var(--bg-color);
         }
         
-        /* --- ИЗМЕНЕНО --- Карта теперь на весь экран */
         #map {
-            position: fixed; /* Изменено на fixed, чтобы покрывать весь экран */
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 1; /* Низкий z-index, чтобы быть под элементами UI */
+            z-index: 1;
         }
         
-        /* --- ИЗМЕНЕНО --- View теперь занимают всю высоту */
         .view {
             display: none;
-            height: 100vh; /* Все view теперь занимают 100% высоты */
+            height: 100vh;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             transition: opacity 0.3s ease-in-out;
             background-color: var(--bg-color);
-            box-sizing: border-box; /* Важно для корректного расчета высоты с padding */
+            box-sizing: border-box;
         }
         
-        /* --- ДОБАВЛЕНО --- Отступ для контента, чтобы не перекрываться навбаром */
         #feed-view, #top-view, #profile-view {
-            /* p-4 уже дает 1rem, добавляем высоту навбара */
             padding-bottom: calc(80px + 1rem + env(safe-area-inset-bottom));
         }
 
@@ -98,10 +94,7 @@
         .nav-btn.active i, .nav-btn.active span {
             color: var(--button-color);
         }
-        .nav-btn span {
-             color: var(--hint-color);
-        }
-        .nav-btn i {
+        .nav-btn span, .nav-btn i {
              color: var(--hint-color);
         }
         .card-bg {
@@ -148,7 +141,6 @@
         #initial-loader {
             background-color: var(--bg-color);
         }
-        /* Стили для верхней панели на карте */
         #map-top-panel {
             position: fixed;
             top: calc(1rem + env(safe-area-inset-top));
@@ -159,7 +151,7 @@
             justify-content: space-between;
             align-items: flex-start;
             padding: 0 1rem;
-            pointer-events: none; /* Позволяет кликать сквозь контейнер */
+            pointer-events: none;
         }
         #mode-switcher {
             background-color: rgba(255, 255, 255, 0.8);
@@ -169,10 +161,10 @@
             display: flex;
             gap: 0.25rem;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            pointer-events: all; /* Включаем клики для самого свитчера */
+            pointer-events: all;
         }
         #map-controls-right {
-            pointer-events: all; /* Включаем клики для кнопок справа */
+            pointer-events: all;
         }
         .mode-btn {
             padding: 0.5rem 1rem;
@@ -190,7 +182,6 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
         
-        /* --- ДОБАВЛЕНО --- Позиционирование кнопки действия на карте */
         #map-action-container {
             position: fixed;
             left: 0;
@@ -199,12 +190,10 @@
             display: flex;
             justify-content: center;
             pointer-events: none;
-            /* Позиционируем над навбаром с отступом */
             bottom: calc(80px + 1rem + env(safe-area-inset-bottom));
             transition: bottom 0.3s ease-in-out;
         }
         
-        /* Стили для модальных окон */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -219,10 +208,7 @@
             opacity: 1;
             visibility: visible;
         }
-        
-        /* --- ИЗМЕНЕНО --- Удалены специфичные стили для модалки поста, теперь используется .bottom-sheet-modal */
 
-        /* Модальное окно снизу вверх (Bottom Sheet) */
         .bottom-sheet-modal {
             align-items: flex-end;
         }
@@ -236,7 +222,7 @@
             transform: translateY(100%);
             transition: transform 0.3s ease-in-out;
         }
-        .bottom-sheet-modal.visible .bottom-sheet-content {
+        .modal-overlay.visible .bottom-sheet-content {
             transform: translateY(0);
         }
         .grabber {
@@ -249,8 +235,7 @@
             cursor: grab;
         }
         
-        /* Стили для табов в профиле */
-        .profile-tab {
+        .profile-tab, .feed-tab {
             flex-grow: 1;
             text-align: center;
             padding: 0.75rem 0.5rem;
@@ -259,30 +244,28 @@
             border-bottom: 2px solid transparent;
             cursor: pointer;
             transition: all 0.2s;
+            white-space: nowrap;
         }
-        .profile-tab.active {
+        .profile-tab.active, .feed-tab.active {
             color: var(--button-color);
             border-bottom-color: var(--button-color);
         }
-        .profile-tab-content {
+        .profile-tab-content, .feed-tab-content {
             display: none;
         }
-        .profile-tab-content.active {
+        .profile-tab-content.active, .feed-tab-content.active {
             display: block;
         }
         
-        /* Стили для комментариев в модальном окне деталей */
-        #detail-comments-section {
+        #detail-comments-section, #event-comments-section {
             border-top: 1px solid var(--border-color);
-            padding: 1rem;
         }
-        #detail-comment-input-form {
+        #detail-comment-input-form, #event-comment-input-form {
             padding: 0.5rem 1rem 1rem;
             border-top: 1px solid var(--border-color);
             background-color: var(--secondary-bg-color);
         }
 
-        /* Скелетная загрузка */
         .skeleton {
             background-color: #e2e8f0;
             border-radius: 0.5rem;
@@ -292,18 +275,34 @@
             50% { background-color: #cbd5e1; }
         }
         
-        /* Улучшенные стили для инпутов */
-        .form-input, .form-textarea {
+        .form-input, .form-textarea, .form-select {
             background-color: var(--bg-color);
             border: 1px solid var(--border-color);
             border-radius: 0.75rem;
             padding: 0.75rem 1rem;
             transition: border-color 0.2s, box-shadow 0.2s;
+            width: 100%;
         }
-        .form-input:focus, .form-textarea:focus {
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
             outline: none;
             border-color: var(--button-color);
             box-shadow: 0 0 0 2px rgba(var(--button-color-rgb), 0.2);
+        }
+        /* Стили для кастомного инпута даты-времени */
+        .datetime-input-wrapper {
+            position: relative;
+        }
+        .datetime-input-wrapper input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            color: transparent;
+            background: transparent;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -326,7 +325,6 @@
         <div id="map-view" class="view active">
             <div id="map"></div>
             
-            <!-- NEW: Centered container for geo request button -->
             <div id="map-center-controls" class="fixed inset-0 z-20 flex justify-center items-center pointer-events-none hidden">
                 <button id="request-geo-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-lg flex items-center gap-2 pointer-events-auto">
                     <i class="fa-solid fa-location-arrow h-5 w-5"></i>
@@ -335,10 +333,8 @@
                 </button>
             </div>
             
-            <!-- Панель управления на карте -->
             <div id="map-top-panel">
-                <div class="w-12"></div> <!-- Пустой див для баланса слева -->
-                
+                <div class="w-12"></div>
                 <div class="flex-grow flex justify-center">
                      <div id="mode-switcher" class="hidden">
                          <button id="mode-capture" class="mode-btn active">Захват</button>
@@ -346,7 +342,6 @@
                          <button id="mode-routes" class="mode-btn">Маршруты</button>
                      </div>
                 </div>
-
                 <div id="map-controls-right" class="flex flex-col items-end gap-2">
                     <button id="recenter-btn" class="hidden bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg pointer-events-all">
                         <i class="fa-solid fa-location-crosshairs h-6 w-6 text-gray-700"></i>
@@ -354,8 +349,6 @@
                 </div>
             </div>
             
-            <!-- Основная кнопка действия на карте -->
-            <!-- --- ИЗМЕНЕНО --- Удален класс bottom-[100px], позиция управляется через CSS -->
             <div id="map-action-container" class="hidden">
                 <button id="map-action-btn" class="text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 flex items-center gap-2 pointer-events-auto">
                     <i id="map-action-icon" class="fa-solid fa-play h-5 w-5"></i>
@@ -366,13 +359,26 @@
 
         <!-- Вид 2: Лента -->
         <div id="feed-view" class="view p-4 fade-in">
-            <div class="flex justify-between items-center mb-6 px-2">
+            <div class="flex justify-between items-center mb-4 px-2">
                 <h1 class="text-3xl font-bold">Лента</h1>
-                <button id="create-simple-post-btn" class="p-2 rounded-full hover:bg-gray-200" style="background-color: var(--secondary-bg-color);">
+                <button id="feed-create-btn" class="p-2 rounded-full hover:bg-gray-200" style="background-color: var(--secondary-bg-color);">
                     <i class="fa-solid fa-plus h-7 w-7" style="color: var(--button-color);"></i>
                 </button>
             </div>
-            <div id="feed-container" class="space-y-4"></div>
+            
+            <!-- NEW: Табы в ленте -->
+            <div class="flex border-b sticky top-0 z-10 overflow-x-auto" style="background-color: var(--bg-color);">
+                <div id="feed-tab-posts" class="feed-tab active" onclick="switchFeedTab('posts')">Посты</div>
+                <div id="feed-tab-events" class="feed-tab" onclick="switchFeedTab('events')">Покатушки</div>
+                <div id="feed-tab-spots" class="feed-tab" onclick="switchFeedTab('spots')">Споты</div>
+                <div id="feed-tab-routes" class="feed-tab" onclick="switchFeedTab('routes')">Маршруты</div>
+            </div>
+
+            <!-- Контент для табов -->
+            <div id="feed-content-posts" class="feed-tab-content active mt-4 space-y-4"></div>
+            <div id="feed-content-events" class="feed-tab-content mt-4 space-y-4"></div>
+            <div id="feed-content-spots" class="feed-tab-content mt-4 space-y-4"></div>
+            <div id="feed-content-routes" class="feed-tab-content mt-4 space-y-4"></div>
         </div>
 
         <!-- Вид 3: Топ пользователей -->
@@ -414,11 +420,14 @@
              <!-- Табы -->
             <div class="flex border-b mt-6 sticky top-0 z-10" style="background-color: var(--bg-color);">
                 <div id="profile-tab-posts" class="profile-tab active" onclick="switchMainProfileTab('posts')">Посты</div>
+                <!-- NEW: Таб покатушек в профиле -->
+                <div id="profile-tab-events" class="profile-tab" onclick="switchMainProfileTab('events')">Покатушки</div>
                 <div id="profile-tab-spots" class="profile-tab" onclick="switchMainProfileTab('spots')">Споты</div>
                 <div id="profile-tab-routes" class="profile-tab" onclick="switchMainProfileTab('routes')">Маршруты</div>
             </div>
 
             <div id="profile-content-posts" class="profile-tab-content active mt-4 space-y-4"></div>
+            <div id="profile-content-events" class="profile-tab-content mt-4 space-y-4"></div>
             <div id="profile-content-spots" class="profile-tab-content mt-4 space-y-4"></div>
             <div id="profile-content-routes" class="profile-tab-content mt-4 space-y-4"></div>
         </div>
@@ -432,7 +441,7 @@
         <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('profile-view')"><i class="fa-solid fa-user h-7 w-7"></i><span>Профиль</span></button>
     </nav>
     
-    <!-- --- ИЗМЕНЕНО --- Модальное окно создания простого поста (теперь снизу вверх) -->
+    <!-- Модальное окно создания простого поста -->
     <div id="simple-post-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideSimplePostModal()">
         <div id="simple-post-content" class="bottom-sheet-content" style="height: auto; max-height: 90vh;">
             <div class="grabber" onclick="hideSimplePostModal()"></div>
@@ -461,7 +470,7 @@
         </div>
     </div>
 
-    <!-- Модальное окно создания Спота/Маршрута/Поста (снизу вверх, 75%) -->
+    <!-- Модальное окно создания Спота/Маршрута/Поста (захват) -->
     <div id="creation-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideCreationModal()">
         <div class="bottom-sheet-content" style="height: 75%; max-height: calc(100vh - env(safe-area-inset-top) - 1rem);">
             <div class="grabber" onclick="hideCreationModal()"></div>
@@ -478,7 +487,6 @@
                 </div>
                 <div id="creation-modal-photo-section">
                     <label class="block text-sm font-medium mb-1">Фото</label>
-                    <!-- --- ИЗМЕНЕНО --- Trigger заменен на кнопки -->
                     <div class="mt-1">
                         <img id="creation-modal-photo-preview" src="" alt="Предпросмотр фото" class="hidden w-full h-auto mb-4 rounded-lg object-cover max-h-48">
                         <div class="flex gap-3">
@@ -501,7 +509,45 @@
         </div>
     </div>
 
-    <!-- Модальное окно деталей (выдвигается снизу) -->
+    <!-- NEW: Модальное окно создания Покатушки (Мероприятия) -->
+    <div id="event-creation-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideEventCreationModal()">
+        <div class="bottom-sheet-content" style="height: 90%; max-height: calc(100vh - env(safe-area-inset-top) - 1rem);">
+            <div class="grabber" onclick="hideEventCreationModal()"></div>
+            <div class="p-4 flex-shrink-0">
+                 <h2 class="text-2xl font-bold">Новое мероприятие</h2>
+            </div>
+            <div id="event-creation-modal-body" class="flex-grow overflow-y-auto p-4 space-y-4">
+                <div>
+                    <label for="event-title" class="block text-sm font-medium mb-1">Название</label>
+                    <input type="text" id="event-title" class="form-input" placeholder="Вечерний прохват">
+                </div>
+                <div>
+                    <label for="event-description" class="block text-sm font-medium mb-1">Описание</label>
+                    <textarea id="event-description" rows="3" class="form-textarea" placeholder="Собираемся, общаемся, катаемся!"></textarea>
+                </div>
+                <div>
+                    <label for="event-datetime" class="block text-sm font-medium mb-1">Дата и время</label>
+                    <div class="datetime-input-wrapper">
+                        <input type="datetime-local" id="event-datetime" class="form-input">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Точка сбора</label>
+                    <div id="event-map-picker" class="h-48 w-full rounded-lg bg-gray-200 mt-1"></div>
+                    <p id="event-map-hint" class="text-xs text-gray-500 mt-1">Кликните на карту, чтобы выбрать точку сбора.</p>
+                </div>
+                <div>
+                    <label for="event-route-select" class="block text-sm font-medium mb-1">Маршрут (необязательно)</label>
+                    <select id="event-route-select" class="form-select"></select>
+                </div>
+            </div>
+            <div class="p-4 flex-shrink-0 border-t" style="border-color: var(--border-color);">
+                 <button onclick="handleEventSave()" class="w-full text-white font-bold py-3 px-6 rounded-full transition-all" style="background-color: var(--button-color);">Создать мероприятие</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно деталей (универсальное) -->
     <div id="detail-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideDetailModal()">
         <div class="bottom-sheet-content" style="height: 90%; max-height: calc(100vh - env(safe-area-inset-top) - 1rem);">
             <div class="grabber" onclick="hideDetailModal()"></div>
@@ -530,6 +576,15 @@
         </div>
     </div>
     
+    <!-- NEW: Модальное окно списка участников -->
+    <div id="participants-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideParticipantsModal()">
+        <div class="bottom-sheet-content" style="height: 75%;">
+            <div class="grabber" onclick="hideParticipantsModal()"></div>
+            <h2 id="participants-modal-title" class="text-xl font-bold px-4 pb-2 flex-shrink-0">Участники</h2>
+            <div id="participants-modal-body" class="flex-grow overflow-y-auto p-4 space-y-3"></div>
+        </div>
+    </div>
+
     <!-- Модальное окно для QR-кода -->
     <div id="qr-modal" class="modal-overlay justify-center items-center p-4" onclick="if(event.target === this) hideQrModal()">
         <div class="card-bg rounded-2xl shadow-2xl p-6 w-full max-w-xs fade-in space-y-4 flex flex-col items-center">
@@ -540,11 +595,7 @@
         </div>
     </div>
 
-    <!-- --- УДАЛЕНО --- Модальное окно выбора источника фото -->
-
-    <!-- --- НОВОЕ --- Скрытые инпуты для выбора файлов -->
     <input id="gallery-input" type="file" class="sr-only" accept="image/*">
-    <!-- --- ИЗМЕНЕНО --- Атрибут capture изменен на "user" для лучшей совместимости -->
     <input id="camera-input" type="file" class="sr-only" accept="image/*" capture="user">
 
 
@@ -552,28 +603,25 @@
         // --- КОНФИГУРАЦИЯ И КОНСТАНТЫ ---
         const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
-        const BOT_USERNAME = 'TerraRunBot'; // Имя вашего бота
+        const BOT_USERNAME = 'TerraRunBot';
 
         // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И СОСТОЯНИЕ ---
         const tg = window.Telegram.WebApp;
         let map;
+        let eventPickerMap; // Карта для выбора точки сбора
         let supabase;
         let telegramUser = null;
         let locationWatchId = null;
         let scrollToPostId = null; 
-        
-        // Состояние приложения
+        let countdownTimers = []; // Массив для хранения интервалов таймеров
+
         const AppState = {
-            currentMode: 'capture', // 'capture', 'spots', 'routes'
-            isRunning: false, // Для режимов 'capture' и 'routes'
+            currentMapMode: 'capture', // 'capture', 'spots', 'routes'
+            currentFeedTab: 'posts', // 'posts', 'events', 'spots', 'routes'
+            isRunning: false,
             lastKnownLocation: null,
             userProfile: {
-                id: null,
-                name: '',
-                color: '#3b82f6',
-                territory: null,
-                photo_url: null,
-                area: 0,
+                id: null, name: '', color: '#3b82f6', territory: null, photo_url: null, area: 0,
             },
             currentRunPath: [],
             currentPathPolyline: null,
@@ -581,16 +629,17 @@
             allUserLayers: {},
             allSpots: [],
             allRoutes: [],
+            allEvents: [], // NEW
             allProfilesData: [],
-            currentEditContext: {}, // Для модалки создания/редактирования
-            currentDetailContext: {}, // Для модалки деталей
+            currentEditContext: {},
+            currentDetailContext: {},
             currentReplyTarget: { type: null, id: null, parentCommentId: null },
-            photoContext: null, // 'creation' или 'simple'
-            simplePostContext: {}, // Для хранения файла простого поста
+            photoContext: null,
+            simplePostContext: {},
+            eventCreationContext: {}, // NEW
         };
         
-        // Коллекции геообъектов Yandex Maps
-        let territoriesCollection, spotCollection, routeCollection;
+        let territoriesCollection, spotCollection, routeCollection, eventCollection; // NEW: eventCollection
         
         // --- ЭЛЕМЕНТЫ DOM ---
         const initialLoader = document.getElementById('initial-loader');
@@ -600,6 +649,7 @@
         const appContainer = document.getElementById('app-container');
         const bottomNavbar = document.getElementById('bottom-navbar');
         const modeSwitcher = document.getElementById('mode-switcher');
+        const feedCreateBtn = document.getElementById('feed-create-btn');
         
         // Модальные окна
         const detailModal = document.getElementById('detail-modal');
@@ -607,9 +657,10 @@
         const simplePostModal = document.getElementById('simple-post-modal');
         const creationModal = document.getElementById('creation-modal');
         const qrModal = document.getElementById('qr-modal');
+        const eventCreationModal = document.getElementById('event-creation-modal'); // NEW
+        const participantsModal = document.getElementById('participants-modal'); // NEW
 
         const leaderboardDiv = document.getElementById('leaderboard');
-        const feedContainer = document.getElementById('feed-container');
         const profileName = document.getElementById('profile-name');
         const profileAreaDisplay = document.getElementById('profile-area');
         const profileAvatarImg = document.getElementById('profile-avatar-img');
@@ -620,99 +671,55 @@
         const scanQrBtn = document.getElementById('scan-qr-btn');
         const shareProfileBtn = document.getElementById('share-profile-btn');
         const showQrBtn = document.getElementById('show-qr-btn');
-        const createSimplePostBtn = document.getElementById('create-simple-post-btn');
         const mapActionContainer = document.getElementById('map-action-container');
         const mapActionBtn = document.getElementById('map-action-btn');
 
         // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
         
-        /**
-         * Осветляет или затемняет цвет в формате hex.
-         * @param {string} color - Строка цвета в формате hex (например, "#RRGGBB").
-         * @param {number} percent - Процент для осветления (положительный) или затемнения (отрицательный).
-         * @returns {string} Новая строка цвета в формате hex.
-         */
         function shadeColor(color, percent) {
-            if (!color || !color.startsWith('#')) {
-                return '#e5e7eb'; 
-            }
+            if (!color || !color.startsWith('#')) return '#e5e7eb'; 
             let R = parseInt(color.substring(1, 3), 16);
             let G = parseInt(color.substring(3, 5), 16);
             let B = parseInt(color.substring(5, 7), 16);
-
             R = parseInt(R * (100 + percent) / 100);
             G = parseInt(G * (100 + percent) / 100);
             B = parseInt(B * (100 + percent) / 100);
-
             R = (R < 255) ? R : 255;
             G = (G < 255) ? G : 255;
             B = (B < 255) ? B : 255;
-            
             R = (R > 0) ? R : 0;
             G = (G > 0) ? G : 0;
             B = (B > 0) ? B : 0;
-
             const RR = ((R.toString(16).length === 1) ? "0" + R.toString(16) : R.toString(16));
             const GG = ((G.toString(16).length === 1) ? "0" + G.toString(16) : G.toString(16));
             const BB = ((B.toString(16).length === 1) ? "0" + B.toString(16) : B.toString(16));
-
             return "#" + RR + GG + BB;
         }
 
-        /**
-         * Преобразует цвет HEX в массив RGB.
-         * @param {string} hex - Цвет в формате HEX.
-         * @returns {number[] | null} Массив [R, G, B] или null.
-         */
         function hexToRgb(hex) {
             const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? [
-                parseInt(result[1], 16),
-                parseInt(result[2], 16),
-                parseInt(result[3], 16)
-            ] : null;
+            return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : null;
         }
 
-        /**
-         * Генерирует диплинк и открывает диалог "Поделиться" в Telegram.
-         * @param {'post' | 'route' | 'spot' | 'user'} type - Тип контента.
-         * @param {number | string} id - ID контента.
-         * @param {number | string} ownerId - ID владельца контента.
-         */
         function shareContent(type, id, ownerId) {
             tg.HapticFeedback.impactOccurred('light');
             const isOwner = telegramUser && ownerId.toString() === telegramUser.id.toString();
             let text = '';
-
             switch (type) {
-                case 'post':
-                    text = isOwner ? 'Оцени мой пост в TerraRun!' : 'Смотри какой интересный пост в TerraRun!';
-                    break;
-                case 'route':
-                    text = isOwner ? 'Зацени мой маршрут в TerraRun!' : 'Смотри какой интересный маршрут в TerraRun!';
-                    break;
-                case 'spot':
-                    text = isOwner ? 'Смотри какой интересный спот в TerraRun!' : 'Смотри какой интересный спот в TerraRun!';
-                    break;
-                case 'user':
-                    text = isOwner ? 'Это мой профиль в TerraRun, присоединяйся!' : 'Смотри профиль этого бегуна в TerraRun!';
-                    break;
+                case 'post': text = isOwner ? 'Оцени мой пост в TerraRun!' : 'Смотри какой интересный пост в TerraRun!'; break;
+                case 'route': text = isOwner ? 'Зацени мой маршрут в TerraRun!' : 'Смотри какой интересный маршрут в TerraRun!'; break;
+                case 'spot': text = isOwner ? 'Смотри какой интересный спот в TerraRun!' : 'Смотри какой интересный спот в TerraRun!'; break;
+                case 'event': text = isOwner ? 'Присоединяйся к моей покатушке в TerraRun!' : 'Смотри, какая покатушка намечается в TerraRun!'; break;
+                case 'user': text = isOwner ? 'Это мой профиль в TerraRun, присоединяйся!' : 'Смотри профиль этого бегуна в TerraRun!'; break;
             }
-
             const url = `https://t.me/${BOT_USERNAME}?startapp=${type}_${id}`;
             tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`);
         }
 
-        /**
-         * Экранирует HTML-строку для безопасного вывода.
-         * @param {string} str - Входная строка.
-         * @returns {string} Экранированная строка.
-         */
         function escapeHTML(str) {
             if (!str) return '';
             return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
         }
-
 
         // --- ФУНКЦИИ UI ---
         function showView(viewId) {
@@ -729,35 +736,68 @@
             } else {
                 mapActionContainer.classList.add('hidden');
             }
-
             modeSwitcher.classList.toggle('hidden', !isMapView || !AppState.lastKnownLocation);
             
             if (isMapView) {
                 setTimeout(() => map?.container.fitToViewport(), 100);
             }
         }
+        
+        // NEW: Переключение табов в ленте
+        function switchFeedTab(tabName) {
+            if (AppState.currentFeedTab === tabName) return;
+            tg.HapticFeedback.selectionChanged();
+            AppState.currentFeedTab = tabName;
 
-        async function setMode(newMode) {
-            if (AppState.currentMode === newMode || !map) return;
+            document.querySelectorAll('.feed-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.feed-tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(`feed-tab-${tabName}`).classList.add('active');
+            document.getElementById(`feed-content-${tabName}`).classList.add('active');
+
+            // Обновляем кнопку создания
+            const createIcon = feedCreateBtn.querySelector('i');
+            if (tabName === 'events') {
+                feedCreateBtn.onclick = showEventCreationModal;
+                createIcon.className = 'fa-solid fa-calendar-plus h-7 w-7';
+            } else {
+                feedCreateBtn.onclick = showSimplePostModal;
+                createIcon.className = 'fa-solid fa-plus h-7 w-7';
+            }
+            
+            // Загружаем контент для таба
+            renderCurrentFeedTab();
+        }
+        
+        // NEW: Загрузка контента для активного таба ленты
+        function renderCurrentFeedTab() {
+            clearCountdownTimers(); // Очищаем старые таймеры перед рендером
+            switch(AppState.currentFeedTab) {
+                case 'posts': renderFeedPosts(); break;
+                case 'events': renderFeedEvents(); break;
+                case 'spots': renderFeedSpots(); break;
+                case 'routes': renderFeedRoutes(); break;
+            }
+        }
+
+
+        async function setMapMode(newMode) {
+            if (AppState.currentMapMode === newMode || !map) return;
             
             if (AppState.isRunning) {
                 showCustomAlert("Сначала завершите текущую активность (захват или запись маршрута).");
                 return;
             }
-
             tg.HapticFeedback.selectionChanged();
-            AppState.currentMode = newMode;
+            AppState.currentMapMode = newMode;
             
-            tg.CloudStorage.setItem('currentMode', newMode);
+            tg.CloudStorage.setItem('currentMapMode', newMode);
 
             document.querySelectorAll('.mode-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.id === `mode-${newMode}`);
             });
 
-            // Удаляем старый обработчик клика
             map.events.remove('click', handleMapClickForSpot);
 
-            // Управляем видимостью коллекций
             territoriesCollection.options.set('visible', newMode === 'capture');
             spotCollection.options.set('visible', newMode === 'spots');
             routeCollection.options.set('visible', newMode === 'routes');
@@ -780,7 +820,7 @@
             
             mapActionContainer.classList.remove('hidden');
 
-            switch (AppState.currentMode) {
+            switch (AppState.currentMapMode) {
                 case 'capture':
                     if (AppState.isRunning) {
                         text.textContent = "Остановить захват";
@@ -812,9 +852,9 @@
         }
         
         async function mapActionButtonHandler() {
-            mapActionBtn.disabled = true; // Предотвращаем двойные нажатия
+            mapActionBtn.disabled = true; 
             try {
-                switch (AppState.currentMode) {
+                switch (AppState.currentMapMode) {
                     case 'capture':
                         AppState.isRunning ? await stopRun() : startRun();
                         break;
@@ -874,8 +914,6 @@
             preview.classList.add('hidden');
             preview.src = '';
 
-
-            // Скрываем все секции по умолчанию
             detailsSection.style.display = 'none';
             photoSection.style.display = 'none';
 
@@ -921,7 +959,6 @@
         }
         
         function hideDetailModal() {
-            // Уничтожаем все инстансы карт в модалке
             if (AppState.currentDetailContext.mapInstances) {
                 AppState.currentDetailContext.mapInstances.forEach(mapInstance => mapInstance.destroy());
             }
@@ -930,7 +967,7 @@
             AppState.currentDetailContext = {};
         }
 
-        // --- НОВЫЕ ФУНКЦИИ ДЛЯ ВЫБОРА ФОТО ---
+        // --- ФУНКЦИИ ДЛЯ ВЫБОРА ФОТО ---
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -944,8 +981,7 @@
                 document.getElementById('simple-post-filename').textContent = file.name;
                 AppState.simplePostContext = { file: file };
             }
-
-            event.target.value = ''; // Сбрасываем инпут, чтобы можно было выбрать тот же файл снова
+            event.target.value = '';
         }
 
         async function loadDetailContent() {
@@ -953,102 +989,41 @@
             const body = document.getElementById('detail-modal-body');
             
             body.innerHTML = `<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
-
-            const commentsHtml = `
-                <div id="detail-comments-section" class="mt-4">
-                    <h3 class="text-xl font-bold px-4">Комментарии</h3>
-                    <div id="detail-comments-list" class="p-4 space-y-4">
-                        <p class="text-center text-gray-500">Загрузка комментариев...</p>
-                    </div>
-                </div>
-                <div id="detail-comment-input-form" class="flex-shrink-0 p-2 border-t" style="background-color: var(--secondary-bg-color); border-color: var(--border-color);">
-                     <div id="detail-reply-indicator" class="hidden text-xs px-2 pb-1 flex justify-between items-center" style="color: var(--hint-color);">
-                         <span id="detail-reply-indicator-text"></span>
-                         <button onclick="cancelDetailReply()" class="font-bold text-xl">&times;</button>
-                     </div>
-                    <div class="flex items-center space-x-2">
-                        <textarea id="detail-comment-input" class="form-textarea w-full" rows="1" placeholder="Написать комментарий..."></textarea>
-                        <button onclick="postDetailComment()" class="flex-shrink-0 text-white rounded-full p-2 hover:opacity-80 disabled:opacity-50" style="background-color: var(--button-color);">
-                           <i class="fa-solid fa-paper-plane h-6 w-6"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-
+            
+            // NEW: Универсальный рендеринг деталей.
             if (type === 'spot') {
                 const { data: spot, error } = await supabase.from('spots').select('*, profiles(id, name, photo_url), location_wkt:location::text').eq('id', id).single();
                 if (error || !spot) {
                     body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали спота.</p>`;
                     return;
                 }
-                const author = spot.profiles || { name: 'Аноним', photo_url: null };
-                const avatar = author.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${author.name.charAt(0)}`;
-                body.innerHTML = `
-                    <div class="space-y-4 pb-4">
-                        ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-64 object-cover" alt="Spot photo">` : ''}
-                        <div class="px-4">
-                            <div class="flex justify-between items-start">
-                                <h2 class="text-3xl font-bold flex-1">${escapeHTML(spot.name)}</h2>
-                                <button onclick="shareContent('spot', ${spot.id}, ${spot.user_id})" class="p-2 rounded-full hover:bg-gray-200 ml-2 flex-shrink-0">
-                                    <i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--hint-color);"></i>
-                                </button>
-                            </div>
-                            <div class="flex items-center space-x-3 mt-2 cursor-pointer" onclick="showDetailModal('user', ${spot.user_id})">
-                                <img src="${avatar}" class="w-8 h-8 rounded-full" alt="author avatar">
-                                <span class="font-semibold text-sm">Автор: ${escapeHTML(author.name)}</span>
-                            </div>
-                            <p class="mt-4" style="color: var(--text-color);">${escapeHTML(spot.description)}</p>
-                        </div>
-                    </div>
-                    ${commentsHtml}
-                `;
-                loadAndRenderComments(type, id, 'detail-comments-list');
+                body.innerHTML = generateSpotDetailHTML(spot);
+                loadAndRenderComments('spot', id, 'detail-comments-list');
             } else if (type === 'route') {
-                const { data: route, error } = await supabase.from('routes').select('*, profiles(id, name, photo_url), path_wkt:path::text').eq('id', id).single();
+                 const { data: route, error } = await supabase.from('routes').select('*, profiles(id, name, photo_url), path_wkt:path::text').eq('id', id).single();
                 if (error || !route) {
                     body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали маршрута.</p>`;
                     return;
                 }
-                const author = route.profiles || { name: 'Аноним', photo_url: null };
-                const avatar = author.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${author.name.charAt(0)}`;
-                body.innerHTML = `
-                    <div class="space-y-4 pb-4">
-                        <div id="detail-mini-map" class="h-64 w-full bg-gray-200"></div>
-                        <div class="px-4">
-                             <div class="flex justify-between items-start">
-                                 <h2 class="text-3xl font-bold flex-1">${escapeHTML(route.name)}</h2>
-                                 <button onclick="shareContent('route', ${route.id}, ${route.user_id})" class="p-2 rounded-full hover:bg-gray-200 ml-2 flex-shrink-0">
-                                     <i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--hint-color);"></i>
-                                 </button>
-                             </div>
-                            <div class="flex items-center space-x-3 mt-2 cursor-pointer" onclick="showDetailModal('user', ${route.user_id})">
-                                <img src="${avatar}" class="w-8 h-8 rounded-full" alt="author avatar">
-                                <span class="font-semibold text-sm">Автор: ${escapeHTML(author.name)}</span>
-                            </div>
-                            ${route.description ? `<p class="mt-4" style="color: var(--text-color);">${escapeHTML(route.description)}</p>` : ''}
-                        </div>
-                    </div>
-                     ${commentsHtml}
-                `;
-                setTimeout(() => {
-                    const mapContainer = document.getElementById('detail-mini-map');
-                    const routeGeoJson = parseWKT(route.path_wkt);
-                    if (mapContainer && routeGeoJson) {
-                        const miniMap = new ymaps.Map(mapContainer, { center: [55.75, 37.62], zoom: 9, controls: [] });
-                        AppState.currentDetailContext.mapInstances.push(miniMap);
-                        
-                        const routeObject = new ymaps.Polyline(routeGeoJson.coordinates.map(c => [c[1], c[0]]), {}, { strokeColor: '#ff7800', strokeWidth: 3 });
-                        miniMap.geoObjects.add(routeObject);
-                        miniMap.setBounds(routeObject.geometry.getBounds(), { checkZoomRange: true, zoomMargin: 10 });
-                    }
-                }, 100);
-                 loadAndRenderComments(type, id, 'detail-comments-list');
+                body.innerHTML = generateRouteDetailHTML(route);
+                setTimeout(() => renderMiniMapForRoute(route), 100);
+                loadAndRenderComments('route', id, 'detail-comments-list');
+            } else if (type === 'event') { // NEW: Детали мероприятия
+                const { data: event, error } = await supabase.from('events').select('*, profiles(id, name, photo_url), routes(*), meeting_point_wkt:meeting_point::text').eq('id', id).single();
+                 if (error || !event) {
+                    body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали мероприятия.</p>`;
+                    return;
+                }
+                body.innerHTML = await generateEventDetailHTML(event);
+                setTimeout(() => renderMiniMapForEvent(event), 100);
+                loadAndRenderComments('event', id, 'event-comments-list');
             } else if (type === 'user') {
-                const [profileRes, postsRes, spotsRes, routesRes] = await Promise.all([
+                const [profileRes, postsRes, spotsRes, routesRes, eventsRes] = await Promise.all([
                     supabase.from('profiles').select('*').eq('id', id).single(),
                     supabase.from('posts').select('*').eq('user_id', id).order('created_at', { ascending: false }),
                     supabase.from('spots').select('*, location_wkt:location::text').eq('user_id', id).order('created_at', { ascending: false }),
-                    supabase.from('routes').select('*, path_wkt:path::text').eq('user_id', id).order('created_at', { ascending: false })
+                    supabase.from('routes').select('*, path_wkt:path::text').eq('user_id', id).order('created_at', { ascending: false }),
+                    supabase.rpc('get_user_events', { p_user_id: id }) // NEW: Получаем мероприятия пользователя
                 ]);
 
                 if (profileRes.error) {
@@ -1059,96 +1034,47 @@
                 const posts = postsRes.data || [];
                 const spots = spotsRes.data || [];
                 const routes = routesRes.data || [];
+                const events = eventsRes.data || [];
 
-                const postIds = posts.map(p => p.id);
-                const likesByPost = {};
-                const commentsByPost = {};
-                if (postIds.length > 0) {
-                    const { data: likes } = await supabase.from('likes').select('*').in('post_id', postIds);
-                    const { data: comments } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
-                    if(likes) likes.forEach(like => (likesByPost[like.post_id] = likesByPost[like.post_id] || []).push(like));
-                    if(comments) comments.forEach(comment => (commentsByPost[comment.post_id] = commentsByPost[comment.post_id] || []).push(comment));
-                }
-
-                const avatar = profile.photo_url || `https://placehold.co/80x80/E5E7EB/4B5563?text=${profile.name.charAt(0)}`;
-                const area = profile.area || 0;
-                const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
-
-                body.innerHTML = `
-                    <div class="p-4">
-                        <div class="flex items-start space-x-4">
-                            <img src="${avatar}" class="w-20 h-20 rounded-full" alt="avatar">
-                            <div class="flex-1">
-                                <h2 class="text-2xl font-bold">${escapeHTML(profile.name)}</h2>
-                                <p class="text-sm" style="color: var(--hint-color);">Общая площадь</p>
-                                <p class="text-xl font-bold" style="color: var(--button-color);">${formattedArea}</p>
-                            </div>
-                             <button onclick="shareContent('user', ${profile.id}, ${profile.id})" class="p-2 rounded-full hover:bg-gray-200 flex-shrink-0">
-                                 <i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--hint-color);"></i>
-                             </button>
-                        </div>
-                    </div>
-                    
-                    <div class="flex border-b mt-4 px-4">
-                        <div id="tab-posts" class="profile-tab active" onclick="switchProfileTab('posts')">Посты (${posts.length})</div>
-                        <div id="tab-spots" class="profile-tab" onclick="switchProfileTab('spots')">Споты (${spots.length})</div>
-                        <div id="tab-routes" class="profile-tab" onclick="switchProfileTab('routes')">Маршруты (${routes.length})</div>
-                    </div>
-
-                    <div id="content-posts" class="profile-tab-content active p-4 space-y-4">
-                        ${posts.length > 0 ? posts.map(p => generatePostHTML(p, likesByPost[p.id] || [], commentsByPost[p.id] || [])).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет постов.</p>'}
-                    </div>
-                    <div id="content-spots" class="profile-tab-content p-4 space-y-4">
-                        ${spots.length > 0 ? spots.map(generateMiniSpotHTML).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет спотов.</p>'}
-                    </div>
-                    <div id="content-routes" class="profile-tab-content p-4 space-y-4">
-                         ${routes.length > 0 ? routes.map(generateMiniRouteHTML).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет маршрутов.</p>'}
-                    </div>
-                `;
-
+                body.innerHTML = generateUserProfileDetailHTML(profile, posts, spots, routes, events);
+                
+                // Инициализация карт для постов в профиле
                 setTimeout(() => {
                     posts.forEach(post => {
                         if (post.territory_captured) {
-                            const mapContainer = body.querySelector(`#mini-map-${post.id}`);
-                            if (mapContainer) {
-                                const miniMap = new ymaps.Map(mapContainer, { center: [55.75, 37.62], zoom: 9, controls: [] });
-                                AppState.currentDetailContext.mapInstances.push(miniMap);
-
-                                const territoryObject = ymaps.geoQuery(post.territory_captured).addToMap(miniMap);
-                                territoryObject.setOptions({
-                                    fillColor: post.user_color,
-                                    fillOpacity: 0.5,
-                                    strokeColor: post.user_color,
-                                    strokeWidth: 2,
-                                    strokeOpacity: 0.8
-                                });
-                                miniMap.setBounds(territoryObject.getBounds(), { checkZoomRange: true, zoomMargin: 10 });
-                            }
+                            renderMiniMapForPost(post, body);
                         }
                     });
                 }, 100);
             }
         }
         
-        function switchProfileTab(tabName) {
-            document.querySelectorAll('#detail-modal .profile-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('#detail-modal .profile-tab-content').forEach(c => c.classList.remove('active'));
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-            document.getElementById(`content-${tabName}`).classList.add('active');
+        function switchProfileTab(tabName, containerIdPrefix = 'content') {
+            const context = document.getElementById('detail-modal-body');
+            context.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+            context.querySelectorAll('.profile-tab-content').forEach(c => c.classList.remove('active'));
+            context.querySelector(`#tab-${tabName}`).classList.add('active');
+            context.querySelector(`#${containerIdPrefix}-${tabName}`).classList.add('active');
         }
 
-        function generateMiniSpotHTML(spot) {
-             return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="navigateToMapObject('spot', ${spot.id})">
-                         <p class="font-semibold">${escapeHTML(spot.name)}</p>
-                         <p class="text-sm text-gray-600 truncate">${escapeHTML(spot.description)}</p>
-                         <p class="text-xs text-gray-400">${new Date(spot.created_at).toLocaleDateString()}</p>
+        function generateMiniSpotHTML(spot, isFeed = false) {
+             const buttonHTML = isFeed 
+                ? `<button onclick="navigateToMapObject('spot', ${spot.id})" class="mt-2 w-full text-sm text-center font-semibold p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);">Показать на карте</button>` 
+                : '';
+             return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('spot', ${spot.id})">
+                        ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Фото спота">` : ''}
+                        <p class="font-bold">${escapeHTML(spot.name)}</p>
+                        <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(spot.description)}</p>
+                        <p class="text-xs text-gray-400 mt-2">${new Date(spot.created_at).toLocaleDateString()}</p>
+                        ${buttonHTML}
                      </div>`;
         }
         function generateMiniRouteHTML(route) {
-             return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="navigateToMapObject('route', ${route.id})">
-                         <p class="font-semibold">${escapeHTML(route.name)}</p>
-                         <p class="text-xs text-gray-400">${new Date(route.created_at).toLocaleDateString()}</p>
-                     </div>`;
+             return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('route', ${route.id})">
+                         <p class="font-bold flex items-center gap-2"><i class="fa-solid fa-route" style="color: var(--hint-color);"></i> ${escapeHTML(route.name)}</p>
+                         <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(route.description)}</p>
+                         <p class="text-xs text-gray-400 mt-2">${new Date(route.created_at).toLocaleDateString()}</p>
+                      </div>`;
         }
 
         function navigateToMapObject(type, id) {
@@ -1157,7 +1083,7 @@
             
             let targetObject;
             if (type === 'spot') {
-                setMode('spots');
+                setMapMode('spots');
                 targetObject = AppState.allSpots.find(s => s.id === id);
                 const geoJson = parseWKT(targetObject?.location_wkt);
                 if (geoJson) {
@@ -1165,7 +1091,7 @@
                     map.panTo(coords, { flying: true, duration: 1500 }).then(() => map.setZoom(17));
                 }
             } else if (type === 'route') {
-                setMode('routes');
+                setMapMode('routes');
                 targetObject = AppState.allRoutes.find(r => r.id === id);
                 const geoJson = parseWKT(targetObject?.path_wkt);
                  if (geoJson && geoJson.coordinates.length > 0) {
@@ -1176,38 +1102,24 @@
             }
         }
 
-        /**
-         * Улучшенная функция для парсинга WKT-строк в GeoJSON.
-         * @param {string | object | null} wkt - Строка в формате Well-Known Text или уже GeoJSON объект.
-         * @returns {object | null} GeoJSON-объект или null в случае ошибки.
-         */
         function parseWKT(wkt) {
             if (!wkt) return null;
-            if (typeof wkt === 'object' && wkt.type && wkt.coordinates) {
-                return wkt;
-            }
+            if (typeof wkt === 'object' && wkt.type && wkt.coordinates) return wkt;
             if (typeof wkt !== 'string') return null;
-            
             try {
                 if (wkt.trim().startsWith('{')) {
                     const parsed = JSON.parse(wkt);
-                    if (parsed.type && parsed.coordinates) {
-                        return parsed;
-                    }
+                    if (parsed.type && parsed.coordinates) return parsed;
                 }
-
                 const match = wkt.match(/(POINT|LINESTRING|POLYGON|MULTIPOLYGON)\s*\((.+)\)/i);
                 if (!match) return null;
-
                 const type = match[1].toUpperCase();
                 let content = match[2];
-
                 if (type === 'POINT') {
                     const coords = content.match(/-?\d+(\.\d+)?/g);
                     if (!coords || coords.length < 2) return null;
                     return { type: 'Point', coordinates: [parseFloat(coords[0]), parseFloat(coords[1])] };
                 }
-
                 if (type === 'LINESTRING') {
                     const coordinates = content.split(',').map(pair => {
                         const nums = pair.trim().match(/-?\d+(\.\d+)?/g);
@@ -1215,26 +1127,18 @@
                     }).filter(Boolean);
                     return coordinates.length >= 2 ? { type: 'LineString', coordinates } : null;
                 }
-                
                 if (type === 'POLYGON' || type === 'MULTIPOLYGON') {
                     const rings = content.match(/\(([^()]+)\)/g);
                     if (!rings) return null;
-                    
                     const coordinates = rings.map(ringContent => 
                         ringContent.replace(/[()]/g, '').split(',').map(pair => {
                             const nums = pair.trim().match(/-?\d+(\.\d+)?/g);
                             return nums && nums.length >= 2 ? [parseFloat(nums[0]), parseFloat(nums[1])] : null;
                         }).filter(Boolean)
                     );
-
-                    if (type === 'POLYGON') {
-                        return { type: 'Polygon', coordinates };
-                    }
-                    if (type === 'MULTIPOLYGON') {
-                        return { type: 'MultiPolygon', coordinates: [coordinates] };
-                    }
+                    if (type === 'POLYGON') return { type: 'Polygon', coordinates };
+                    if (type === 'MULTIPOLYGON') return { type: 'MultiPolygon', coordinates: [coordinates] };
                 }
-
             } catch (e) {
                 console.error("Failed to parse WKT or JSON:", wkt, e);
                 return null;
@@ -1268,7 +1172,7 @@
                 
                 await Promise.all([
                     fetchAllProfilesAndDraw(),
-                    renderFeed(),
+                    renderCurrentFeedTab(), // Загружаем контент для первого таба
                     loadInitialMapData(),
                     renderMyProfileContent()
                 ]);
@@ -1282,13 +1186,13 @@
                 appContainer.classList.remove('hidden');
                 bottomNavbar.classList.remove('hidden');
                 
-                tg.CloudStorage.getItem('currentMode', (error, value) => {
+                tg.CloudStorage.getItem('currentMapMode', (error, value) => {
                     if (error) {
                         console.error("CloudStorage error:", error);
-                        setMode('capture');
+                        setMapMode('capture');
                         return;
                     }
-                    setMode(value || 'capture');
+                    setMapMode(value || 'capture');
                 });
 
             } catch (error) {
@@ -1304,17 +1208,18 @@
             map = new ymaps.Map('map', { 
                 center: latLng, 
                 zoom: 5,
-                controls: [] // Отключаем стандартные элементы управления
+                controls: []
             });
             
-            // Создаем коллекции для разных типов объектов
             territoriesCollection = new ymaps.GeoObjectCollection();
             spotCollection = new ymaps.GeoObjectCollection();
             routeCollection = new ymaps.GeoObjectCollection();
+            eventCollection = new ymaps.GeoObjectCollection(); // NEW
 
             map.geoObjects.add(territoriesCollection);
             map.geoObjects.add(spotCollection);
             map.geoObjects.add(routeCollection);
+            map.geoObjects.add(eventCollection); // NEW
             
             setTimeout(() => map?.container.fitToViewport(), 100);
         }
@@ -1348,10 +1253,7 @@
             } else {
                 AppState.currentUserMarker = new ymaps.Placemark(latLng, {}, {
                     iconLayout: iconLayout,
-                    iconShape: {
-                        type: 'Rectangle',
-                        coordinates: [[-20, -20], [20, 20]]
-                    }
+                    iconShape: { type: 'Rectangle', coordinates: [[-20, -20], [20, 20]] }
                 });
                 map.geoObjects.add(AppState.currentUserMarker);
             }
@@ -1363,10 +1265,8 @@
                 showCustomAlert("Геолокация не поддерживается вашим устройством.");
                 return;
             }
-
             try {
                 const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
-
                 const handlePermissionChange = () => {
                     if (permissionStatus.state === 'granted') {
                         startGeoTracking();
@@ -1377,10 +1277,8 @@
                         mapCenterControls.classList.remove('hidden');
                     }
                 };
-
                 permissionStatus.onchange = handlePermissionChange;
-                handlePermissionChange(); // Initial check
-
+                handlePermissionChange();
             } catch (e) {
                 console.warn("API разрешений не поддерживается, используем старый метод.", e);
                 mapCenterControls.classList.remove('hidden');
@@ -1390,47 +1288,43 @@
         function handleGeoRequest() {
             const geoLoader = document.getElementById('request-geo-loader');
             const geoText = document.getElementById('request-geo-text');
-
             geoText.textContent = 'Ждем ответа...';
             geoLoader.classList.remove('hidden');
             requestGeoBtn.disabled = true;
-            
             startGeoTracking();
         }
 
         function startGeoTracking() {
              navigator.geolocation.getCurrentPosition(
-                 (position) => {
-                     tg.HapticFeedback.notificationOccurred('success');
-                     const latLng = [position.coords.latitude, position.coords.longitude];
-                     if (!AppState.lastKnownLocation) {
-                         map.panTo(latLng, {flying: true, duration: 1500}).then(() => map.setZoom(16));
-                     }
-                     AppState.lastKnownLocation = latLng;
-                     
-                     updateCurrentUserMarker(latLng);
-
-                     mapCenterControls.classList.add('hidden');
-                     recenterBtn.classList.remove('hidden');
-                     modeSwitcher.classList.remove('hidden');
-                     mapActionContainer.classList.remove('hidden');
-                     
-                     updateMapActionButton();
-                     
-                     startWatchingLocation();
-                 },
-                 (error) => {
-                     tg.HapticFeedback.notificationOccurred('error');
-                     console.error("Geolocation error:", error);
-                     showCustomAlert("Не удалось получить геолокацию. Проверьте разрешения в настройках вашего устройства.");
-                     const geoText = document.getElementById('request-geo-text');
-                     const geoLoader = document.getElementById('request-geo-loader');
-                     geoText.textContent = 'Дать доступ к гео';
-                     geoLoader.classList.add('hidden');
-                     requestGeoBtn.disabled = false;
-                 },
-                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-             );
+                (position) => {
+                    tg.HapticFeedback.notificationOccurred('success');
+                    const latLng = [position.coords.latitude, position.coords.longitude];
+                    if (!AppState.lastKnownLocation) {
+                        map.panTo(latLng, {flying: true, duration: 1500}).then(() => map.setZoom(16));
+                    }
+                    AppState.lastKnownLocation = latLng;
+                    
+                    updateCurrentUserMarker(latLng);
+                    mapCenterControls.classList.add('hidden');
+                    recenterBtn.classList.remove('hidden');
+                    modeSwitcher.classList.remove('hidden');
+                    mapActionContainer.classList.remove('hidden');
+                    
+                    updateMapActionButton();
+                    startWatchingLocation();
+                },
+                (error) => {
+                    tg.HapticFeedback.notificationOccurred('error');
+                    console.error("Geolocation error:", error);
+                    showCustomAlert("Не удалось получить геолокацию. Проверьте разрешения в настройках вашего устройства.");
+                    const geoText = document.getElementById('request-geo-text');
+                    const geoLoader = document.getElementById('request-geo-loader');
+                    geoText.textContent = 'Дать доступ к гео';
+                    geoLoader.classList.add('hidden');
+                    requestGeoBtn.disabled = false;
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
         }
         
         function startWatchingLocation() {
@@ -1456,9 +1350,7 @@
             );
         }
 
-
         // --- ЛОГИКА РЕЖИМОВ ---
-        
         function startRun() {
             if (!AppState.lastKnownLocation) {
                 showCustomAlert("Сначала определите свое местоположение."); return;
@@ -1510,7 +1402,7 @@
             const { location } = AppState.currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
             const description = document.getElementById('creation-modal-details').value.trim();
-            const file = AppState.currentEditContext.file; // ИЗМЕНЕНО
+            const file = AppState.currentEditContext.file;
 
             if (!name || !description) {
                 showCustomAlert("Название и описание обязательны."); return;
@@ -1538,6 +1430,8 @@
             } else {
                 showCustomAlert("Спот успешно создан!");
                 hideCreationModal();
+                loadInitialMapData(); // Обновляем данные на карте
+                if(AppState.currentFeedTab === 'spots') renderFeedSpots(); // Обновляем ленту
             }
         }
         
@@ -1552,7 +1446,11 @@
                 }
                 
                 const coords = [geoJsonPoint.coordinates[1], geoJsonPoint.coordinates[0]]; // lat, long
-                const spotPlacemark = new ymaps.Placemark(coords);
+                const spotPlacemark = new ymaps.Placemark(coords, {
+                    hintContent: escapeHTML(spot.name)
+                }, {
+                    preset: 'islands#violetDotIcon'
+                });
                 spotPlacemark.events.add('click', () => showDetailModal('spot', spot.id));
                 
                 spotCollection.add(spotPlacemark);
@@ -1626,6 +1524,8 @@
             } else {
                 showCustomAlert("Маршрут сохранен!");
                 hideCreationModal();
+                loadInitialMapData(); // Обновляем данные
+                if(AppState.currentFeedTab === 'routes') renderFeedRoutes();
             }
         }
         
@@ -1650,25 +1550,34 @@
                 console.error(`Ошибка при добавлении маршрута ${route.id} на карту.`, e, route);
             }
         }
-
+        
         // --- ЗАГРУЗКА ДАННЫХ ---
         async function loadInitialMapData() {
+            // Загрузка Спотов
             const { data: spots, error: spotsError } = await supabase.from('spots').select('*, location_wkt:location::text');
-            if (spotsError) {
-                console.error("Ошибка загрузки спотов:", spotsError);
-            } else {
+            if (spotsError) console.error("Ошибка загрузки спотов:", spotsError);
+            else {
                 AppState.allSpots = spots;
                 spotCollection.removeAll();
                 AppState.allSpots.forEach(addSpotToMap);
             }
 
+            // Загрузка Маршрутов
             const { data: routes, error: routesError } = await supabase.from('routes').select('*, path_wkt:path::text');
-            if (routesError) {
-                console.error("Ошибка загрузки маршрутов:", routesError);
-            } else {
+            if (routesError) console.error("Ошибка загрузки маршрутов:", routesError);
+            else {
                 AppState.allRoutes = routes;
                 routeCollection.removeAll();
                 AppState.allRoutes.forEach(addRouteToMap);
+            }
+            
+            // NEW: Загрузка Мероприятий
+            const { data: events, error: eventsError } = await supabase.from('events').select('*, meeting_point_wkt:meeting_point::text');
+            if(eventsError) console.error("Ошибка загрузки мероприятий:", eventsError);
+            else {
+                AppState.allEvents = events;
+                eventCollection.removeAll();
+                AppState.allEvents.forEach(addEventToMap);
             }
         }
 
@@ -1676,43 +1585,42 @@
         function listenToRealtimeChanges() {
             supabase.channel('public-changes')
               .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, fetchAllProfilesAndDraw)
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => { renderFeed(); renderMyProfileContent(); })
-              .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, renderFeed)
-              .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, renderFeed)
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => { renderFeedPosts(); renderMyProfileContent(); })
+              .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, payload => handleLikeChange(payload.new.post_id))
+              .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, payload => handleLikeChange(payload.old.post_id))
               .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload) => {
-                  if (commentsModal.classList.contains('visible') && AppState.currentReplyTarget.type === 'post') {
-                      const changedPostId = payload.new?.post_id || payload.old?.post_id;
-                      if (changedPostId && changedPostId === AppState.currentReplyTarget.id) {
-                          showPostComments(AppState.currentReplyTarget.id);
-                      }
-                  }
-                  if (detailModal.classList.contains('visible') && (AppState.currentDetailContext.type === 'spot' || AppState.currentDetailContext.type === 'route')) {
-                      const changedParentId = payload.new?.spot_id || payload.new?.route_id || payload.old?.spot_id || payload.old?.route_id;
-                      if (changedParentId === AppState.currentDetailContext.id) {
-                          loadAndRenderComments(AppState.currentDetailContext.type, AppState.currentDetailContext.id, 'detail-comments-list');
-                      }
-                  }
-                  renderFeed();
+                  // Обновляем комментарии в открытых модальных окнах
               })
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'spots' }, () => { loadInitialMapData(); renderMyProfileContent(); })
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, () => { loadInitialMapData(); renderMyProfileContent(); })
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'spots' }, () => { loadInitialMapData(); renderMyProfileContent(); renderFeedSpots(); })
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, () => { loadInitialMapData(); renderMyProfileContent(); renderFeedRoutes(); })
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => { loadInitialMapData(); renderMyProfileContent(); renderFeedEvents(); })
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'event_participants' }, (payload) => {
+                  const eventId = payload.new?.event_id || payload.old?.event_id;
+                  if (eventId) {
+                      updateEventCard(eventId);
+                      if (participantsModal.classList.contains('visible') && AppState.currentDetailContext.id === eventId) {
+                          showParticipants(eventId);
+                      }
+                  }
+              })
               .subscribe();
+        }
+        
+        function handleLikeChange(postId) {
+            // Эта функция может быть расширена для обновления только конкретного поста, а не всей ленты.
+            renderFeedPosts();
         }
 
         function setupStaticEventListeners() {
             tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
             tg.onEvent('backButtonClicked', () => {
-                if (commentsModal.classList.contains('visible')) {
-                    hideCommentsModal();
-                } else if (detailModal.classList.contains('visible')) {
-                    hideDetailModal();
-                } else if (creationModal.classList.contains('visible')) {
-                    hideCreationModal();
-                } else if (simplePostModal.classList.contains('visible')) {
-                    hideSimplePostModal();
-                } else if (qrModal.classList.contains('visible')) {
-                    hideQrModal();
-                }
+                if (participantsModal.classList.contains('visible')) hideParticipantsModal();
+                else if (eventCreationModal.classList.contains('visible')) hideEventCreationModal();
+                else if (commentsModal.classList.contains('visible')) hideCommentsModal();
+                else if (detailModal.classList.contains('visible')) hideDetailModal();
+                else if (creationModal.classList.contains('visible')) hideCreationModal();
+                else if (simplePostModal.classList.contains('visible')) hideSimplePostModal();
+                else if (qrModal.classList.contains('visible')) hideQrModal();
             });
             tg.onEvent('qrTextReceived', (data) => {
                 if (data.data) {
@@ -1735,13 +1643,13 @@
         }
 
         function setupDynamicEventListeners() {
-            document.getElementById('mode-capture').addEventListener('click', () => setMode('capture'));
-            document.getElementById('mode-spots').addEventListener('click', () => setMode('spots'));
-            document.getElementById('mode-routes').addEventListener('click', () => setMode('routes'));
+            document.getElementById('mode-capture').addEventListener('click', () => setMapMode('capture'));
+            document.getElementById('mode-spots').addEventListener('click', () => setMapMode('spots'));
+            document.getElementById('mode-routes').addEventListener('click', () => setMapMode('routes'));
             
             document.getElementById('save-creation-btn').addEventListener('click', handleSave);
             
-            // --- НОВЫЕ ОБРАБОТЧИКИ ДЛЯ ВЫБОРА ФОТО ---
+            // --- ОБРАБОТЧИКИ ДЛЯ ВЫБОРА ФОТО ---
             document.getElementById('simple-post-gallery-btn').addEventListener('click', () => {
                 AppState.photoContext = 'simple';
                 document.getElementById('gallery-input').click();
@@ -1750,7 +1658,6 @@
                 AppState.photoContext = 'simple';
                 document.getElementById('camera-input').click();
             });
-
             document.getElementById('creation-gallery-btn').addEventListener('click', () => {
                 AppState.photoContext = 'creation';
                 document.getElementById('gallery-input').click();
@@ -1759,13 +1666,10 @@
                 AppState.photoContext = 'creation';
                 document.getElementById('camera-input').click();
             });
-
             document.getElementById('camera-input').addEventListener('change', handleFileSelect);
             document.getElementById('gallery-input').addEventListener('change', handleFileSelect);
 
-
             requestGeoBtn.addEventListener('click', handleGeoRequest);
-
             recenterBtn.addEventListener('click', () => {
                 tg.HapticFeedback.impactOccurred('medium');
                 if (AppState.lastKnownLocation) map.panTo(AppState.lastKnownLocation, {flying: true});
@@ -1780,34 +1684,37 @@
                 shareContent('user', telegramUser.id, telegramUser.id);
             });
             
-            createSimplePostBtn.addEventListener('click', showSimplePostModal);
-            
             showQrBtn.addEventListener('click', showQrModal);
-
             mapActionBtn.addEventListener('click', mapActionButtonHandler);
+            feedCreateBtn.addEventListener('click', showSimplePostModal); // Изначально на создание поста
             
-
+            // Глобальный обработчик для динамических кнопок
             document.body.addEventListener('click', (event) => {
-                const button = event.target.closest('button[data-action], div[data-action]');
+                const button = event.target.closest('[data-action]');
                 if (!button) return;
 
                 const action = button.dataset.action;
-                const id = button.dataset.id || button.dataset.postId;
-
+                const id = button.dataset.id;
                 if (!action || !id) return;
-
-                if (action === 'like') {
-                    toggleLike(button, id);
-                } else if (action === 'comment' || action === 'show-post-comments') {
-                    showPostComments(id);
+                
+                switch(action) {
+                    case 'like-post': toggleLike(button, id, 'post'); break;
+                    case 'comment-post': showPostComments(id); break;
+                    case 'like-event': toggleLike(button, id, 'event'); break;
+                    case 'comment-event': showDetailModal('event', id); break; // Открываем детали для комментирования
+                    case 'join-event': joinEvent(id); break;
+                    case 'leave-event': leaveEvent(id); break;
+                    case 'show-participants': showParticipants(id); break;
                 }
             });
 
-            // Добавляем обработчики свайпов для модальных окон
+            // Свайпы для модалок
             makeModalSwipeable(creationModal, creationModal.querySelector('.bottom-sheet-content'), hideCreationModal);
             makeModalSwipeable(detailModal, detailModal.querySelector('.bottom-sheet-content'), hideDetailModal);
             makeModalSwipeable(commentsModal, commentsModal.querySelector('.bottom-sheet-content'), hideCommentsModal);
             makeModalSwipeable(simplePostModal, simplePostModal.querySelector('#simple-post-content'), hideSimplePostModal);
+            makeModalSwipeable(eventCreationModal, eventCreationModal.querySelector('.bottom-sheet-content'), hideEventCreationModal);
+            makeModalSwipeable(participantsModal, participantsModal.querySelector('.bottom-sheet-content'), hideParticipantsModal);
         }
         
         function showFallbackScreen(title, message, showRetryButton = false) {
@@ -1821,27 +1728,24 @@
         }
 
         function applyTheme(themeParams) {
-             const root = document.documentElement;
-             root.style.setProperty('--bg-color', themeParams.bg_color || '#f3f4f6');
-             root.style.setProperty('--secondary-bg-color', themeParams.secondary_bg_color || '#ffffff');
-             root.style.setProperty('--text-color', themeParams.text_color || '#1f2937');
-             root.style.setProperty('--hint-color', themeParams.hint_color || '#6b7280');
-             root.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
-             root.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
-             root.style.setProperty('--border-color', themeParams.bg_color ? shadeColor(themeParams.bg_color, -10) : '#e5e7eb');
-             
-             const buttonColorRgb = hexToRgb(themeParams.button_color || '#3b82f6');
-             if (buttonColorRgb) {
-                 root.style.setProperty('--button-color-rgb', buttonColorRgb.join(', '));
-             }
-             const secondaryBgRgb = hexToRgb(themeParams.secondary_bg_color || '#ffffff');
-             if (secondaryBgRgb) {
-                 root.style.setProperty('--secondary-bg-color-rgb', secondaryBgRgb.join(', '));
-             }
+              const root = document.documentElement;
+              root.style.setProperty('--bg-color', themeParams.bg_color || '#f3f4f6');
+              root.style.setProperty('--secondary-bg-color', themeParams.secondary_bg_color || '#ffffff');
+              root.style.setProperty('--text-color', themeParams.text_color || '#1f2937');
+              root.style.setProperty('--hint-color', themeParams.hint_color || '#6b7280');
+              root.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
+              root.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
+              root.style.setProperty('--border-color', themeParams.bg_color ? shadeColor(themeParams.bg_color, -10) : '#e5e7eb');
+              
+              const buttonColorRgb = hexToRgb(themeParams.button_color || '#3b82f6');
+              if (buttonColorRgb) root.style.setProperty('--button-color-rgb', buttonColorRgb.join(', '));
+              
+              const secondaryBgRgb = hexToRgb(themeParams.secondary_bg_color || '#ffffff');
+              if (secondaryBgRgb) root.style.setProperty('--secondary-bg-color-rgb', secondaryBgRgb.join(', '));
 
-             tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
-             tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
-        }
+              tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
+              tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
+         }
         
         async function upsertUserProfile() {
             if (!telegramUser) throw new Error("Пользователь Telegram не определен для upsertUserProfile.");
@@ -1930,7 +1834,7 @@
         async function handlePostSubmission() {
             const { captureData, area_captured } = AppState.currentEditContext;
             const title = document.getElementById('creation-modal-name').value.trim();
-            const file = AppState.currentEditContext.file; // ИЗМЕНЕНО
+            const file = AppState.currentEditContext.file;
             
             if (!title) { showCustomAlert("Пожалуйста, введите название."); return; }
 
@@ -1966,7 +1870,7 @@
         
         async function handleSimplePostSave() {
             const description = document.getElementById('simple-post-details').value.trim();
-            const file = AppState.simplePostContext?.file; // ИЗМЕНЕНО
+            const file = AppState.simplePostContext?.file;
 
             if (!description) {
                 showCustomAlert("Пожалуйста, введите текст поста.");
@@ -2000,7 +1904,6 @@
                 hideSimplePostModal();
             }
         }
-
 
         async function fetchAllProfilesAndDraw() {
             let { data: profiles, error } = await supabase.from('profiles').select('*, territory_wkt:territory::text');
@@ -2066,38 +1969,29 @@
             profileAreaDisplay.textContent = formattedArea;
         }
 
-        async function renderFeed() {
+        async function renderFeedPosts() {
+            const container = document.getElementById('feed-content-posts');
+            container.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>';
+            
             const { data: posts, error: postsError } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
             if (postsError) { console.error("Error fetching posts:", postsError); return; }
-            const postIds = posts.map(p => p.id);
-            if (postIds.length === 0) {
-                feedContainer.innerHTML = '<p class="text-center text-gray-500">В ленте пока нет постов.</p>';
+            
+            if (posts.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-500 py-8">В ленте пока нет постов.</p>';
                 return;
             }
+            const postIds = posts.map(p => p.id);
             const { data: likes, error: likesError } = await supabase.from('likes').select('*').in('post_id', postIds);
             const { data: comments, error: commentsError } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
             if (likesError || commentsError) { console.error("Error fetching activity:", likesError, commentsError); return; }
-            const likesByPost = likes.reduce((acc, like) => { (acc[like.post_id] = acc[like.post_id] || []).push(like); return acc; }, {});
-            const commentsByPost = comments.reduce((acc, comment) => { (acc[comment.post_id] = acc[comment.post_id] || []).push(comment); return acc; }, {});
+            const likesByPost = (likes || []).reduce((acc, like) => { (acc[like.post_id] = acc[like.post_id] || []).push(like); return acc; }, {});
+            const commentsByPost = (comments || []).reduce((acc, comment) => { (acc[comment.post_id] = acc[comment.post_id] || []).push(comment); return acc; }, {});
             
-            const feedHTML = posts.map(post => generatePostHTML(post, likesByPost[post.id] || [], commentsByPost[post.id] || [])).join('');
-            feedContainer.innerHTML = feedHTML || '<p class="text-center text-gray-500">В ленте пока нет постов.</p>';
+            container.innerHTML = posts.map(post => generatePostHTML(post, likesByPost[post.id] || [], commentsByPost[post.id] || [])).join('');
             
             posts.forEach(post => {
                 if (post.territory_captured) {
-                    const mapContainer = document.getElementById(`mini-map-${post.id}`);
-                    if (mapContainer) {
-                         const miniMap = new ymaps.Map(mapContainer, { center: [55.75, 37.62], zoom: 9, controls: [] });
-                         const territoryObject = ymaps.geoQuery(post.territory_captured).addTo(miniMap);
-                         territoryObject.setOptions({
-                             fillColor: post.user_color,
-                             fillOpacity: 0.5,
-                             strokeColor: post.user_color,
-                             strokeWidth: 2,
-                             strokeOpacity: 0.8
-                         });
-                         miniMap.setBounds(territoryObject.getBounds(), { checkZoomRange: true, zoomMargin: 10 });
-                    }
+                    renderMiniMapForPost(post, container);
                 }
             });
 
@@ -2117,6 +2011,19 @@
             }
         }
         
+        function renderMiniMapForPost(post, container) {
+             const mapContainer = container.querySelector(`#mini-map-${post.id}`);
+             if (mapContainer) {
+                 const miniMap = new ymaps.Map(mapContainer, { center: [55.75, 37.62], zoom: 9, controls: [] });
+                 const territoryObject = ymaps.geoQuery(post.territory_captured).addTo(miniMap);
+                 territoryObject.setOptions({
+                     fillColor: post.user_color, fillOpacity: 0.5,
+                     strokeColor: post.user_color, strokeWidth: 2, strokeOpacity: 0.8
+                 });
+                 miniMap.setBounds(territoryObject.getBounds(), { checkZoomRange: true, zoomMargin: 10 });
+             }
+        }
+        
         function generatePostHTML(post, likes, comments) {
             const avatar = post.user_avatar_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${post.user_name.charAt(0)}`;
             const area = post.area_captured || 0;
@@ -2134,12 +2041,11 @@
                             ${post.area_captured ? `<p class="font-semibold">Захвачено: <span class="font-bold" style="color: var(--button-color);">${formattedArea}</span></p>` : ''}
                             <div class="flex items-center justify-between mt-3">
                                 <div class="flex items-center space-x-6" style="color: var(--hint-color);">
-                                    <!-- --- ИЗМЕНЕНО --- Класс items-center заменен на items-baseline для лучшего выравнивания -->
-                                    <button class="like-btn flex items-baseline space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" data-action="like" data-post-id="${post.id}">
+                                    <button class="like-btn flex items-baseline space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" data-action="like-post" data-id="${post.id}">
                                         <i class="fa-${userHasLiked ? 'solid' : 'regular'} fa-heart h-6 w-6"></i>
                                         <span data-likes-count>${likes.length}</span>
                                     </button>
-                                    <button class="flex items-baseline space-x-1 hover:text-blue-500 transition" data-action="comment" data-post-id="${post.id}">
+                                    <button class="flex items-baseline space-x-1 hover:text-blue-500 transition" data-action="comment-post" data-id="${post.id}">
                                         <i class="fa-regular fa-comment h-6 w-6"></i>
                                         <span>${comments.length}</span>
                                     </button>
@@ -2152,7 +2058,7 @@
                     </div>`;
         }
 
-        async function toggleLike(buttonElement, postId) {
+        async function toggleLike(buttonElement, targetId, type) {
             if (!telegramUser) {
                 showCustomAlert('Пользователь не определен. Попробуйте перезагрузить приложение.');
                 return;
@@ -2164,38 +2070,42 @@
             const icon = buttonElement.querySelector('i');
             let currentCount = parseInt(countSpan.textContent, 10);
 
+            // Оптимистичное обновление UI
             buttonElement.classList.toggle('liked');
             icon.classList.toggle('fa-solid', !hasLiked);
             icon.classList.toggle('fa-regular', hasLiked);
             countSpan.textContent = hasLiked ? currentCount - 1 : currentCount + 1;
 
             try {
+                const likeData = { user_id: telegramUser.id };
+                if (type === 'post') likeData.post_id = targetId;
+                if (type === 'event') likeData.event_id = targetId;
+
                 if (hasLiked) {
-                    await supabase.from('likes').delete().match({ post_id: postId, user_id: telegramUser.id });
+                    await supabase.from('likes').delete().match(likeData);
                 } else {
-                    await supabase.from('likes').insert({ post_id: postId, user_id: telegramUser.id });
+                    await supabase.from('likes').insert(likeData);
                 }
             } catch (error) {
                 console.error("Ошибка лайка:", error);
+                // Откат UI в случае ошибки
                 buttonElement.classList.toggle('liked');
                 icon.classList.toggle('fa-solid');
                 icon.classList.toggle('fa-regular');
                 countSpan.textContent = currentCount;
-                showCustomAlert('Не удалось поставить лайк. Попробуйте снова.');
+                showCustomAlert('Не удалось обработать лайк. Попробуйте снова.');
             }
         }
         
-        // --- СИСТЕМА КОММЕНТАРИЕВ ---
-
+        // --- СИСТЕМА КОММЕНТАРИЕВ (ОБЩАЯ) ---
         async function fetchComments(type, id) {
             let query = supabase.from('comments').select('*, profiles(id, name, photo_url)');
-            if (type === 'post') {
-                query = query.eq('post_id', id);
-            } else if (type === 'spot') {
-                query = query.eq('spot_id', id);
-            } else if (type === 'route') {
-                query = query.eq('route_id', id);
-            }
+            
+            if (type === 'post') query = query.eq('post_id', id);
+            else if (type === 'spot') query = query.eq('spot_id', id);
+            else if (type === 'route') query = query.eq('route_id', id);
+            else if (type === 'event') query = query.eq('event_id', id);
+
             const { data, error } = await query.order('created_at', { ascending: true });
             return { data, error };
         }
@@ -2207,7 +2117,7 @@
             cancelReply();
             
             const modalBody = document.getElementById('comments-modal-body');
-            modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>';
+            modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
             commentsModal.classList.add('visible');
             
             const { data: comments, error } = await fetchComments('post', postId);
@@ -2217,18 +2127,18 @@
         }
 
         async function loadAndRenderComments(type, id, containerId) {
-              const container = document.getElementById(containerId);
-              if (!container) return;
-              container.innerHTML = '<p class="text-center text-gray-500">Загрузка комментариев...</p>';
-              
-              const { data: comments, error } = await fetchComments(type, id);
-              if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
+             const container = document.querySelector(`#${containerId}`);
+             if (!container) return;
+             container.innerHTML = '<p class="text-center text-gray-500">Загрузка комментариев...</p>';
+             
+             const { data: comments, error } = await fetchComments(type, id);
+             if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки</p>`; return; }
 
-              renderCommentTree(comments, container, 'detail');
+             renderCommentTree(comments, container, 'detail');
         }
 
         function renderCommentTree(comments, container, context = 'post') {
-            const commentsByParent = comments.reduce((acc, comment) => { (acc[comment.parent_comment_id || 'root'] = acc[comment.parent_comment_id || 'root'] || []).push(comment); return acc; }, {});
+            const commentsByParent = (comments || []).reduce((acc, comment) => { (acc[comment.parent_comment_id || 'root'] = acc[comment.parent_comment_id || 'root'] || []).push(comment); return acc; }, {});
             const rootComments = commentsByParent['root'] || [];
             container.innerHTML = rootComments.length ? rootComments.map(c => generateCommentHTML(c, commentsByParent, context)).join('') : '<p class="text-center text-gray-500 py-4">Нет комментариев</p>';
         }
@@ -2243,7 +2153,7 @@
             const profileName = comment.profiles ? escapeHTML(comment.profiles.name) : 'Аноним';
             const avatar = comment.profiles ? (comment.profiles.photo_url || `https://placehold.co/32x32/E5E7EB/4B5563?text=${profileName.charAt(0)}`) : 'https://placehold.co/32x32';
             const replyFn = context === 'post' ? 'setReplyMode' : 'setDetailReplyMode';
-            const parentId = comment.post_id || comment.spot_id || comment.route_id;
+            const parentId = comment.post_id || comment.spot_id || comment.route_id || comment.event_id;
 
             return `<div class="flex items-start space-x-3 mt-4">
                         <img src="${avatar}" class="w-8 h-8 rounded-full">
@@ -2280,46 +2190,46 @@
             if (!content) return;
             
             const commentData = { 
-                post_id: id,
-                user_id: telegramUser.id, 
-                parent_comment_id: parentCommentId, 
-                content: content 
+                post_id: id, user_id: telegramUser.id, 
+                parent_comment_id: parentCommentId, content: content 
             };
             const { error } = await supabase.from('comments').insert(commentData);
             if (error) { showCustomAlert('Ошибка отправки'); } else { inputElement.value = ''; cancelReply(); }
         }
 
         function setDetailReplyMode(id, parentCommentId, parentAuthorName) {
-            AppState.currentDetailContext.replyTo = { parentCommentId };
-            document.getElementById('detail-reply-indicator-text').textContent = `Ответ: ${parentAuthorName}`;
-            document.getElementById('detail-reply-indicator').classList.remove('hidden');
-            document.getElementById('detail-comment-input').focus();
+            const contextType = AppState.currentDetailContext.type;
+            AppState.currentReplyTarget = { type: contextType, id: id, parentCommentId: parentCommentId };
+
+            const indicator = document.querySelector(`#${contextType}-comments-section #detail-reply-indicator`);
+            if(indicator) {
+                indicator.querySelector('#detail-reply-indicator-text').textContent = `Ответ: ${parentAuthorName}`;
+                indicator.classList.remove('hidden');
+                indicator.closest('div').querySelector('textarea').focus();
+            }
         }
         
         function cancelDetailReply() {
-            AppState.currentDetailContext.replyTo = null;
-            document.getElementById('detail-reply-indicator').classList.add('hidden');
+            const contextType = AppState.currentDetailContext.type;
+            AppState.currentReplyTarget.parentCommentId = null;
+            const indicator = document.querySelector(`#${contextType}-comments-section #detail-reply-indicator`);
+            if(indicator) indicator.classList.add('hidden');
         }
 
         async function postDetailComment() {
-            const { type, id, replyTo } = AppState.currentDetailContext;
+            const { type, id, parentCommentId } = AppState.currentReplyTarget;
             if (!id || !telegramUser) return;
-            const inputElement = document.getElementById('detail-comment-input');
+            
+            const inputElement = document.querySelector(`#${type}-comments-section textarea`);
             const content = inputElement.value.trim();
             if (!content) return;
-
-            const parentCommentId = replyTo ? replyTo.parentCommentId : null;
 
             const commentData = {
                 user_id: telegramUser.id,
                 parent_comment_id: parentCommentId,
                 content: content
             };
-            if (type === 'spot') {
-                commentData.spot_id = id;
-            } else if (type === 'route') {
-                commentData.route_id = id;
-            }
+            commentData[`${type}_id`] = id;
 
             const { error } = await supabase.from('comments').insert(commentData);
 
@@ -2329,10 +2239,9 @@
             } else { 
                 inputElement.value = ''; 
                 cancelDetailReply();
-                loadAndRenderComments(type, id, 'detail-comments-list');
+                loadAndRenderComments(type, id, `${type}-comments-list`);
             }
         }
-
 
         function switchMainProfileTab(tabName) {
             document.querySelectorAll('#profile-view .profile-tab').forEach(t => t.classList.remove('active'));
@@ -2345,12 +2254,14 @@
             if (!telegramUser) return;
             const userId = telegramUser.id;
 
-            const [postsRes, spotsRes, routesRes] = await Promise.all([
+            const [postsRes, spotsRes, routesRes, eventsRes] = await Promise.all([
                 supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
                 supabase.from('spots').select('*, location_wkt:location::text').eq('user_id', userId).order('created_at', { ascending: false }),
-                supabase.from('routes').select('*, path_wkt:path::text').eq('user_id', userId).order('created_at', { ascending: false })
+                supabase.from('routes').select('*, path_wkt:path::text').eq('user_id', userId).order('created_at', { ascending: false }),
+                supabase.rpc('get_user_events', { p_user_id: userId })
             ]);
 
+            // Посты
             const posts = postsRes.data || [];
             const postIds = posts.map(p => p.id);
             const likesByPost = {};
@@ -2364,16 +2275,30 @@
             const postsContainer = document.getElementById('profile-content-posts');
             postsContainer.innerHTML = posts.length > 0 ? posts.map(p => generatePostHTML(p, likesByPost[p.id] || [], commentsByPost[p.id] || [])).join('') : '<p class="text-center text-gray-500 py-4">У вас нет постов.</p>';
             document.getElementById('profile-tab-posts').textContent = `Посты (${posts.length})`;
-
+            posts.forEach(p => renderMiniMapForPost(p, postsContainer));
+            
+            // Споты
             const spots = spotsRes.data || [];
             const spotsContainer = document.getElementById('profile-content-spots');
-            spotsContainer.innerHTML = spots.length > 0 ? spots.map(generateMiniSpotHTML).join('') : '<p class="text-center text-gray-500 py-4">У вас нет спотов.</p>';
+            spotsContainer.innerHTML = spots.length > 0 ? spots.map(s => generateMiniSpotHTML(s, false)).join('') : '<p class="text-center text-gray-500 py-4">У вас нет спотов.</p>';
             document.getElementById('profile-tab-spots').textContent = `Споты (${spots.length})`;
 
+            // Маршруты
             const routes = routesRes.data || [];
             const routesContainer = document.getElementById('profile-content-routes');
             routesContainer.innerHTML = routes.length > 0 ? routes.map(generateMiniRouteHTML).join('') : '<p class="text-center text-gray-500 py-4">У вас нет маршрутов.</p>';
             document.getElementById('profile-tab-routes').textContent = `Маршруты (${routes.length})`;
+            
+            // Мероприятия
+            const events = eventsRes.data || [];
+            const eventsContainer = document.getElementById('profile-content-events');
+            if (events.length > 0) {
+                const eventHTML = await Promise.all(events.map(e => generateEventCardHTML(e)));
+                eventsContainer.innerHTML = eventHTML.join('');
+            } else {
+                eventsContainer.innerHTML = '<p class="text-center text-gray-500 py-4">Вы не участвуете в мероприятиях.</p>';
+            }
+            document.getElementById('profile-tab-events').textContent = `Покатушки (${events.length})`;
         }
         
         // --- QR Code Modal ---
@@ -2383,11 +2308,8 @@
             qrContainer.innerHTML = '';
             new QRCode(qrContainer, {
                 text: `https://t.me/${BOT_USERNAME}?startapp=user_${telegramUser.id}`,
-                width: 200,
-                height: 200,
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H
+                width: 200, height: 200, colorDark : "#000000",
+                colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H
             });
             qrModal.classList.add('visible');
             tg.BackButton.show();
@@ -2404,7 +2326,7 @@
             if (!startParam) return;
 
             const parts = startParam.split('_');
-            const type = parts.length > 1 ? parts[0] : 'user'; // Default to 'user' for old links
+            const type = parts.length > 1 ? parts[0] : 'user';
             const id = parts.length > 1 ? parts[1] : startParam;
             const numericId = parseInt(id, 10);
 
@@ -2415,19 +2337,11 @@
 
             setTimeout(() => {
                 switch (type) {
-                    case 'user':
-                        showDetailModal('user', numericId);
-                        break;
-                    case 'post':
-                        showView('feed-view');
-                        scrollToPostId = numericId;
-                        break;
-                    case 'route':
-                        showDetailModal('route', numericId);
-                        break;
-                    case 'spot':
-                        showDetailModal('spot', numericId);
-                        break;
+                    case 'user': showDetailModal('user', numericId); break;
+                    case 'post': showView('feed-view'); scrollToPostId = numericId; break;
+                    case 'route': showDetailModal('route', numericId); break;
+                    case 'spot': showDetailModal('spot', numericId); break;
+                    case 'event': showDetailModal('event', numericId); break; // NEW
                     default:
                         console.warn("Unknown start_param type:", type);
                         if (/^\d+$/.test(startParam)) {
@@ -2438,43 +2352,25 @@
         }
         
         // --- Custom Alert/Confirm ---
-        function showCustomAlert(message) {
-            tg.showAlert(message);
-        }
+        function showCustomAlert(message) { tg.showAlert(message); }
+        function showCustomConfirm(message, callback) { tg.showConfirm(message, (ok) => { if (ok) callback(); }); }
 
-        function showCustomConfirm(message, callback) {
-            tg.showConfirm(message, (ok) => {
-                if (ok) callback();
-            });
-        }
-
-        // Функция для свайпа модальных окон
+        // --- Swipeable Modals ---
         function makeModalSwipeable(modalElement, contentElement, closeCallback) {
             let startY, currentY, isDragging = false;
-
             const onTouchStart = (e) => {
-                // Разрешаем свайп только если касание вверху модалки (где grabber)
-                // или если контент не прокручен
                 const contentBody = contentElement.querySelector('.overflow-y-auto');
-                if (contentBody && contentBody.scrollTop > 0) {
-                    isDragging = false;
-                    return;
-                }
-
+                if (contentBody && contentBody.scrollTop > 0) { isDragging = false; return; }
                 isDragging = true;
                 startY = e.touches[0].clientY;
                 contentElement.style.transition = 'none';
             };
-
             const onTouchMove = (e) => {
                 if (!isDragging) return;
                 currentY = e.touches[0].clientY;
                 let deltaY = currentY - startY;
-                if (deltaY > 0) { // Только свайп вниз
-                    contentElement.style.transform = `translateY(${deltaY}px)`;
-                }
+                if (deltaY > 0) { contentElement.style.transform = `translateY(${deltaY}px)`; }
             };
-
             const onTouchEnd = (e) => {
                 if (!isDragging) return;
                 isDragging = false;
@@ -2486,15 +2382,290 @@
                     contentElement.style.transform = 'translateY(0)';
                 }
             };
-            
             modalElement.addEventListener('touchstart', onTouchStart, { passive: true });
             modalElement.addEventListener('touchmove', onTouchMove, { passive: true });
             modalElement.addEventListener('touchend', onTouchEnd, { passive: true });
         }
+        
+        // =================================================================
+        // --- НОВЫЙ ФУНКЦИОНАЛ: МЕРОПРИЯТИЯ (ПОКАТУШКИ) ---
+        // =================================================================
 
+        // --- Рендер ---
+        async function renderFeedEvents() {
+            const container = document.getElementById('feed-content-events');
+            container.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
+            
+            const { data, error } = await supabase.from('events')
+                .select(`*, profiles(id, name, photo_url)`)
+                .order('event_time', { ascending: true });
 
+            if (error) {
+                console.error("Ошибка загрузки мероприятий:", error);
+                container.innerHTML = '<p class="text-center text-red-500 py-8">Не удалось загрузить мероприятия.</p>';
+                return;
+            }
+            if (data.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-500 py-8">Пока нет запланированных покатушек. Создайте первую!</p>';
+                return;
+            }
+            
+            const eventsHTML = await Promise.all(data.map(event => generateEventCardHTML(event)));
+            container.innerHTML = eventsHTML.join('');
+        }
+        
+        async function renderFeedSpots() {
+            const container = document.getElementById('feed-content-spots');
+            container.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
+            const { data, error } = await supabase.from('spots').select('*').order('created_at', { ascending: false }).limit(20);
+            if(error) { container.innerHTML = '<p class="text-center text-red-500 py-8">Не удалось загрузить споты.</p>'; return; }
+            if(data.length === 0) { container.innerHTML = '<p class="text-center text-gray-500 py-8">Спотов пока нет.</p>'; return; }
+            container.innerHTML = data.map(s => generateMiniSpotHTML(s, true)).join('');
+        }
+        
+        async function renderFeedRoutes() {
+            const container = document.getElementById('feed-content-routes');
+            container.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
+            const { data, error } = await supabase.from('routes').select('*').order('created_at', { ascending: false }).limit(20);
+            if(error) { container.innerHTML = '<p class="text-center text-red-500 py-8">Не удалось загрузить маршруты.</p>'; return; }
+            if(data.length === 0) { container.innerHTML = '<p class="text-center text-gray-500 py-8">Маршрутов пока нет.</p>'; return; }
+            container.innerHTML = data.map(generateMiniRouteHTML).join('');
+        }
+
+        async function generateEventCardHTML(event) {
+            const author = event.profiles || { name: 'Аноним', photo_url: null };
+            const avatar = author.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${author.name.charAt(0)}`;
+            const eventTime = new Date(event.event_time);
+            
+            // Получаем лайки и участников
+            const { data: likes, error: likesError } = await supabase.from('likes').select('user_id').eq('event_id', event.id);
+            const { data: participants, error: participantsError } = await supabase.from('event_participants').select('user_id').eq('event_id', event.id);
+            
+            const userHasLiked = telegramUser && (likes || []).some(l => l.user_id === telegramUser.id);
+            const userIsParticipant = telegramUser && (participants || []).some(p => p.user_id === telegramUser.id);
+
+            const participantButton = userIsParticipant 
+                ? `<button data-action="leave-event" data-id="${event.id}" class="w-full font-bold py-2 px-4 rounded-full transition-all text-white" style="background-color: var(--destructive-color);">Не пойду</button>`
+                : `<button data-action="join-event" data-id="${event.id}" class="w-full font-bold py-2 px-4 rounded-full transition-all text-white" style="background-color: var(--success-color);">Участвую!</button>`;
+            
+            return `<div class="card-bg rounded-2xl shadow-lg overflow-hidden" id="event-${event.id}">
+                        <div class="p-4">
+                            <div id="event-timer-${event.id}" class="text-center font-bold text-xl mb-3 p-2 rounded-lg" style="background-color: var(--bg-color);"></div>
+                            <div class="flex items-center space-x-3 cursor-pointer" onclick="showDetailModal('user', ${author.id})">
+                                <img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar">
+                                <div><p class="font-bold">${escapeHTML(author.name)}</p><p class="text-xs" style="color: var(--hint-color);">${eventTime.toLocaleString('ru-RU', {dateStyle: 'long', timeStyle: 'short'})}</p></div>
+                            </div>
+                            <h3 class="mt-4 text-xl font-bold cursor-pointer" onclick="showDetailModal('event', ${event.id})">${escapeHTML(event.title)}</h3>
+                            <p class="mt-2 text-sm" style="color: var(--text-color);">${escapeHTML(event.description)}</p>
+                        </div>
+                        <div class="p-4 border-t" style="border-color: var(--border-color);">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-6" style="color: var(--hint-color);">
+                                    <button class="like-btn flex items-baseline space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" data-action="like-event" data-id="${event.id}">
+                                        <i class="fa-${userHasLiked ? 'solid' : 'regular'} fa-heart h-6 w-6"></i>
+                                        <span data-likes-count>${(likes || []).length}</span>
+                                    </button>
+                                    <button class="flex items-baseline space-x-1 hover:text-blue-500 transition" data-action="show-participants" data-id="${event.id}">
+                                        <i class="fa-regular fa-user h-6 w-6"></i>
+                                        <span data-participants-count>${(participants || []).length}</span>
+                                    </button>
+                                </div>
+                                <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="shareContent('event', ${event.id}, ${author.id})" style="color: var(--hint-color);">
+                                    <i class="fa-solid fa-arrow-up-from-bracket h-5 w-5"></i>
+                                </button>
+                            </div>
+                            <div class="mt-4">
+                                ${participantButton}
+                            </div>
+                        </div>
+                    </div>`;
+        }
+        
+        // --- Создание/Редактирование ---
+        async function showEventCreationModal() {
+            tg.HapticFeedback.impactOccurred('light');
+            
+            // Сброс формы
+            document.getElementById('event-title').value = '';
+            document.getElementById('event-description').value = '';
+            document.getElementById('event-datetime').value = '';
+            AppState.eventCreationContext = {};
+
+            // Загрузка маршрутов пользователя
+            const select = document.getElementById('event-route-select');
+            select.innerHTML = '<option value="">Без маршрута</option>';
+            const { data: routes, error } = await supabase.from('routes').select('id, name').eq('user_id', telegramUser.id);
+            if (error) console.error("Ошибка загрузки маршрутов:", error);
+            else routes.forEach(r => select.innerHTML += `<option value="${r.id}">${escapeHTML(r.name)}</option>`);
+            
+            eventCreationModal.classList.add('visible');
+            tg.BackButton.show();
+
+            // Инициализация карты для выбора точки
+            setTimeout(initEventPickerMap, 100);
+        }
+        
+        function hideEventCreationModal() {
+            eventCreationModal.classList.remove('visible');
+            tg.BackButton.hide();
+            if (eventPickerMap) {
+                eventPickerMap.destroy();
+                eventPickerMap = null;
+            }
+        }
+        
+        function initEventPickerMap() {
+            if(eventPickerMap) eventPickerMap.destroy();
+            const center = AppState.lastKnownLocation || [55.75, 37.62];
+            eventPickerMap = new ymaps.Map('event-map-picker', { center: center, zoom: 12, controls: [] });
+            
+            let placemark;
+            eventPickerMap.events.add('click', (e) => {
+                const coords = e.get('coords');
+                AppState.eventCreationContext.meetingPoint = `POINT(${coords[1]} ${coords[0]})`;
+                if (placemark) {
+                    placemark.geometry.setCoordinates(coords);
+                } else {
+                    placemark = new ymaps.Placemark(coords);
+                    eventPickerMap.geoObjects.add(placemark);
+                }
+                document.getElementById('event-map-hint').textContent = 'Точка выбрана!';
+                document.getElementById('event-map-hint').style.color = 'var(--success-color)';
+            });
+        }
+        
+        async function handleEventSave() {
+            const title = document.getElementById('event-title').value.trim();
+            const description = document.getElementById('event-description').value.trim();
+            const event_time = document.getElementById('event-datetime').value;
+            const route_id = document.getElementById('event-route-select').value || null;
+            const meeting_point = AppState.eventCreationContext.meetingPoint;
+
+            if (!title || !description || !event_time || !meeting_point) {
+                showCustomAlert("Пожалуйста, заполните все поля и выберите точку сбора на карте.");
+                return;
+            }
+
+            const { data, error } = await supabase.from('events').insert({
+                creator_id: telegramUser.id,
+                title, description, event_time, route_id, meeting_point
+            }).select().single();
+            
+            if (error) {
+                console.error("Ошибка создания мероприятия:", error);
+                showCustomAlert("Не удалось создать мероприятие.");
+            } else {
+                // Автоматически добавляем создателя в участники
+                await supabase.from('event_participants').insert({ event_id: data.id, user_id: telegramUser.id });
+                showCustomAlert("Мероприятие успешно создано!");
+                hideEventCreationModal();
+                renderCurrentFeedTab();
+            }
+        }
+        
+        // --- Участие ---
+        async function joinEvent(eventId) {
+            tg.HapticFeedback.impactOccurred('light');
+            const { error } = await supabase.from('event_participants').insert({ event_id: eventId, user_id: telegramUser.id });
+            if (error) {
+                console.error("Ошибка присоединения к мероприятию:", error);
+                showCustomAlert("Не удалось присоединиться.");
+            } else {
+                updateEventCard(eventId);
+            }
+        }
+        
+        async function leaveEvent(eventId) {
+            tg.HapticFeedback.impactOccurred('light');
+            const { error } = await supabase.from('event_participants').delete().match({ event_id: eventId, user_id: telegramUser.id });
+            if (error) {
+                console.error("Ошибка выхода из мероприятия:", error);
+                showCustomAlert("Не удалось отменить участие.");
+            } else {
+                updateEventCard(eventId);
+            }
+        }
+        
+        async function showParticipants(eventId) {
+            tg.HapticFeedback.impactOccurred('light');
+            const modalBody = document.getElementById('participants-modal-body');
+            modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
+            participantsModal.classList.add('visible');
+            tg.BackButton.show();
+
+            const { data, error } = await supabase.from('event_participants')
+                .select('profiles(*)')
+                .eq('event_id', eventId);
+            
+            if (error) {
+                modalBody.innerHTML = '<p class="text-red-500">Не удалось загрузить список.</p>';
+                return;
+            }
+            
+            if (data.length === 0) {
+                 modalBody.innerHTML = '<p class="text-gray-500">Пока никто не участвует.</p>';
+                 return;
+            }
+
+            modalBody.innerHTML = data.map(p => {
+                const user = p.profiles;
+                const avatar = user.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${user.name.charAt(0)}`;
+                return `<div class="flex items-center space-x-3 cursor-pointer p-2 rounded-lg hover:bg-gray-100" onclick="showDetailModal('user', ${user.id})">
+                            <img src="${avatar}" class="w-10 h-10 rounded-full">
+                            <span class="font-semibold">${escapeHTML(user.name)}</span>
+                        </div>`;
+            }).join('');
+        }
+        
+        function hideParticipantsModal() {
+            participantsModal.classList.remove('visible');
+            tg.BackButton.hide();
+        }
+
+        // --- Таймер ---
+        function startCountdown(eventId, eventTime) {
+            const timerElement = document.getElementById(`event-timer-${eventId}`);
+            if (!timerElement) return;
+
+            const updateTimer = () => {
+                const now = new Date();
+                const diff = eventTime.getTime() - now.getTime();
+
+                if (diff <= 0) {
+                    timerElement.textContent = "Мероприятие началось!";
+                    timerElement.style.color = 'var(--success-color)';
+                    const timerIndex = countdownTimers.findIndex(t => t.id === eventId);
+                    if (timerIndex > -1) {
+                        clearInterval(countdownTimers[timerIndex].interval);
+                        countdownTimers.splice(timerIndex, 1);
+                    }
+                    return;
+                }
+
+                const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+                let timerText = "До начала: ";
+                if(d > 0) timerText += `${d}д `;
+                timerText += `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                timerElement.textContent = timerText;
+            };
+
+            updateTimer();
+            const intervalId = setInterval(updateTimer, 1000);
+            countdownTimers.push({ id: eventId, interval: intervalId });
+        }
+
+        function clearCountdownTimers() {
+            countdownTimers.forEach(timer => clearInterval(timer.interval));
+            countdownTimers = [];
+        }
+        
         // --- ПРИВЯЗКА ГЛОБАЛЬНЫХ ФУНКЦИЙ И ЗАПУСК ---
         window.showView = showView;
+        window.switchFeedTab = switchFeedTab;
         window.hideDetailModal = hideDetailModal;
         window.toggleLike = toggleLike;
         window.showPostComments = showPostComments;
@@ -2514,10 +2685,16 @@
         window.cancelDetailReply = cancelDetailReply;
         window.hideQrModal = hideQrModal;
         window.shareContent = shareContent;
+        // NEW
+        window.showEventCreationModal = showEventCreationModal;
+        window.hideEventCreationModal = hideEventCreationModal;
+        window.handleEventSave = handleEventSave;
+        window.joinEvent = joinEvent;
+        window.leaveEvent = leaveEvent;
+        window.showParticipants = showParticipants;
+        window.hideParticipantsModal = hideParticipantsModal;
         
-        // Запускаем приложение после загрузки API Яндекс Карт
         document.addEventListener('DOMContentLoaded', () => ymaps.ready(runApp));
     </script>
-
 </body>
 </html>
