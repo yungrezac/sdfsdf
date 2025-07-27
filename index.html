@@ -220,17 +220,7 @@
             visibility: visible;
         }
         
-        /* Модальное окно сверху вниз */
-        #simple-post-modal {
-            align-items: flex-start;
-        }
-        #simple-post-content {
-            transform: translateY(-100%);
-            transition: transform 0.3s ease-in-out;
-        }
-        #simple-post-modal.visible #simple-post-content {
-            transform: translateY(0);
-        }
+        /* --- ИЗМЕНЕНО --- Удалены специфичные стили для модалки поста, теперь используется .bottom-sheet-modal */
 
         /* Модальное окно снизу вверх (Bottom Sheet) */
         .bottom-sheet-modal {
@@ -442,27 +432,31 @@
         <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('profile-view')"><i class="fa-solid fa-user h-7 w-7"></i><span>Профиль</span></button>
     </nav>
     
-    <!-- Модальное окно создания простого поста (сверху вниз, 45%) -->
-    <div id="simple-post-modal" class="modal-overlay" onclick="if(event.target === this) hideSimplePostModal()">
-        <div id="simple-post-content" class="card-bg rounded-b-2xl shadow-2xl p-6 w-full max-w-lg space-y-4" style="height: 45vh;">
-            <div class="flex justify-between items-center">
-                <h2 class="text-2xl font-bold">Новый пост</h2>
-                <button onclick="hideSimplePostModal()" class="p-2 rounded-full hover:bg-gray-200"><i class="fa-solid fa-times"></i></button>
-            </div>
-            <p style="color: var(--hint-color);">Поделитесь своими мыслями с сообществом.</p>
-            <textarea id="simple-post-details" class="form-textarea mt-1 block w-full h-1/3" placeholder="Что у вас нового?"></textarea>
-            <div id="simple-post-filename" class="text-sm text-gray-500 truncate"></div>
-            <div class="flex justify-between items-center pt-4">
-                 <!-- --- ИЗМЕНЕНО --- Добавлены отдельные кнопки для галереи и камеры -->
-                 <div class="flex items-center gap-2">
-                    <button id="simple-post-gallery-btn" class="cursor-pointer p-2 rounded-full hover:bg-gray-200">
-                        <i class="fa-solid fa-images h-7 w-7" style="color: var(--hint-color);"></i>
-                    </button>
-                    <button id="simple-post-camera-btn" class="cursor-pointer p-2 rounded-full hover:bg-gray-200">
-                        <i class="fa-solid fa-camera h-7 w-7" style="color: var(--hint-color);"></i>
-                    </button>
+    <!-- --- ИЗМЕНЕНО --- Модальное окно создания простого поста (теперь снизу вверх) -->
+    <div id="simple-post-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideSimplePostModal()">
+        <div id="simple-post-content" class="bottom-sheet-content" style="height: auto; max-height: 90vh;">
+            <div class="grabber" onclick="hideSimplePostModal()"></div>
+            <div class="p-4 space-y-4 flex flex-col flex-grow">
+                <div class="flex justify-between items-center flex-shrink-0">
+                    <h2 class="text-2xl font-bold">Новый пост</h2>
+                    <button onclick="hideSimplePostModal()" class="p-2 rounded-full hover:bg-gray-200"><i class="fa-solid fa-times"></i></button>
                 </div>
-                <button onclick="handleSimplePostSave()" class="text-white font-bold py-2 px-6 rounded-full transition-all" style="background-color: var(--button-color);">Опубликовать</button>
+                <div class="flex-grow overflow-y-auto space-y-4">
+                    <p style="color: var(--hint-color);">Поделитесь своими мыслями с сообществом.</p>
+                    <textarea id="simple-post-details" class="form-textarea mt-1 block w-full" rows="4" placeholder="Что у вас нового?"></textarea>
+                    <div id="simple-post-filename" class="text-sm text-gray-500 truncate"></div>
+                </div>
+                <div class="flex justify-between items-center pt-4 flex-shrink-0">
+                    <div class="flex items-center gap-2">
+                        <button id="simple-post-gallery-btn" class="cursor-pointer p-2 rounded-full hover:bg-gray-200">
+                            <i class="fa-solid fa-images h-7 w-7" style="color: var(--hint-color);"></i>
+                        </button>
+                        <button id="simple-post-camera-btn" class="cursor-pointer p-2 rounded-full hover:bg-gray-200">
+                            <i class="fa-solid fa-camera h-7 w-7" style="color: var(--hint-color);"></i>
+                        </button>
+                    </div>
+                    <button onclick="handleSimplePostSave()" class="text-white font-bold py-2 px-6 rounded-full transition-all" style="background-color: var(--button-color);">Опубликовать</button>
+                </div>
             </div>
         </div>
     </div>
@@ -550,7 +544,8 @@
 
     <!-- --- НОВОЕ --- Скрытые инпуты для выбора файлов -->
     <input id="gallery-input" type="file" class="sr-only" accept="image/*">
-    <input id="camera-input" type="file" class="sr-only" accept="image/*" capture="environment">
+    <!-- --- ИЗМЕНЕНО --- Атрибут capture изменен на "user" для лучшей совместимости -->
+    <input id="camera-input" type="file" class="sr-only" accept="image/*" capture="user">
 
 
     <script type="module">
@@ -854,6 +849,7 @@
         function showSimplePostModal() {
             document.getElementById('simple-post-details').value = '';
             document.getElementById('simple-post-filename').textContent = '';
+            AppState.simplePostContext = {};
             simplePostModal.classList.add('visible');
             tg.BackButton.show();
         }
@@ -1811,6 +1807,7 @@
             makeModalSwipeable(creationModal, creationModal.querySelector('.bottom-sheet-content'), hideCreationModal);
             makeModalSwipeable(detailModal, detailModal.querySelector('.bottom-sheet-content'), hideDetailModal);
             makeModalSwipeable(commentsModal, commentsModal.querySelector('.bottom-sheet-content'), hideCommentsModal);
+            makeModalSwipeable(simplePostModal, simplePostModal.querySelector('#simple-post-content'), hideSimplePostModal);
         }
         
         function showFallbackScreen(title, message, showRetryButton = false) {
@@ -1844,7 +1841,7 @@
 
              tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
              tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
-         }
+        }
         
         async function upsertUserProfile() {
             if (!telegramUser) throw new Error("Пользователь Telegram не определен для upsertUserProfile.");
@@ -2137,11 +2134,12 @@
                             ${post.area_captured ? `<p class="font-semibold">Захвачено: <span class="font-bold" style="color: var(--button-color);">${formattedArea}</span></p>` : ''}
                             <div class="flex items-center justify-between mt-3">
                                 <div class="flex items-center space-x-6" style="color: var(--hint-color);">
-                                    <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" data-action="like" data-post-id="${post.id}">
+                                    <!-- --- ИЗМЕНЕНО --- Класс items-center заменен на items-baseline для лучшего выравнивания -->
+                                    <button class="like-btn flex items-baseline space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" data-action="like" data-post-id="${post.id}">
                                         <i class="fa-${userHasLiked ? 'solid' : 'regular'} fa-heart h-6 w-6"></i>
                                         <span data-likes-count>${likes.length}</span>
                                     </button>
-                                    <button class="flex items-center space-x-1 hover:text-blue-500 transition" data-action="comment" data-post-id="${post.id}">
+                                    <button class="flex items-baseline space-x-1 hover:text-blue-500 transition" data-action="comment" data-post-id="${post.id}">
                                         <i class="fa-regular fa-comment h-6 w-6"></i>
                                         <span>${comments.length}</span>
                                     </button>
@@ -2455,11 +2453,17 @@
             let startY, currentY, isDragging = false;
 
             const onTouchStart = (e) => {
-                if (e.target.classList.contains('grabber') || e.touches[0].clientY < contentElement.offsetTop + 40) {
-                    isDragging = true;
-                    startY = e.touches[0].clientY;
-                    contentElement.style.transition = 'none';
+                // Разрешаем свайп только если касание вверху модалки (где grabber)
+                // или если контент не прокручен
+                const contentBody = contentElement.querySelector('.overflow-y-auto');
+                if (contentBody && contentBody.scrollTop > 0) {
+                    isDragging = false;
+                    return;
                 }
+
+                isDragging = true;
+                startY = e.touches[0].clientY;
+                contentElement.style.transition = 'none';
             };
 
             const onTouchMove = (e) => {
