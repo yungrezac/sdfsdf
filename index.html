@@ -261,7 +261,7 @@
             display: block;
         }
         
-        #detail-comments-section, #event-comments-section {
+        #detail-comments-section, #event-comments-section, #spot-comments-section, #route-comments-section {
             border-top: 1px solid var(--border-color);
         }
         #detail-comment-input-form, #event-comment-input-form {
@@ -1063,7 +1063,7 @@
             body.innerHTML = `<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
             
             if (type === 'spot') {
-                const { data: spot, error } = await supabase.from('spots').select('*, profiles(id, name, photo_url), location_wkt:location::text').eq('id', id).single();
+                const { data: spot, error } = await supabase.from('spots').select('*, profiles(id, name, photo_url)').eq('id', id).single();
                 if (error || !spot) {
                     body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали спота.</p>`;
                     return;
@@ -1071,7 +1071,7 @@
                 body.innerHTML = generateSpotDetailHTML(spot);
                 loadAndRenderComments('spot', id, 'detail-comments-list');
             } else if (type === 'route') {
-                 const { data: route, error } = await supabase.from('routes').select('*, profiles(id, name, photo_url), path_wkt:path::text').eq('id', id).single();
+                 const { data: route, error } = await supabase.from('routes').select('*, profiles(id, name, photo_url)').eq('id', id).single();
                 if (error || !route) {
                     body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали маршрута.</p>`;
                     return;
@@ -1080,7 +1080,7 @@
                 setTimeout(() => renderMiniMapForRoute(route), 100);
                 loadAndRenderComments('route', id, 'detail-comments-list');
             } else if (type === 'event') {
-                const { data: event, error } = await supabase.from('events').select('*, profiles(id, name, photo_url), routes(*), meeting_point_wkt:meeting_point::text').eq('id', id).single();
+                const { data: event, error } = await supabase.from('events').select('*, profiles(id, name, photo_url), routes(*)').eq('id', id).single();
                  if (error || !event) {
                     body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали мероприятия.</p>`;
                     return;
@@ -1092,8 +1092,8 @@
                 const [profileRes, postsRes, spotsRes, routesRes, eventsRes] = await Promise.all([
                     supabase.from('profiles').select('*').eq('id', id).single(),
                     supabase.from('posts').select('*').eq('user_id', id).order('created_at', { ascending: false }),
-                    supabase.from('spots').select('*, location_wkt:location::text').eq('user_id', id).order('created_at', { ascending: false }),
-                    supabase.from('routes').select('*, path_wkt:path::text').eq('user_id', id).order('created_at', { ascending: false }),
+                    supabase.from('spots').select('*').eq('user_id', id).order('created_at', { ascending: false }),
+                    supabase.from('routes').select('*').eq('user_id', id).order('created_at', { ascending: false }),
                     supabase.rpc('get_user_events', { p_user_id: id })
                 ]);
 
@@ -1166,7 +1166,7 @@
                 if (type === 'spot') {
                     setMapMode('spots');
                     targetObject = AppState.allSpots.find(s => s.id === id);
-                    const geoJson = parseWKT(targetObject?.location_wkt);
+                    const geoJson = parseWKT(targetObject?.location);
                     if (geoJson) {
                         const coords = [geoJson.coordinates[1], geoJson.coordinates[0]]; // lat, long
                         map.panTo(coords, { flying: true, duration: 1500 }).then(() => map.setZoom(17));
@@ -1174,7 +1174,7 @@
                 } else if (type === 'route') {
                     setMapMode('routes');
                     targetObject = AppState.allRoutes.find(r => r.id === id);
-                    const geoJson = parseWKT(targetObject?.path_wkt);
+                    const geoJson = parseWKT(targetObject?.path);
                      if (geoJson && geoJson.coordinates.length > 0) {
                         const yandexCoords = geoJson.coordinates.map(p => [p[1], p[0]]);
                         const polyline = new ymaps.Polyline(yandexCoords);
@@ -1186,7 +1186,9 @@
 
         function parseWKT(wkt) {
             if (!wkt) return null;
+            // ИЗМЕНЕНИЕ: Теперь мы ожидаем GeoJSON объект от Supabase
             if (typeof wkt === 'object' && wkt.type && wkt.coordinates) return wkt;
+            // Оставляем старый парсер как запасной вариант
             if (typeof wkt !== 'string') return null;
             try {
                 if (wkt.trim().startsWith('{')) {
@@ -1546,11 +1548,10 @@
         
         function addSpotToMap(spot) {
             try {
-                const wkt = spot.location_wkt || spot.location;
-                const geoJsonPoint = parseWKT(wkt);
+                const geoJsonPoint = parseWKT(spot.location);
 
                 if (!geoJsonPoint || geoJsonPoint.type !== 'Point') {
-                    console.warn(`Не удалось обработать геолокацию спота ${spot.id}:`, wkt);
+                    console.warn(`Не удалось обработать геолокацию спота ${spot.id}:`, spot.location);
                     return;
                 }
                 
@@ -1664,11 +1665,10 @@
         
         function addRouteToMap(route) {
             try {
-                const wkt = route.path_wkt || route.path;
-                const geoJsonLine = parseWKT(wkt);
+                const geoJsonLine = parseWKT(route.path);
 
                 if (!geoJsonLine || geoJsonLine.type !== 'LineString' || !Array.isArray(geoJsonLine.coordinates) || geoJsonLine.coordinates.length < 2) {
-                    console.warn(`Не удалось обработать путь для маршрута ${route.id}:`, wkt);
+                    console.warn(`Не удалось обработать путь для маршрута ${route.id}:`, route.path);
                     return;
                 }
 
@@ -1686,11 +1686,10 @@
 
         function addEventToMap(event) {
             try {
-                const wkt = event.meeting_point_wkt || event.meeting_point;
-                const geoJsonPoint = parseWKT(wkt);
+                const geoJsonPoint = parseWKT(event.meeting_point);
 
                 if (!geoJsonPoint || geoJsonPoint.type !== 'Point') {
-                    console.warn(`Не удалось обработать геолокацию мероприятия ${event.id}:`, wkt);
+                    console.warn(`Не удалось обработать геолокацию мероприятия ${event.id}:`, event.meeting_point);
                     return;
                 }
                 
@@ -1711,7 +1710,7 @@
         // --- ЗАГРУЗКА ДАННЫХ ---
         async function loadInitialMapData() {
             // Загрузка Спотов
-            const { data: spots, error: spotsError } = await supabase.from('spots').select('*, location_wkt:location::text');
+            const { data: spots, error: spotsError } = await supabase.from('spots').select('*');
             if (spotsError) console.error("Ошибка загрузки спотов:", spotsError);
             else {
                 AppState.allSpots = spots;
@@ -1720,7 +1719,7 @@
             }
 
             // Загрузка Маршрутов
-            const { data: routes, error: routesError } = await supabase.from('routes').select('*, path_wkt:path::text');
+            const { data: routes, error: routesError } = await supabase.from('routes').select('*');
             if (routesError) console.error("Ошибка загрузки маршрутов:", routesError);
             else {
                 AppState.allRoutes = routes;
@@ -1729,7 +1728,7 @@
             }
             
             // NEW: Загрузка Мероприятий
-            const { data: events, error: eventsError } = await supabase.from('events').select('*, meeting_point_wkt:meeting_point::text');
+            const { data: events, error: eventsError } = await supabase.from('events').select('*');
             if(eventsError) console.error("Ошибка загрузки мероприятий:", eventsError);
             else {
                 AppState.allEvents = events;
@@ -1908,7 +1907,7 @@
             
             if (data) {
                 AppState.userProfile.color = data.color;
-                AppState.userProfile.territory = parseWKT(data.territory_wkt) || parseWKT(data.territory) || data.territory;
+                AppState.userProfile.territory = parseWKT(data.territory);
             } else {
                 AppState.userProfile.color = generateColorFromId(telegramUser.id);
                 const { error: insertError } = await supabase.from('profiles').insert({ 
@@ -2055,7 +2054,7 @@
         }
 
         async function fetchAllProfilesAndDraw() {
-            let { data: profiles, error } = await supabase.from('profiles').select('*, territory_wkt:territory::text');
+            let { data: profiles, error } = await supabase.from('profiles').select('*');
             if (error) { console.error("Error fetching profiles:", error); return; }
             AppState.allProfilesData = profiles;
             
@@ -2064,11 +2063,11 @@
 
             profiles.forEach(profile => {
                 if (telegramUser && profile.id === telegramUser.id) {
-                    AppState.userProfile.territory = parseWKT(profile.territory_wkt) || profile.territory;
+                    AppState.userProfile.territory = parseWKT(profile.territory);
                     AppState.userProfile.color = profile.color;
                     refreshAllStats();
                 }
-                const territoryGeoJson = parseWKT(profile.territory_wkt || profile.territory);
+                const territoryGeoJson = parseWKT(profile.territory);
                 if (territoryGeoJson) {
                     const territoryObject = ymaps.geoQuery(territoryGeoJson).addTo(territoriesCollection);
                     territoryObject.setOptions({
@@ -2407,8 +2406,8 @@
 
             const [postsRes, spotsRes, routesRes, eventsRes] = await Promise.all([
                 supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-                supabase.from('spots').select('*, location_wkt:location::text').eq('user_id', userId).order('created_at', { ascending: false }),
-                supabase.from('routes').select('*, path_wkt:path::text').eq('user_id', userId).order('created_at', { ascending: false }),
+                supabase.from('spots').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+                supabase.from('routes').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
                 supabase.rpc('get_user_events', { p_user_id: userId })
             ]);
 
