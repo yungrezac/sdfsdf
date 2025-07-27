@@ -310,6 +310,15 @@
         <div id="map-view" class="view active">
             <div id="map"></div>
             
+            <!-- NEW: Centered container for geo request button -->
+            <div id="map-center-controls" class="fixed inset-0 z-20 flex justify-center items-center pointer-events-none hidden">
+                <button id="request-geo-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-lg flex items-center gap-2 pointer-events-auto">
+                    <i class="fa-solid fa-location-arrow h-5 w-5"></i>
+                    <span id="request-geo-text">Дать доступ к гео</span>
+                    <svg id="request-geo-loader" class="animate-spin h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                </button>
+            </div>
+            
             <!-- Панель управления на карте -->
             <div id="map-top-panel">
                 <div class="w-12"></div> <!-- Пустой див для баланса слева -->
@@ -323,11 +332,6 @@
                 </div>
 
                 <div id="map-controls-right" class="flex flex-col items-end gap-2">
-                    <button id="request-geo-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-lg flex items-center gap-2 pointer-events-all">
-                        <i class="fa-solid fa-location-arrow h-5 w-5"></i>
-                        <span id="request-geo-text">Дать доступ к гео</span>
-                        <svg id="request-geo-loader" class="animate-spin h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    </button>
                     <button id="recenter-btn" class="hidden bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg pointer-events-all">
                         <i class="fa-solid fa-location-crosshairs h-6 w-6 text-gray-700"></i>
                     </button>
@@ -576,6 +580,7 @@
         const profileAvatarWrapper = document.getElementById('profile-avatar-wrapper');
         const recenterBtn = document.getElementById('recenter-btn');
         const requestGeoBtn = document.getElementById('request-geo-btn');
+        const mapCenterControls = document.getElementById('map-center-controls');
         const scanQrBtn = document.getElementById('scan-qr-btn');
         const shareProfileBtn = document.getElementById('share-profile-btn');
         const showQrBtn = document.getElementById('show-qr-btn');
@@ -1314,7 +1319,7 @@
                         AppState.lastKnownLocation = null;
                         mapActionContainer.classList.add('hidden');
                         modeSwitcher.classList.add('hidden');
-                        requestGeoBtn.classList.remove('hidden');
+                        mapCenterControls.classList.remove('hidden');
                     }
                 };
 
@@ -1323,7 +1328,7 @@
 
             } catch (e) {
                 console.warn("API разрешений не поддерживается, используем старый метод.", e);
-                requestGeoBtn.classList.remove('hidden');
+                mapCenterControls.classList.remove('hidden');
             }
         }
 
@@ -1350,7 +1355,7 @@
                      
                      updateCurrentUserMarker(latLng);
 
-                     requestGeoBtn.classList.add('hidden');
+                     mapCenterControls.classList.add('hidden');
                      recenterBtn.classList.remove('hidden');
                      modeSwitcher.classList.remove('hidden');
                      mapActionContainer.classList.remove('hidden');
