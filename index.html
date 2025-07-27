@@ -1062,7 +1062,6 @@
             
             body.innerHTML = `<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
             
-            // NEW: Универсальный рендеринг деталей.
             if (type === 'spot') {
                 const { data: spot, error } = await supabase.from('spots').select('*, profiles(id, name, photo_url), location_wkt:location::text').eq('id', id).single();
                 if (error || !spot) {
@@ -1080,7 +1079,7 @@
                 body.innerHTML = generateRouteDetailHTML(route);
                 setTimeout(() => renderMiniMapForRoute(route), 100);
                 loadAndRenderComments('route', id, 'detail-comments-list');
-            } else if (type === 'event') { // NEW: Детали мероприятия
+            } else if (type === 'event') {
                 const { data: event, error } = await supabase.from('events').select('*, profiles(id, name, photo_url), routes(*), meeting_point_wkt:meeting_point::text').eq('id', id).single();
                  if (error || !event) {
                     body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали мероприятия.</p>`;
@@ -1108,7 +1107,6 @@
                 const routes = routesRes.data || [];
                 const events = eventsRes.data || [];
 
-                // Fetch likes and comments for the posts
                 const postIds = posts.map(p => p.id);
                 const likesByPost = {};
                 const commentsByPost = {};
@@ -1121,7 +1119,6 @@
 
                 body.innerHTML = await generateUserProfileDetailHTML(profile, posts, spots, routes, events, likesByPost, commentsByPost);
                 
-                // Инициализация карт для постов в профиле
                 setTimeout(() => {
                     posts.forEach(post => {
                         if (post.territory_captured) {
@@ -1142,7 +1139,7 @@
 
         function generateMiniSpotHTML(spot, isFeed = false) {
              const buttonHTML = isFeed 
-                ? `<button onclick="navigateToMapObject('spot', ${spot.id})" class="mt-2 w-full text-sm text-center font-semibold p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);">Показать на карте</button>` 
+                ? `<button onclick="event.stopPropagation(); navigateToMapObject('spot', ${spot.id})" class="mt-2 w-full text-sm text-center font-semibold p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);">Показать на карте</button>` 
                 : '';
              return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('spot', ${spot.id})">
                          ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Фото спота">` : ''}
@@ -1164,25 +1161,27 @@
             hideDetailModal(); 
             showView('map-view');
             
-            let targetObject;
-            if (type === 'spot') {
-                setMapMode('spots');
-                targetObject = AppState.allSpots.find(s => s.id === id);
-                const geoJson = parseWKT(targetObject?.location_wkt);
-                if (geoJson) {
-                    const coords = [geoJson.coordinates[1], geoJson.coordinates[0]]; // lat, long
-                    map.panTo(coords, { flying: true, duration: 1500 }).then(() => map.setZoom(17));
+            setTimeout(() => {
+                let targetObject;
+                if (type === 'spot') {
+                    setMapMode('spots');
+                    targetObject = AppState.allSpots.find(s => s.id === id);
+                    const geoJson = parseWKT(targetObject?.location_wkt);
+                    if (geoJson) {
+                        const coords = [geoJson.coordinates[1], geoJson.coordinates[0]]; // lat, long
+                        map.panTo(coords, { flying: true, duration: 1500 }).then(() => map.setZoom(17));
+                    }
+                } else if (type === 'route') {
+                    setMapMode('routes');
+                    targetObject = AppState.allRoutes.find(r => r.id === id);
+                    const geoJson = parseWKT(targetObject?.path_wkt);
+                     if (geoJson && geoJson.coordinates.length > 0) {
+                        const yandexCoords = geoJson.coordinates.map(p => [p[1], p[0]]);
+                        const polyline = new ymaps.Polyline(yandexCoords);
+                        map.setBounds(polyline.geometry.getBounds(), { checkZoomRange: true, duration: 1000 });
+                    }
                 }
-            } else if (type === 'route') {
-                setMapMode('routes');
-                targetObject = AppState.allRoutes.find(r => r.id === id);
-                const geoJson = parseWKT(targetObject?.path_wkt);
-                 if (geoJson && geoJson.coordinates.length > 0) {
-                    const yandexCoords = geoJson.coordinates.map(p => [p[1], p[0]]);
-                    const polyline = new ymaps.Polyline(yandexCoords);
-                    map.setBounds(polyline.geometry.getBounds(), { checkZoomRange: true, duration: 1000 });
-                }
-            }
+            }, 150);
         }
 
         function parseWKT(wkt) {
@@ -1634,7 +1633,6 @@
             }
         }
 
-        // FIX: Added the missing addEventToMap function
         function addEventToMap(event) {
             try {
                 const wkt = event.meeting_point_wkt || event.meeting_point;
@@ -2468,22 +2466,27 @@
             const container = document.getElementById('feed-content-events');
             container.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
             
-            const { data, error } = await supabase.from('events')
-                .select(`*, profiles(id, name, photo_url)`)
-                .order('event_time', { ascending: true });
+            try {
+                const { data, error } = await supabase.from('events')
+                    .select(`*, profiles(id, name, photo_url)`)
+                    .order('event_time', { ascending: true });
 
-            if (error) {
-                console.error("Ошибка загрузки мероприятий:", error);
-                container.innerHTML = '<p class="text-center text-red-500 py-8">Не удалось загрузить мероприятия.</p>';
-                return;
+                if (error) {
+                    throw error;
+                }
+                if (data.length === 0) {
+                    container.innerHTML = '<p class="text-center text-gray-500 py-8">Пока нет запланированных покатушек. Создайте первую!</p>';
+                    return;
+                }
+                
+                const eventsHTML = await Promise.all(data.map(event => generateEventCardHTML(event)));
+                container.innerHTML = eventsHTML.join('');
+                data.forEach(event => startCountdown(event.id, new Date(event.event_time)));
+
+            } catch (error) {
+                 console.error("Ошибка загрузки мероприятий:", error);
+                 container.innerHTML = '<p class="text-center text-red-500 py-8">Не удалось загрузить мероприятия.</p>';
             }
-            if (data.length === 0) {
-                container.innerHTML = '<p class="text-center text-gray-500 py-8">Пока нет запланированных покатушек. Создайте первую!</p>';
-                return;
-            }
-            
-            const eventsHTML = await Promise.all(data.map(event => generateEventCardHTML(event)));
-            container.innerHTML = eventsHTML.join('');
         }
         
         async function renderFeedSpots() {
@@ -2509,46 +2512,56 @@
             const avatar = author.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${author.name.charAt(0)}`;
             const eventTime = new Date(event.event_time);
             
-            // Получаем лайки и участников
-            const { data: likes, error: likesError } = await supabase.from('likes').select('user_id').eq('event_id', event.id);
-            const { data: participants, error: participantsError } = await supabase.from('event_participants').select('user_id').eq('event_id', event.id);
+            let likes = [], participants = [];
+            try {
+                const { data: likesData } = await supabase.from('likes').select('user_id').eq('event_id', event.id);
+                likes = likesData || [];
+                const { data: participantsData } = await supabase.from('event_participants').select('user_id').eq('event_id', event.id);
+                participants = participantsData || [];
+            } catch (e) {
+                console.error(`Failed to fetch activity for event ${event.id}`, e);
+            }
             
-            const userHasLiked = telegramUser && (likes || []).some(l => l.user_id === telegramUser.id);
-            const userIsParticipant = telegramUser && (participants || []).some(p => p.user_id === telegramUser.id);
+            const userHasLiked = telegramUser && likes.some(l => l.user_id === telegramUser.id);
+            const userIsParticipant = telegramUser && participants.some(p => p.user_id === telegramUser.id);
 
             const participantButton = userIsParticipant 
-                ? `<button data-action="leave-event" data-id="${event.id}" class="w-full font-bold py-2 px-4 rounded-full transition-all text-white" style="background-color: var(--destructive-color);">Не пойду</button>`
-                : `<button data-action="join-event" data-id="${event.id}" class="w-full font-bold py-2 px-4 rounded-full transition-all text-white" style="background-color: var(--success-color);">Участвую!</button>`;
+                ? `<button data-action="leave-event" data-id="${event.id}" class="w-full font-bold py-3 px-4 rounded-full transition-all text-white bg-red-500 hover:bg-red-600">Не пойду</button>`
+                : `<button data-action="join-event" data-id="${event.id}" class="w-full font-bold py-3 px-4 rounded-full transition-all text-white bg-green-500 hover:bg-green-600">Участвую!</button>`;
             
-            return `<div class="card-bg rounded-2xl shadow-lg overflow-hidden" id="event-${event.id}">
+            return `<div class="card-bg rounded-2xl shadow-lg overflow-hidden border border-transparent hover:border-blue-400 transition-all duration-300" id="event-${event.id}">
                         <div class="p-4">
-                            <div id="event-timer-${event.id}" class="text-center font-bold text-xl mb-3 p-2 rounded-lg" style="background-color: var(--bg-color);"></div>
-                            <div class="flex items-center space-x-3 cursor-pointer" onclick="showDetailModal('user', ${author.id})">
+                            <div id="event-timer-${event.id}" class="text-center font-bold text-lg mb-4 p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);"></div>
+                            <div class="flex items-center space-x-3 cursor-pointer mb-4" onclick="showDetailModal('user', ${author.id})">
                                 <img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar">
-                                <div><p class="font-bold">${escapeHTML(author.name)}</p><p class="text-xs" style="color: var(--hint-color);">${eventTime.toLocaleString('ru-RU', {dateStyle: 'long', timeStyle: 'short'})}</p></div>
+                                <div><p class="font-bold">${escapeHTML(author.name)}</p><p class="text-xs" style="color: var(--hint-color);">Организатор</p></div>
                             </div>
-                            <h3 class="mt-4 text-xl font-bold cursor-pointer" onclick="showDetailModal('event', ${event.id})">${escapeHTML(event.title)}</h3>
-                            <p class="mt-2 text-sm" style="color: var(--text-color);">${escapeHTML(event.description)}</p>
+                            <h3 class="text-xl font-bold cursor-pointer hover:text-blue-600" onclick="showDetailModal('event', ${event.id})">${escapeHTML(event.title)}</h3>
+                            <p class="mt-2 text-sm text-gray-600">${escapeHTML(event.description)}</p>
+                            <div class="mt-4 p-3 rounded-lg" style="background-color: var(--bg-color);">
+                                <div class="flex items-center space-x-3">
+                                    <i class="fa-solid fa-calendar-alt w-5 text-center" style="color: var(--hint-color);"></i>
+                                    <span class="text-sm font-semibold">${eventTime.toLocaleString('ru-RU', {dateStyle: 'long', timeStyle: 'short'})}</span>
+                                </div>
+                            </div>
                         </div>
                         <div class="p-4 border-t" style="border-color: var(--border-color);">
-                            <div class="flex items-center justify-between">
+                            <div class="flex items-center justify-between mb-4">
                                 <div class="flex items-center space-x-6" style="color: var(--hint-color);">
                                     <button class="like-btn flex items-baseline space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" data-action="like-event" data-id="${event.id}">
                                         <i class="fa-${userHasLiked ? 'solid' : 'regular'} fa-heart h-6 w-6"></i>
-                                        <span data-likes-count>${(likes || []).length}</span>
+                                        <span data-likes-count>${likes.length}</span>
                                     </button>
                                     <button class="flex items-baseline space-x-1 hover:text-blue-500 transition" data-action="show-participants" data-id="${event.id}">
                                         <i class="fa-regular fa-user h-6 w-6"></i>
-                                        <span data-participants-count>${(participants || []).length}</span>
+                                        <span data-participants-count>${participants.length}</span>
                                     </button>
                                 </div>
                                 <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="shareContent('event', ${event.id}, ${author.id})" style="color: var(--hint-color);">
                                     <i class="fa-solid fa-arrow-up-from-bracket h-5 w-5"></i>
                                 </button>
                             </div>
-                            <div class="mt-4">
-                                ${participantButton}
-                            </div>
+                            ${participantButton}
                         </div>
                     </div>`;
         }
