@@ -316,6 +316,14 @@
                     </button>
                 </div>
             </div>
+            
+            <!-- NEW: Основная кнопка действия на карте -->
+            <div id="map-action-container" class="hidden fixed bottom-[100px] left-0 right-0 z-20 flex justify-center pointer-events-none">
+                <button id="map-action-btn" class="text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 flex items-center gap-2 pointer-events-auto">
+                    <i id="map-action-icon" class="fa-solid fa-play h-5 w-5"></i>
+                    <span id="map-action-text"></span>
+                </button>
+            </div>
         </div>
 
         <!-- Вид 2: Лента -->
@@ -353,11 +361,8 @@
                     <p id="profile-area" class="text-3xl font-bold" style="color: var(--button-color);">0 м²</p>
                 </div>
                 <div class="w-full pt-4 mt-4 border-t" style="border-color: var(--border-color);">
-                    <div class="grid grid-cols-4 gap-2 text-center">
-                        <button id="invite-friend-btn" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
-                            <div class="p-3 rounded-full" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent);"><i class="fa-solid fa-user-plus h-6 w-6" style="color: var(--button-color);"></i></div>
-                            <span class="text-xs font-medium" style="color: var(--hint-color);">Пригласить</span>
-                        </button>
+                    <!-- UPDATED: Убраны кнопки, используется flex для центрирования -->
+                    <div class="flex justify-center gap-8 w-full">
                         <button id="share-profile-btn" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
                             <div class="p-3 rounded-full" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent);"><i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--button-color);"></i></div>
                             <span class="text-xs font-medium" style="color: var(--hint-color);">Поделиться</span>
@@ -365,10 +370,6 @@
                         <button id="show-qr-btn" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
                             <div class="p-3 rounded-full" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent);"><i class="fa-solid fa-qrcode h-6 w-6" style="color: var(--button-color);"></i></div>
                             <span class="text-xs font-medium" style="color: var(--hint-color);">Мой QR</span>
-                        </button>
-                        <button id="donate-btn" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
-                            <div class="p-3 rounded-full" style="background-color: color-mix(in srgb, var(--success-color) 15%, transparent);"><i class="fa-solid fa-heart h-6 w-6" style="color: var(--success-color);"></i></div>
-                            <span class="text-xs font-medium" style="color: var(--hint-color);">Поддержать</span>
                         </button>
                     </div>
                 </div>
@@ -507,7 +508,7 @@
         let supabase;
         let telegramUser = null;
         let locationWatchId = null;
-        let scrollToPostId = null; // NEW: Для диплинков на посты
+        let scrollToPostId = null; 
         
         // Состояние режимов
         let currentMode = 'capture'; // 'capture', 'spots', 'routes'
@@ -558,11 +559,11 @@
         const recenterBtn = document.getElementById('recenter-btn');
         const requestGeoBtn = document.getElementById('request-geo-btn');
         const scanQrBtn = document.getElementById('scan-qr-btn');
-        const inviteFriendBtn = document.getElementById('invite-friend-btn');
         const shareProfileBtn = document.getElementById('share-profile-btn');
-        const donateBtn = document.getElementById('donate-btn');
         const showQrBtn = document.getElementById('show-qr-btn');
         const createSimplePostBtn = document.getElementById('create-simple-post-btn');
+        const mapActionContainer = document.getElementById('map-action-container');
+        const mapActionBtn = document.getElementById('map-action-btn');
 
         // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 
@@ -610,7 +611,6 @@
             const isOwner = telegramUser && ownerId.toString() === telegramUser.id.toString();
             let text = '';
 
-            // UPDATED: Контекстно-зависимый текст
             switch (type) {
                 case 'post':
                     text = isOwner ? 'Оцени мой пост в TerraRun!' : 'Смотри какой интересный пост в TerraRun!';
@@ -640,14 +640,13 @@
             
             const isMapView = viewId === 'map-view';
             
-            if (isMapView) {
-                updateMainButton();
-                tg.MainButton.show();
+            // UPDATED: Управляем видимостью новой кнопки
+            if (isMapView && lastKnownLocation) {
+                mapActionContainer.classList.remove('hidden');
             } else {
-                tg.MainButton.hide();
+                mapActionContainer.classList.add('hidden');
             }
 
-            // Показываем свитчер только если есть гео и мы на карте
             modeSwitcher.classList.toggle('hidden', !isMapView || !lastKnownLocation);
             
             if (isMapView) {
@@ -666,7 +665,6 @@
             tg.HapticFeedback.selectionChanged();
             currentMode = newMode;
             
-            // Сохраняем режим в облачное хранилище Telegram
             tg.CloudStorage.setItem('currentMode', newMode);
 
             document.querySelectorAll('.mode-btn').forEach(btn => {
@@ -691,48 +689,55 @@
                     map.addLayer(routePolylinesLayer);
                     break;
             }
-            updateMainButton();
+            updateMapActionButton();
         }
 
-        function updateMainButton() {
+        // NEW: Функция для обновления новой кнопки действия на карте
+        function updateMapActionButton() {
+            const icon = document.getElementById('map-action-icon');
+            const text = document.getElementById('map-action-text');
+
             if (!lastKnownLocation) {
-                tg.MainButton.setText("Определение геолокации...");
-                tg.MainButton.disable();
+                mapActionContainer.classList.add('hidden');
                 return;
             }
             
-            tg.MainButton.enable();
-            tg.MainButton.offClick(mainButtonHandler); // Удаляем предыдущий обработчик
+            mapActionContainer.classList.remove('hidden');
 
             switch (currentMode) {
                 case 'capture':
                     if (isRunning) {
-                        tg.MainButton.setText("Остановить захват");
-                        tg.MainButton.setParams({ color: 'var(--destructive-color)' });
+                        text.textContent = "Остановить захват";
+                        mapActionBtn.style.backgroundColor = 'var(--destructive-color)';
+                        icon.className = 'fa-solid fa-stop h-5 w-5';
                     } else {
-                        tg.MainButton.setText("Начать захват");
-                        tg.MainButton.setParams({ color: 'var(--button-color)' });
+                        text.textContent = "Начать захват";
+                        mapActionBtn.style.backgroundColor = 'var(--button-color)';
+                        icon.className = 'fa-solid fa-play h-5 w-5';
                     }
                     break;
                 case 'spots':
-                    tg.MainButton.setText("Добавить спот здесь");
-                    tg.MainButton.setParams({ color: 'var(--button-color)' });
+                    text.textContent = "Добавить спот здесь";
+                    mapActionBtn.style.backgroundColor = 'var(--success-color)';
+                    icon.className = 'fa-solid fa-location-dot h-5 w-5';
                     break;
                 case 'routes':
                     if (isRunning) {
-                        tg.MainButton.setText("Завершить и сохранить маршрут");
-                        tg.MainButton.setParams({ color: 'var(--destructive-color)' });
+                        text.textContent = "Завершить маршрут";
+                        mapActionBtn.style.backgroundColor = 'var(--destructive-color)';
+                        icon.className = 'fa-solid fa-stop h-5 w-5';
                     } else {
-                        tg.MainButton.setText("Начать запись маршрута");
-                        tg.MainButton.setParams({ color: 'var(--button-color)' });
+                        text.textContent = "Начать запись маршрута";
+                        mapActionBtn.style.backgroundColor = 'var(--button-color)';
+                        icon.className = 'fa-solid fa-route h-5 w-5';
                     }
                     break;
             }
-            tg.MainButton.onClick(mainButtonHandler);
         }
         
-        async function mainButtonHandler() {
-            tg.MainButton.showProgress();
+        // NEW: Обработчик для новой кнопки
+        async function mapActionButtonHandler() {
+            mapActionBtn.disabled = true; // Предотвращаем двойные нажатия
             try {
                 switch (currentMode) {
                     case 'capture':
@@ -750,7 +755,7 @@
                         break;
                 }
             } finally {
-                tg.MainButton.hideProgress();
+                mapActionBtn.disabled = false;
             }
         }
         
@@ -1217,7 +1222,7 @@
                 profileAvatarImg.src = `https://placehold.co/96x96/E2E8F0/4A5568?text=${initial}`;
             }
             profileAvatarWrapper.style.borderColor = userColor;
-            updateMainButton();
+            updateMapActionButton();
             refreshAllStats();
             renderMyProfileContent();
         }
@@ -1262,8 +1267,9 @@
                     geoBtn.classList.add('hidden');
                     recenterBtn.classList.remove('hidden');
                     modeSwitcher.classList.remove('hidden');
+                    mapActionContainer.classList.remove('hidden');
                     
-                    updateMainButton(); // Активируем главную кнопку
+                    updateMapActionButton();
                     
                     // Запускаем постоянное отслеживание
                     startWatchingLocation();
@@ -1313,7 +1319,7 @@
             isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
             tg.isClosingConfirmationEnabled = true;
-            updateMainButton();
+            updateMapActionButton();
             
             currentRunPath = [ [lastKnownLocation[1], lastKnownLocation[0]] ];
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
@@ -1326,7 +1332,7 @@
                     isRunning = false;
                     tg.HapticFeedback.notificationOccurred('success');
                     tg.isClosingConfirmationEnabled = false;
-                    updateMainButton();
+                    updateMapActionButton();
                     if (currentRunPath.length > 3) {
                         await processRunPath();
                     } else {
@@ -1411,7 +1417,7 @@
             isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
             tg.isClosingConfirmationEnabled = true;
-            updateMainButton();
+            updateMapActionButton();
             
             currentRunPath = [ [lastKnownLocation[1], lastKnownLocation[0]] ];
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
@@ -1424,7 +1430,7 @@
                 isRunning = false;
                 tg.HapticFeedback.notificationOccurred('success');
                 tg.isClosingConfirmationEnabled = false;
-                updateMainButton();
+                updateMapActionButton();
                 
                 if (currentRunPath.length < 2) {
                     showCustomAlert("Слишком короткий маршрут.");
@@ -1607,10 +1613,7 @@
                 tg.showScanQrPopup({ text: 'Наведите на QR-код другого игрока' });
             });
 
-            // UPDATED: Replaced invite button with share button logic
-            inviteFriendBtn.addEventListener('click', () => {
-                 shareContent('user', telegramUser.id, telegramUser.id);
-            });
+            // UPDATED: Removed invite and donate listeners, kept share
             shareProfileBtn.addEventListener('click', () => {
                 shareContent('user', telegramUser.id, telegramUser.id);
             });
@@ -1618,16 +1621,9 @@
             createSimplePostBtn.addEventListener('click', showSimplePostModal);
             
             showQrBtn.addEventListener('click', showQrModal);
-            donateBtn.addEventListener('click', () => {
-                // Замените 'YOUR_PAYMENT_PROVIDER_TOKEN' на ваш реальный токен
-                tg.openInvoice('YOUR_PAYMENT_PROVIDER_TOKEN', (status) => {
-                    if (status === 'paid') {
-                        showCustomAlert('Спасибо за вашу поддержку!');
-                    } else if (status === 'failed') {
-                        showCustomAlert('Не удалось обработать платеж.');
-                    }
-                });
-            });
+
+            mapActionBtn.addEventListener('click', mapActionButtonHandler);
+            
 
             document.body.addEventListener('click', (event) => {
                 const button = event.target.closest('button[data-action], div[data-action]');
@@ -2295,4 +2291,4 @@
     </script>
 
 </body>
-</html>
+</ht
