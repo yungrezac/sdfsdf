@@ -29,7 +29,11 @@
 
     <!-- Иконочные шрифты -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-
+    
+    <!-- Шрифты Google -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
         :root {
@@ -40,9 +44,10 @@
             --button-color: #3b82f6;
             --button-text-color: #ffffff;
             --destructive-color: #ef4444;
-            --success-color: #28a745;
+            --success-color: #22c55e;
             --star-color: #facc15;
             --border-color: #e5e7eb;
+            --button-color-rgb: 59, 130, 246;
         }
 
         /* Адаптация под безопасные зоны iOS */
@@ -97,7 +102,9 @@
         #bottom-navbar {
             height: calc(80px + env(safe-area-inset-bottom));
             padding-bottom: env(safe-area-inset-bottom);
-            background-color: color-mix(in srgb, var(--secondary-bg-color) 80%, transparent);
+            background-color: rgba(var(--secondary-bg-color-rgb), 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border-top: 1px solid var(--border-color);
         }
         .fade-in {
@@ -122,9 +129,9 @@
             animation: pulse 2s infinite;
         }
         @keyframes pulse {
-            0% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 color-mix(in srgb, var(--button-color) 70%, transparent); }
-            70% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 15px color-mix(in srgb, var(--button-color) 0%, transparent); }
-            100% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 color-mix(in srgb, var(--button-color) 0%, transparent); }
+            0% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 rgba(var(--button-color-rgb), 0.7); }
+            70% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 15px rgba(var(--button-color-rgb), 0); }
+            100% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 rgba(var(--button-color-rgb), 0); }
         }
         .like-btn.liked i {
             color: var(--destructive-color);
@@ -272,6 +279,20 @@
         @keyframes pulse-bg {
             50% { background-color: #cbd5e1; }
         }
+        
+        /* Улучшенные стили для инпутов */
+        .form-input, .form-textarea {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-input:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--button-color);
+            box-shadow: 0 0 0 2px rgba(var(--button-color-rgb), 0.2);
+        }
     </style>
 </head>
 <body class="font-sans antialiased overflow-hidden">
@@ -317,7 +338,7 @@
                 </div>
             </div>
             
-            <!-- NEW: Основная кнопка действия на карте -->
+            <!-- Основная кнопка действия на карте -->
             <div id="map-action-container" class="hidden fixed bottom-[100px] left-0 right-0 z-20 flex justify-center pointer-events-none">
                 <button id="map-action-btn" class="text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 flex items-center gap-2 pointer-events-auto">
                     <i id="map-action-icon" class="fa-solid fa-play h-5 w-5"></i>
@@ -361,14 +382,13 @@
                     <p id="profile-area" class="text-3xl font-bold" style="color: var(--button-color);">0 м²</p>
                 </div>
                 <div class="w-full pt-4 mt-4 border-t" style="border-color: var(--border-color);">
-                    <!-- UPDATED: Убраны кнопки, используется flex для центрирования -->
                     <div class="flex justify-center gap-8 w-full">
                         <button id="share-profile-btn" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
-                            <div class="p-3 rounded-full" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent);"><i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--button-color);"></i></div>
+                            <div class="p-3 rounded-full" style="background-color: rgba(var(--button-color-rgb), 0.15);"><i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--button-color);"></i></div>
                             <span class="text-xs font-medium" style="color: var(--hint-color);">Поделиться</span>
                         </button>
                         <button id="show-qr-btn" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
-                            <div class="p-3 rounded-full" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent);"><i class="fa-solid fa-qrcode h-6 w-6" style="color: var(--button-color);"></i></div>
+                            <div class="p-3 rounded-full" style="background-color: rgba(var(--button-color-rgb), 0.15);"><i class="fa-solid fa-qrcode h-6 w-6" style="color: var(--button-color);"></i></div>
                             <span class="text-xs font-medium" style="color: var(--hint-color);">Мой QR</span>
                         </button>
                     </div>
@@ -388,7 +408,7 @@
     </div>
 
     <!-- Нижний навбар -->
-    <nav id="bottom-navbar" class="hidden fixed bottom-0 left-0 right-0 backdrop-blur-md flex justify-evenly items-center z-20">
+    <nav id="bottom-navbar" class="hidden fixed bottom-0 left-0 right-0 flex justify-evenly items-center z-20">
         <button class="nav-btn active flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('map-view')"><i class="fa-solid fa-map-location-dot h-7 w-7"></i><span>Карта</span></button>
         <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('feed-view')"><i class="fa-solid fa-newspaper h-7 w-7"></i><span>Лента</span></button>
         <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('top-view')"><i class="fa-solid fa-ranking-star h-7 w-7"></i><span>Топ</span></button>
@@ -403,7 +423,7 @@
                 <button onclick="hideSimplePostModal()" class="p-2 rounded-full hover:bg-gray-200"><i class="fa-solid fa-times"></i></button>
             </div>
             <p style="color: var(--hint-color);">Поделитесь своими мыслями с сообществом.</p>
-            <textarea id="simple-post-details" class="mt-1 block w-full h-1/3 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Что у вас нового?"></textarea>
+            <textarea id="simple-post-details" class="form-textarea mt-1 block w-full h-1/3" placeholder="Что у вас нового?"></textarea>
             <div id="simple-post-filename" class="text-sm text-gray-500 truncate"></div>
             <div class="flex justify-between items-center pt-4">
                  <label for="simple-post-photo-input" class="cursor-pointer p-2 rounded-full hover:bg-gray-200">
@@ -423,15 +443,15 @@
                 <h2 id="creation-modal-title" class="text-2xl font-bold"></h2>
                 <p id="creation-modal-description" style="color: var(--hint-color);"></p>
                 <div>
-                    <label for="creation-modal-name" class="block text-sm font-medium">Название</label>
-                    <input type="text" id="creation-modal-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Например, 'Красивый вид'">
+                    <label for="creation-modal-name" class="block text-sm font-medium mb-1">Название</label>
+                    <input type="text" id="creation-modal-name" class="form-input w-full" placeholder="Например, 'Красивый вид'">
                 </div>
                 <div id="creation-modal-details-section">
-                    <label for="creation-modal-details" class="block text-sm font-medium">Описание</label>
-                    <textarea id="creation-modal-details" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Опишите это место или маршрут..."></textarea>
+                    <label for="creation-modal-details" class="block text-sm font-medium mb-1">Описание</label>
+                    <textarea id="creation-modal-details" rows="3" class="form-textarea w-full" placeholder="Опишите это место или маршрут..."></textarea>
                 </div>
                 <div id="creation-modal-photo-section">
-                    <label for="creation-modal-photo-input" class="block text-sm font-medium">Фото</label>
+                    <label class="block text-sm font-medium mb-1">Фото</label>
                     <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                         <div class="space-y-1 text-center">
                             <img id="creation-modal-photo-preview" src="" alt="Предпросмотр фото" class="hidden mx-auto h-24 w-auto mb-4 rounded">
@@ -475,7 +495,7 @@
                     <button onclick="cancelReply()" class="font-bold text-xl">&times;</button>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <textarea id="main-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
+                    <textarea id="main-comment-input" class="form-textarea w-full" rows="1" placeholder="Написать комментарий..."></textarea>
                     <button id="main-comment-send-btn" onclick="postComment()" class="flex-shrink-0 text-white rounded-full p-2 hover:opacity-80 disabled:opacity-50" style="background-color: var(--button-color);">
                         <i class="fa-solid fa-paper-plane h-6 w-6"></i>
                     </button>
@@ -510,29 +530,35 @@
         let locationWatchId = null;
         let scrollToPostId = null; 
         
-        // Состояние режимов
-        let currentMode = 'capture'; // 'capture', 'spots', 'routes'
-        let isRunning = false; // Для режимов 'capture' и 'routes'
-        let lastKnownLocation = null;
+        // Состояние приложения
+        const AppState = {
+            currentMode: 'capture', // 'capture', 'spots', 'routes'
+            isRunning: false, // Для режимов 'capture' и 'routes'
+            lastKnownLocation: null,
+            userProfile: {
+                id: null,
+                name: '',
+                color: '#3b82f6',
+                territory: null,
+                photo_url: null,
+                area: 0,
+            },
+            currentRunPath: [],
+            currentPathPolyline: null,
+            currentUserMarker: null,
+            allUserLayers: {},
+            allSpots: [],
+            allRoutes: [],
+            allProfilesData: [],
+            currentEditContext: {}, // Для модалки создания/редактирования
+            currentDetailContext: {}, // Для модалки деталей
+            currentReplyTarget: { type: null, id: null, parentCommentId: null },
+        };
         
-        // Данные режимов
-        let currentRunPath = [];
-        let currentPathPolyline = null;
-        let userTerritory = null;
-        let userColor = '#3b82f6';
-        let currentUserMarker = null;
-        
-        let allUserLayers = {};
-        let allSpots = [];
-        let allRoutes = [];
-        let territoriesLayerGroup = L.layerGroup();
-        let spotMarkersLayer = L.layerGroup();
-        let routePolylinesLayer = L.layerGroup();
-
-        let allProfilesData = [];
-        let currentEditContext = {}; // Для модалки создания/редактирования
-        let currentDetailContext = {}; // Для модалки деталей
-        let currentReplyTarget = { type: null, id: null, parentCommentId: null };
+        // Слои карты
+        const territoriesLayerGroup = L.layerGroup();
+        const spotMarkersLayer = L.layerGroup();
+        const routePolylinesLayer = L.layerGroup();
         
         // --- ЭЛЕМЕНТЫ DOM ---
         const initialLoader = document.getElementById('initial-loader');
@@ -568,36 +594,17 @@
         // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 
         /**
-         * Осветляет или затемняет цвет в формате hex.
-         * @param {string} color - Строка цвета в формате hex (например, "#RRGGBB").
-         * @param {number} percent - Процент для осветления (положительный) или затемнения (отрицательный).
-         * @returns {string} Новая строка цвета в формате hex.
+         * Преобразует цвет HEX в массив RGB.
+         * @param {string} hex - Цвет в формате HEX.
+         * @returns {number[] | null} Массив [R, G, B] или null.
          */
-        function shadeColor(color, percent) {
-            if (!color || color.length !== 7) {
-                return '#e5e7eb'; // Возвращаем значение по умолчанию, если цвет недействителен
-            }
-            let R = parseInt(color.substring(1, 3), 16);
-            let G = parseInt(color.substring(3, 5), 16);
-            let B = parseInt(color.substring(5, 7), 16);
-
-            R = parseInt(R * (100 + percent) / 100);
-            G = parseInt(G * (100 + percent) / 100);
-            B = parseInt(B * (100 + percent) / 100);
-
-            R = (R < 255) ? R : 255;
-            G = (G < 255) ? G : 255;
-            B = (B < 255) ? B : 255;
-            
-            R = (R > 0) ? R : 0;
-            G = (G > 0) ? G : 0;
-            B = (B > 0) ? B : 0;
-
-            const RR = ((R.toString(16).length === 1) ? "0" + R.toString(16) : R.toString(16));
-            const GG = ((G.toString(16).length === 1) ? "0" + G.toString(16) : G.toString(16));
-            const BB = ((B.toString(16).length === 1) ? "0" + B.toString(16) : B.toString(16));
-
-            return "#" + RR + GG + BB;
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? [
+                parseInt(result[1], 16),
+                parseInt(result[2], 16),
+                parseInt(result[3], 16)
+            ] : null;
         }
 
         /**
@@ -630,6 +637,17 @@
             tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`);
         }
 
+        /**
+         * Экранирует HTML-строку для безопасного вывода.
+         * @param {string} str - Входная строка.
+         * @returns {string} Экранированная строка.
+         */
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+
         // --- ФУНКЦИИ UI ---
         function showView(viewId) {
             tg.HapticFeedback.selectionChanged();
@@ -640,13 +658,13 @@
             
             const isMapView = viewId === 'map-view';
             
-            if (isMapView && lastKnownLocation) {
+            if (isMapView && AppState.lastKnownLocation) {
                 mapActionContainer.classList.remove('hidden');
             } else {
                 mapActionContainer.classList.add('hidden');
             }
 
-            modeSwitcher.classList.toggle('hidden', !isMapView || !lastKnownLocation);
+            modeSwitcher.classList.toggle('hidden', !isMapView || !AppState.lastKnownLocation);
             
             if (isMapView) {
                 setTimeout(() => map?.invalidateSize(), 100);
@@ -654,15 +672,15 @@
         }
 
         async function setMode(newMode) {
-            if (currentMode === newMode) return;
+            if (AppState.currentMode === newMode) return;
             
-            if (isRunning) {
+            if (AppState.isRunning) {
                 showCustomAlert("Сначала завершите текущую активность (захват или запись маршрута).");
                 return;
             }
 
             tg.HapticFeedback.selectionChanged();
-            currentMode = newMode;
+            AppState.currentMode = newMode;
             
             tg.CloudStorage.setItem('currentMode', newMode);
 
@@ -695,16 +713,16 @@
             const icon = document.getElementById('map-action-icon');
             const text = document.getElementById('map-action-text');
 
-            if (!lastKnownLocation) {
+            if (!AppState.lastKnownLocation) {
                 mapActionContainer.classList.add('hidden');
                 return;
             }
             
             mapActionContainer.classList.remove('hidden');
 
-            switch (currentMode) {
+            switch (AppState.currentMode) {
                 case 'capture':
-                    if (isRunning) {
+                    if (AppState.isRunning) {
                         text.textContent = "Остановить захват";
                         mapActionBtn.style.backgroundColor = 'var(--destructive-color)';
                         icon.className = 'fa-solid fa-stop h-5 w-5';
@@ -720,7 +738,7 @@
                     icon.className = 'fa-solid fa-location-dot h-5 w-5';
                     break;
                 case 'routes':
-                    if (isRunning) {
+                    if (AppState.isRunning) {
                         text.textContent = "Завершить маршрут";
                         mapActionBtn.style.backgroundColor = 'var(--destructive-color)';
                         icon.className = 'fa-solid fa-stop h-5 w-5';
@@ -736,19 +754,19 @@
         async function mapActionButtonHandler() {
             mapActionBtn.disabled = true; // Предотвращаем двойные нажатия
             try {
-                switch (currentMode) {
+                switch (AppState.currentMode) {
                     case 'capture':
-                        isRunning ? await stopRun() : startRun();
+                        AppState.isRunning ? await stopRun() : startRun();
                         break;
                     case 'spots':
-                        if(lastKnownLocation) {
-                            handleMapClickForSpot({latlng: L.latLng(lastKnownLocation)});
+                        if(AppState.lastKnownLocation) {
+                            handleMapClickForSpot({latlng: L.latLng(AppState.lastKnownLocation)});
                         } else {
                             showCustomAlert("Определяем ваше местоположение...");
                         }
                         break;
                     case 'routes':
-                        isRunning ? await stopRouteRecording() : startRouteRecording();
+                        AppState.isRunning ? await stopRouteRecording() : startRouteRecording();
                         break;
                 }
             } finally {
@@ -782,7 +800,7 @@
         }
         
         function showCreationModal(type, context = {}) {
-            currentEditContext = { type, ...context };
+            AppState.currentEditContext = { type, ...context };
             const title = document.getElementById('creation-modal-title');
             const description = document.getElementById('creation-modal-description');
             const nameInput = document.getElementById('creation-modal-name');
@@ -822,18 +840,18 @@
         function hideCreationModal() {
             creationModal.classList.remove('visible');
             tg.BackButton.hide();
-            currentEditContext = {};
+            AppState.currentEditContext = {};
         }
 
         function handleSave() {
-            const { type } = currentEditContext;
+            const { type } = AppState.currentEditContext;
             if (type === 'spot') saveSpot();
             else if (type === 'route') saveRoute();
             else if (type === 'post') handlePostSubmission();
         }
         
         function showDetailModal(type, id) {
-             currentDetailContext = { type, id };
+             AppState.currentDetailContext = { type, id };
              tg.HapticFeedback.impactOccurred('medium');
              tg.BackButton.show();
              
@@ -844,11 +862,11 @@
         function hideDetailModal() {
             tg.BackButton.hide();
             detailModal.classList.remove('visible');
-            currentDetailContext = {};
+            AppState.currentDetailContext = {};
         }
 
         async function loadDetailContent() {
-            const { type, id } = currentDetailContext;
+            const { type, id } = AppState.currentDetailContext;
             const body = document.getElementById('detail-modal-body');
             
             body.innerHTML = `<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
@@ -857,7 +875,7 @@
                 <div id="detail-comments-section" class="mt-4">
                     <h3 class="text-xl font-bold px-4">Комментарии</h3>
                     <div id="detail-comments-list" class="p-4 space-y-4">
-                         <p class="text-center text-gray-500">Загрузка комментариев...</p>
+                        <p class="text-center text-gray-500">Загрузка комментариев...</p>
                     </div>
                 </div>
                 <div id="detail-comment-input-form" class="flex-shrink-0 p-2 border-t" style="background-color: var(--secondary-bg-color); border-color: var(--border-color);">
@@ -866,7 +884,7 @@
                          <button onclick="cancelDetailReply()" class="font-bold text-xl">&times;</button>
                      </div>
                     <div class="flex items-center space-x-2">
-                        <textarea id="detail-comment-input" class="w-full p-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 flex-grow" rows="1" placeholder="Написать комментарий..."></textarea>
+                        <textarea id="detail-comment-input" class="form-textarea w-full" rows="1" placeholder="Написать комментарий..."></textarea>
                         <button onclick="postDetailComment()" class="flex-shrink-0 text-white rounded-full p-2 hover:opacity-80 disabled:opacity-50" style="background-color: var(--button-color);">
                            <i class="fa-solid fa-paper-plane h-6 w-6"></i>
                         </button>
@@ -887,16 +905,16 @@
                         ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-64 object-cover" alt="Spot photo">` : ''}
                         <div class="px-4">
                             <div class="flex justify-between items-start">
-                                <h2 class="text-3xl font-bold flex-1">${spot.name}</h2>
+                                <h2 class="text-3xl font-bold flex-1">${escapeHTML(spot.name)}</h2>
                                 <button onclick="shareContent('spot', ${spot.id}, ${spot.user_id})" class="p-2 rounded-full hover:bg-gray-200 ml-2 flex-shrink-0">
                                     <i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--hint-color);"></i>
                                 </button>
                             </div>
                             <div class="flex items-center space-x-3 mt-2 cursor-pointer" onclick="showDetailModal('user', ${spot.user_id})">
                                 <img src="${avatar}" class="w-8 h-8 rounded-full" alt="author avatar">
-                                <span class="font-semibold text-sm">Автор: ${author.name}</span>
+                                <span class="font-semibold text-sm">Автор: ${escapeHTML(author.name)}</span>
                             </div>
-                            <p class="mt-4" style="color: var(--text-color);">${spot.description}</p>
+                            <p class="mt-4" style="color: var(--text-color);">${escapeHTML(spot.description)}</p>
                         </div>
                     </div>
                     ${commentsHtml}
@@ -915,16 +933,16 @@
                         <div id="detail-mini-map" class="h-64 w-full bg-gray-200"></div>
                         <div class="px-4">
                              <div class="flex justify-between items-start">
-                                <h2 class="text-3xl font-bold flex-1">${route.name}</h2>
-                                <button onclick="shareContent('route', ${route.id}, ${route.user_id})" class="p-2 rounded-full hover:bg-gray-200 ml-2 flex-shrink-0">
-                                    <i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--hint-color);"></i>
-                                </button>
-                            </div>
+                                 <h2 class="text-3xl font-bold flex-1">${escapeHTML(route.name)}</h2>
+                                 <button onclick="shareContent('route', ${route.id}, ${route.user_id})" class="p-2 rounded-full hover:bg-gray-200 ml-2 flex-shrink-0">
+                                     <i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--hint-color);"></i>
+                                 </button>
+                             </div>
                             <div class="flex items-center space-x-3 mt-2 cursor-pointer" onclick="showDetailModal('user', ${route.user_id})">
                                 <img src="${avatar}" class="w-8 h-8 rounded-full" alt="author avatar">
-                                <span class="font-semibold text-sm">Автор: ${author.name}</span>
+                                <span class="font-semibold text-sm">Автор: ${escapeHTML(author.name)}</span>
                             </div>
-                            ${route.description ? `<p class="mt-4" style="color: var(--text-color);">${route.description}</p>` : ''}
+                            ${route.description ? `<p class="mt-4" style="color: var(--text-color);">${escapeHTML(route.description)}</p>` : ''}
                         </div>
                     </div>
                      ${commentsHtml}
@@ -976,13 +994,13 @@
                         <div class="flex items-start space-x-4">
                             <img src="${avatar}" class="w-20 h-20 rounded-full" alt="avatar">
                             <div class="flex-1">
-                                <h2 class="text-2xl font-bold">${profile.name}</h2>
+                                <h2 class="text-2xl font-bold">${escapeHTML(profile.name)}</h2>
                                 <p class="text-sm" style="color: var(--hint-color);">Общая площадь</p>
                                 <p class="text-xl font-bold" style="color: var(--button-color);">${formattedArea}</p>
                             </div>
                              <button onclick="shareContent('user', ${profile.id}, ${profile.id})" class="p-2 rounded-full hover:bg-gray-200 flex-shrink-0">
-                                <i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--hint-color);"></i>
-                            </button>
+                                 <i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--hint-color);"></i>
+                             </button>
                         </div>
                     </div>
                     
@@ -1028,14 +1046,14 @@
 
         function generateMiniSpotHTML(spot) {
              return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="navigateToMapObject('spot', ${spot.id})">
-                         <p class="font-semibold">${spot.name}</p>
-                         <p class="text-sm text-gray-600 truncate">${spot.description}</p>
+                         <p class="font-semibold">${escapeHTML(spot.name)}</p>
+                         <p class="text-sm text-gray-600 truncate">${escapeHTML(spot.description)}</p>
                          <p class="text-xs text-gray-400">${new Date(spot.created_at).toLocaleDateString()}</p>
                      </div>`;
         }
         function generateMiniRouteHTML(route) {
              return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="navigateToMapObject('route', ${route.id})">
-                         <p class="font-semibold">${route.name}</p>
+                         <p class="font-semibold">${escapeHTML(route.name)}</p>
                          <p class="text-xs text-gray-400">${new Date(route.created_at).toLocaleDateString()}</p>
                      </div>`;
         }
@@ -1047,14 +1065,14 @@
 
             let target;
             if (type === 'spot') {
-                target = allSpots.find(s => s.id === id);
+                target = AppState.allSpots.find(s => s.id === id);
                 const geoJson = parseWKT(target?.location_wkt);
                 if (geoJson) {
                     const coords = geoJson.coordinates;
                     map.flyTo([coords[1], coords[0]], 17);
                 }
             } else if (type === 'route') {
-                target = allRoutes.find(r => r.id === id);
+                target = AppState.allRoutes.find(r => r.id === id);
                 const geoJson = parseWKT(target?.path_wkt);
                 if (geoJson) {
                     const coords = geoJson.coordinates.map(p => [p[1], p[0]]);
@@ -1068,16 +1086,19 @@
 
         /**
          * Улучшенная функция для парсинга WKT-строк в GeoJSON.
-         * @param {string | null} wkt - Строка в формате Well-Known Text.
+         * @param {string | object | null} wkt - Строка в формате Well-Known Text или уже GeoJSON объект.
          * @returns {object | null} GeoJSON-объект или null в случае ошибки.
          */
         function parseWKT(wkt) {
-            if (!wkt || typeof wkt !== 'string') {
-                return null;
+            if (!wkt) return null;
+            // Если это уже объект GeoJSON, возвращаем его
+            if (typeof wkt === 'object' && wkt.type && wkt.coordinates) {
+                return wkt;
             }
+            if (typeof wkt !== 'string') return null;
             
             try {
-                // Пытаемся распарсить как JSON (если это уже GeoJSON)
+                // Пытаемся распарсить как JSON (если это строка GeoJSON)
                 if (wkt.trim().startsWith('{')) {
                     const parsed = JSON.parse(wkt);
                     if (parsed.type && parsed.coordinates) {
@@ -1085,10 +1106,9 @@
                     }
                 }
 
+                // Парсинг WKT
                 const match = wkt.match(/(POINT|LINESTRING|POLYGON|MULTIPOLYGON)\s*\((.+)\)/i);
-                if (!match) {
-                    return null;
-                }
+                if (!match) return null;
 
                 const type = match[1].toUpperCase();
                 let content = match[2];
@@ -1100,32 +1120,30 @@
                 }
 
                 if (type === 'LINESTRING') {
-                    const coordPairs = content.split(',');
-                    const coordinates = coordPairs.map(pair => {
+                    const coordinates = content.split(',').map(pair => {
                         const nums = pair.trim().match(/-?\d+(\.\d+)?/g);
-                        if (!nums || nums.length < 2) return null;
-                        return [parseFloat(nums[0]), parseFloat(nums[1])];
-                    }).filter(p => p !== null);
-
-                    if (coordinates.length < 2) return null;
-                    return { type: 'LineString', coordinates: coordinates };
+                        return nums && nums.length >= 2 ? [parseFloat(nums[0]), parseFloat(nums[1])] : null;
+                    }).filter(Boolean);
+                    return coordinates.length >= 2 ? { type: 'LineString', coordinates } : null;
                 }
                 
                 if (type === 'POLYGON' || type === 'MULTIPOLYGON') {
-                    // Упрощенный парсер для внешнего кольца
-                    const ringMatch = content.match(/\((.+?)\)/);
-                    if (!ringMatch) return null;
-                    const coordPairs = ringMatch[1].split(',');
-                     const coordinates = coordPairs.map(pair => {
-                        const nums = pair.trim().match(/-?\d+(\.\d+)?/g);
-                        if (!nums || nums.length < 2) return null;
-                        return [parseFloat(nums[0]), parseFloat(nums[1])];
-                    }).filter(p => p !== null);
+                    // Этот парсер упрощен и может не обрабатывать полигоны с дырами.
+                    const rings = content.match(/\(([^()]+)\)/g);
+                    if (!rings) return null;
+                    
+                    const coordinates = rings.map(ringContent => 
+                        ringContent.replace(/[()]/g, '').split(',').map(pair => {
+                            const nums = pair.trim().match(/-?\d+(\.\d+)?/g);
+                            return nums && nums.length >= 2 ? [parseFloat(nums[0]), parseFloat(nums[1])] : null;
+                        }).filter(Boolean)
+                    );
+
                     if (type === 'POLYGON') {
-                        return { type: 'Polygon', coordinates: [coordinates] };
+                        return { type: 'Polygon', coordinates };
                     }
                     if (type === 'MULTIPOLYGON') {
-                        return { type: 'MultiPolygon', coordinates: [[coordinates]] };
+                        return { type: 'MultiPolygon', coordinates: [coordinates] };
                     }
                 }
 
@@ -1141,7 +1159,7 @@
             try {
                 tg.ready();
                 tg.expand();
-                tg.enableClosingConfirmation(); // NEW: Защита от случайного закрытия
+                tg.enableClosingConfirmation();
                 applyTheme(tg.themeParams);
                 setupStaticEventListeners();
 
@@ -1169,7 +1187,7 @@
 
                 listenToRealtimeChanges();
                 setupDynamicEventListeners();
-                initializeGeolocation(); // NEW: Улучшенная инициализация гео
+                initializeGeolocation();
                 handleStartParam();
 
                 initialLoader.classList.add('hidden');
@@ -1208,7 +1226,7 @@
         }
 
         function updateUI() {
-            const name = telegramUser.first_name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            const name = escapeHTML(telegramUser.first_name);
             profileName.textContent = name;
             
             if (telegramUser.photo_url) {
@@ -1217,7 +1235,7 @@
                 const initial = name.charAt(0).toUpperCase();
                 profileAvatarImg.src = `https://placehold.co/96x96/E2E8F0/4A5568?text=${initial}`;
             }
-            profileAvatarWrapper.style.borderColor = userColor;
+            profileAvatarWrapper.style.borderColor = AppState.userProfile.color;
             updateMapActionButton();
             refreshAllStats();
             renderMyProfileContent();
@@ -1227,21 +1245,20 @@
             if (!map) return;
             const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${telegramUser.first_name.charAt(0)}`;
             const icon = L.divIcon({
-                html: `<div class="avatar-marker current-user-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${userColor};"></div>`,
+                html: `<div class="avatar-marker current-user-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${AppState.userProfile.color};"></div>`,
                 className: '',
                 iconSize: [40, 40],
                 iconAnchor: [20, 20]
             });
             
-            if (currentUserMarker) {
-                currentUserMarker.setLatLng(latLng);
+            if (AppState.currentUserMarker) {
+                AppState.currentUserMarker.setLatLng(latLng);
             } else {
-                currentUserMarker = L.marker(latLng, { icon: icon, zIndexOffset: 1000 }).addTo(map);
+                AppState.currentUserMarker = L.marker(latLng, { icon: icon, zIndexOffset: 1000 }).addTo(map);
             }
         }
         
         // --- Логика геолокации ---
-        // NEW: Улучшенная функция инициализации
         async function initializeGeolocation() {
             if (!navigator.geolocation) {
                 showCustomAlert("Геолокация не поддерживается вашим устройством.");
@@ -1251,25 +1268,20 @@
             try {
                 const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
 
-                if (permissionStatus.state === 'granted') {
-                    startGeoTracking();
-                } else if (permissionStatus.state === 'prompt') {
-                    requestGeoBtn.classList.remove('hidden');
-                } else if (permissionStatus.state === 'denied') {
-                    showCustomAlert("Доступ к геолокации заблокирован. Пожалуйста, разрешите его в настройках вашего устройства.");
-                    requestGeoBtn.classList.add('hidden');
-                }
-
-                permissionStatus.onchange = () => {
+                const handlePermissionChange = () => {
                     if (permissionStatus.state === 'granted') {
                         startGeoTracking();
                     } else {
-                        lastKnownLocation = null;
+                        AppState.lastKnownLocation = null;
                         mapActionContainer.classList.add('hidden');
                         modeSwitcher.classList.add('hidden');
                         requestGeoBtn.classList.remove('hidden');
                     }
                 };
+
+                permissionStatus.onchange = handlePermissionChange;
+                handlePermissionChange(); // Initial check
+
             } catch (e) {
                 console.warn("API разрешений не поддерживается, используем старый метод.", e);
                 requestGeoBtn.classList.remove('hidden');
@@ -1289,37 +1301,37 @@
 
         function startGeoTracking() {
              navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    tg.HapticFeedback.notificationOccurred('success');
-                    const latLng = [position.coords.latitude, position.coords.longitude];
-                    if (!lastKnownLocation) { // Центрируемся только при первом определении
-                        map.flyTo(latLng, 16);
-                    }
-                    lastKnownLocation = latLng;
-                    
-                    updateCurrentUserMarker(latLng);
+                 (position) => {
+                     tg.HapticFeedback.notificationOccurred('success');
+                     const latLng = [position.coords.latitude, position.coords.longitude];
+                     if (!AppState.lastKnownLocation) { // Центрируемся только при первом определении
+                         map.flyTo(latLng, 16);
+                     }
+                     AppState.lastKnownLocation = latLng;
+                     
+                     updateCurrentUserMarker(latLng);
 
-                    requestGeoBtn.classList.add('hidden');
-                    recenterBtn.classList.remove('hidden');
-                    modeSwitcher.classList.remove('hidden');
-                    mapActionContainer.classList.remove('hidden');
-                    
-                    updateMapActionButton();
-                    
-                    startWatchingLocation();
-                },
-                (error) => {
-                    tg.HapticFeedback.notificationOccurred('error');
-                    console.error("Geolocation error:", error);
-                    showCustomAlert("Не удалось получить геолокацию. Проверьте разрешения в настройках вашего устройства.");
-                    const geoText = document.getElementById('request-geo-text');
-                    const geoLoader = document.getElementById('request-geo-loader');
-                    geoText.textContent = 'Дать доступ к гео';
-                    geoLoader.classList.add('hidden');
-                    requestGeoBtn.disabled = false;
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
+                     requestGeoBtn.classList.add('hidden');
+                     recenterBtn.classList.remove('hidden');
+                     modeSwitcher.classList.remove('hidden');
+                     mapActionContainer.classList.remove('hidden');
+                     
+                     updateMapActionButton();
+                     
+                     startWatchingLocation();
+                 },
+                 (error) => {
+                     tg.HapticFeedback.notificationOccurred('error');
+                     console.error("Geolocation error:", error);
+                     showCustomAlert("Не удалось получить геолокацию. Проверьте разрешения в настройках вашего устройства.");
+                     const geoText = document.getElementById('request-geo-text');
+                     const geoLoader = document.getElementById('request-geo-loader');
+                     geoText.textContent = 'Дать доступ к гео';
+                     geoLoader.classList.add('hidden');
+                     requestGeoBtn.disabled = false;
+                 },
+                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+             );
         }
         
         function startWatchingLocation() {
@@ -1329,13 +1341,13 @@
             locationWatchId = navigator.geolocation.watchPosition(
                 (position) => {
                     const latLng = [position.coords.latitude, position.coords.longitude];
-                    lastKnownLocation = latLng;
+                    AppState.lastKnownLocation = latLng;
                     updateCurrentUserMarker(latLng);
 
-                    if (isRunning && currentPathPolyline) {
+                    if (AppState.isRunning && AppState.currentPathPolyline) {
                         const newPoint = [latLng[1], latLng[0]]; // lng, lat
-                        currentRunPath.push(newPoint);
-                        currentPathPolyline.addLatLng(latLng);
+                        AppState.currentRunPath.push(newPoint);
+                        AppState.currentPathPolyline.addLatLng(latLng);
                     }
                 },
                 (error) => {
@@ -1349,34 +1361,34 @@
         // --- ЛОГИКА РЕЖИМОВ ---
         
         function startRun() {
-            if (!lastKnownLocation) {
+            if (!AppState.lastKnownLocation) {
                 showCustomAlert("Сначала определите свое местоположение."); return;
             }
-            isRunning = true;
+            AppState.isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
             tg.isClosingConfirmationEnabled = true;
             updateMapActionButton();
             
-            currentRunPath = [ [lastKnownLocation[1], lastKnownLocation[0]] ];
-            if (currentPathPolyline) map.removeLayer(currentPathPolyline);
-            currentPathPolyline = L.polyline([], { color: 'var(--destructive-color)', weight: 5, opacity: 0.9 }).addTo(map);
-            currentPathPolyline.addLatLng(lastKnownLocation);
+            AppState.currentRunPath = [ [AppState.lastKnownLocation[1], AppState.lastKnownLocation[0]] ];
+            if (AppState.currentPathPolyline) map.removeLayer(AppState.currentPathPolyline);
+            AppState.currentPathPolyline = L.polyline([], { color: 'var(--destructive-color)', weight: 5, opacity: 0.9 }).addTo(map);
+            AppState.currentPathPolyline.addLatLng(AppState.lastKnownLocation);
         }
         async function stopRun() {
             return new Promise(resolve => {
                 showCustomConfirm("Завершить пробежку и захватить территорию?", async () => {
-                    isRunning = false;
+                    AppState.isRunning = false;
                     tg.HapticFeedback.notificationOccurred('success');
                     tg.isClosingConfirmationEnabled = false;
                     updateMapActionButton();
-                    if (currentRunPath.length > 3) {
+                    if (AppState.currentRunPath.length > 3) {
                         await processRunPath();
                     } else {
                         showCustomAlert('Слишком короткий маршрут для захвата.');
                     }
-                    if (currentPathPolyline) {
-                        map.removeLayer(currentPathPolyline);
-                        currentPathPolyline = null;
+                    if (AppState.currentPathPolyline) {
+                        map.removeLayer(AppState.currentPathPolyline);
+                        AppState.currentPathPolyline = null;
                     }
                     resolve();
                 });
@@ -1392,7 +1404,7 @@
         }
 
         async function saveSpot() {
-            const { location } = currentEditContext;
+            const { location } = AppState.currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
             const description = document.getElementById('creation-modal-details').value.trim();
             const file = document.getElementById('creation-modal-photo-input').files[0];
@@ -1447,49 +1459,49 @@
         }
 
         function startRouteRecording() {
-            if (!lastKnownLocation) {
+            if (!AppState.lastKnownLocation) {
                 showCustomAlert("Сначала определите свое местоположение."); return;
             }
-            isRunning = true;
+            AppState.isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
             tg.isClosingConfirmationEnabled = true;
             updateMapActionButton();
             
-            currentRunPath = [ [lastKnownLocation[1], lastKnownLocation[0]] ];
-            if (currentPathPolyline) map.removeLayer(currentPathPolyline);
-            currentPathPolyline = L.polyline([], { color: 'var(--button-color)', weight: 5, opacity: 0.9 }).addTo(map);
-            currentPathPolyline.addLatLng(lastKnownLocation);
+            AppState.currentRunPath = [ [AppState.lastKnownLocation[1], AppState.lastKnownLocation[0]] ];
+            if (AppState.currentPathPolyline) map.removeLayer(AppState.currentPathPolyline);
+            AppState.currentPathPolyline = L.polyline([], { color: 'var(--button-color)', weight: 5, opacity: 0.9 }).addTo(map);
+            AppState.currentPathPolyline.addLatLng(AppState.lastKnownLocation);
         }
 
         async function stopRouteRecording() {
              return new Promise(resolve => {
-                isRunning = false;
+                AppState.isRunning = false;
                 tg.HapticFeedback.notificationOccurred('success');
                 tg.isClosingConfirmationEnabled = false;
                 updateMapActionButton();
                 
-                if (currentRunPath.length < 2) {
+                if (AppState.currentRunPath.length < 2) {
                     showCustomAlert("Слишком короткий маршрут.");
-                    if (currentPathPolyline) map.removeLayer(currentPathPolyline);
-                    currentPathPolyline = null;
+                    if (AppState.currentPathPolyline) map.removeLayer(AppState.currentPathPolyline);
+                    AppState.currentPathPolyline = null;
                     resolve();
                     return;
                 }
                 
-                const pathCoordinates = currentRunPath.map(p => `${p[0]} ${p[1]}`).join(', ');
+                const pathCoordinates = AppState.currentRunPath.map(p => `${p[0]} ${p[1]}`).join(', ');
                 const pathWKT = `LINESTRING(${pathCoordinates})`;
                 showCreationModal('route', { path: pathWKT });
 
-                if (currentPathPolyline) {
-                    map.removeLayer(currentPathPolyline);
-                    currentPathPolyline = null;
+                if (AppState.currentPathPolyline) {
+                    map.removeLayer(AppState.currentPathPolyline);
+                    AppState.currentPathPolyline = null;
                 }
                 resolve();
             });
         }
 
         async function saveRoute() {
-            const { path } = currentEditContext;
+            const { path } = AppState.currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
             const description = document.getElementById('creation-modal-details').value.trim();
             
@@ -1535,18 +1547,18 @@
             if (spotsError) {
                 console.error("Ошибка загрузки спотов:", spotsError);
             } else {
-                allSpots = spots;
+                AppState.allSpots = spots;
                 spotMarkersLayer.clearLayers();
-                allSpots.forEach(addSpotToMap);
+                AppState.allSpots.forEach(addSpotToMap);
             }
 
             const { data: routes, error: routesError } = await supabase.from('routes').select('*, path_wkt:path::text');
             if (routesError) {
                 console.error("Ошибка загрузки маршрутов:", routesError);
             } else {
-                allRoutes = routes;
+                AppState.allRoutes = routes;
                 routePolylinesLayer.clearLayers();
-                allRoutes.forEach(addRouteToMap);
+                AppState.allRoutes.forEach(addRouteToMap);
             }
         }
 
@@ -1558,16 +1570,16 @@
               .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, renderFeed)
               .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, renderFeed)
               .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload) => {
-                  if (commentsModal.classList.contains('visible') && currentReplyTarget.type === 'post') {
+                  if (commentsModal.classList.contains('visible') && AppState.currentReplyTarget.type === 'post') {
                       const changedPostId = payload.new?.post_id || payload.old?.post_id;
-                      if (changedPostId && changedPostId === currentReplyTarget.id) {
-                          showPostComments(currentReplyTarget.id);
+                      if (changedPostId && changedPostId === AppState.currentReplyTarget.id) {
+                          showPostComments(AppState.currentReplyTarget.id);
                       }
                   }
-                  if (detailModal.classList.contains('visible') && (currentDetailContext.type === 'spot' || currentDetailContext.type === 'route')) {
+                  if (detailModal.classList.contains('visible') && (AppState.currentDetailContext.type === 'spot' || AppState.currentDetailContext.type === 'route')) {
                       const changedParentId = payload.new?.spot_id || payload.new?.route_id || payload.old?.spot_id || payload.old?.route_id;
-                      if (changedParentId === currentDetailContext.id) {
-                          loadAndRenderComments(currentDetailContext.type, currentDetailContext.id, 'detail-comments-list');
+                      if (changedParentId === AppState.currentDetailContext.id) {
+                          loadAndRenderComments(AppState.currentDetailContext.type, AppState.currentDetailContext.id, 'detail-comments-list');
                       }
                   }
                   renderFeed();
@@ -1596,9 +1608,8 @@
                 if (data.data) {
                     try {
                         const url = new URL(data.data);
-                        const startPayload = url.searchParams.get('startapp'); // UPDATED
+                        const startPayload = url.searchParams.get('startapp');
                         if (startPayload) {
-                            // Передаем весь payload в обработчик
                             handleStartParam({ start_param: startPayload });
                         }
                     } catch (e) {
@@ -1607,7 +1618,6 @@
                     }
                 }
             });
-            // NEW: Settings Button
             tg.SettingsButton.onClick(() => {
                 tg.HapticFeedback.impactOccurred('light');
                 tg.openTelegramLink(`https://t.me/${BOT_USERNAME}`);
@@ -1641,7 +1651,7 @@
 
             recenterBtn.addEventListener('click', () => {
                 tg.HapticFeedback.impactOccurred('medium');
-                if (lastKnownLocation) map.flyTo(lastKnownLocation, 16);
+                if (AppState.lastKnownLocation) map.flyTo(AppState.lastKnownLocation, 16);
             });
             
             scanQrBtn.addEventListener('click', () => {
@@ -1676,7 +1686,7 @@
                 }
             });
 
-            // NEW: Добавляем обработчики свайпов для модальных окон
+            // Добавляем обработчики свайпов для модальных окон
             makeModalSwipeable(creationModal, creationModal.querySelector('.bottom-sheet-content'), hideCreationModal);
             makeModalSwipeable(detailModal, detailModal.querySelector('.bottom-sheet-content'), hideDetailModal);
             makeModalSwipeable(commentsModal, commentsModal.querySelector('.bottom-sheet-content'), hideCommentsModal);
@@ -1684,8 +1694,8 @@
         
         function showFallbackScreen(title, message, showRetryButton = false) {
             fallbackContent.innerHTML = `
-                <h1 class="text-2xl font-bold mb-4 ${showRetryButton ? 'text-red-500' : ''}">${title}</h1>
-                <p class="mb-6" style="color: var(--hint-color);">${message}</p>
+                <h1 class="text-2xl font-bold mb-4 ${showRetryButton ? 'text-red-500' : ''}">${escapeHTML(title)}</h1>
+                <p class="mb-6" style="color: var(--hint-color);">${escapeHTML(message)}</p>
                 ${showRetryButton ? `<button onclick="window.location.reload()" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Попробовать снова</button>` : ''}
             `;
             initialLoader.classList.add('hidden');
@@ -1693,13 +1703,24 @@
         }
 
         function applyTheme(themeParams) {
-             document.documentElement.style.setProperty('--bg-color', themeParams.bg_color || '#f3f4f6');
-             document.documentElement.style.setProperty('--secondary-bg-color', themeParams.secondary_bg_color || '#ffffff');
-             document.documentElement.style.setProperty('--text-color', themeParams.text_color || '#1f2937');
-             document.documentElement.style.setProperty('--hint-color', themeParams.hint_color || '#6b7280');
-             document.documentElement.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
-             document.documentElement.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
-             document.documentElement.style.setProperty('--border-color', themeParams.bg_color ? shadeColor(themeParams.bg_color, -10) : '#e5e7eb');
+             const root = document.documentElement;
+             root.style.setProperty('--bg-color', themeParams.bg_color || '#f3f4f6');
+             root.style.setProperty('--secondary-bg-color', themeParams.secondary_bg_color || '#ffffff');
+             root.style.setProperty('--text-color', themeParams.text_color || '#1f2937');
+             root.style.setProperty('--hint-color', themeParams.hint_color || '#6b7280');
+             root.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
+             root.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
+             root.style.setProperty('--border-color', themeParams.bg_color ? shadeColor(themeParams.bg_color, -10) : '#e5e7eb');
+             
+             const buttonColorRgb = hexToRgb(themeParams.button_color || '#3b82f6');
+             if (buttonColorRgb) {
+                root.style.setProperty('--button-color-rgb', buttonColorRgb.join(', '));
+             }
+             const secondaryBgRgb = hexToRgb(themeParams.secondary_bg_color || '#ffffff');
+             if (secondaryBgRgb) {
+                root.style.setProperty('--secondary-bg-color-rgb', secondaryBgRgb.join(', '));
+             }
+
              tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
              tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
         }
@@ -1715,14 +1736,14 @@
             } 
             
             if (data) {
-                userColor = data.color;
-                userTerritory = parseWKT(data.territory_wkt) || parseWKT(data.territory) || data.territory;
+                AppState.userProfile.color = data.color;
+                AppState.userProfile.territory = parseWKT(data.territory_wkt) || parseWKT(data.territory) || data.territory;
             } else {
-                userColor = generateColorFromId(telegramUser.id);
+                AppState.userProfile.color = generateColorFromId(telegramUser.id);
                 const { error: insertError } = await supabase.from('profiles').insert({ 
                     id: telegramUser.id, 
                     name: telegramUser.first_name, 
-                    color: userColor, 
+                    color: AppState.userProfile.color, 
                     area: 0, 
                     photo_url: telegramUser.photo_url || null, 
                     territory: null 
@@ -1735,15 +1756,15 @@
         }
         
         async function processRunPath() {
-            const startPoint = currentRunPath[0];
-            const endPoint = currentRunPath[currentRunPath.length - 1];
+            const startPoint = AppState.currentRunPath[0];
+            const endPoint = AppState.currentRunPath[AppState.currentRunPath.length - 1];
             const distance = turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' });
             if (distance > 50) {
                 showCustomAlert('Маршрут не замкнут. Вернитесь к точке старта (в радиус 50м) для захвата.');
                 return;
             }
-            currentRunPath.push(startPoint);
-            const line = turf.lineString(currentRunPath);
+            AppState.currentRunPath.push(startPoint);
+            const line = turf.lineString(AppState.currentRunPath);
             const polygonized = turf.polygonize(line);
             if (polygonized.features.length === 0) {
                 showCustomAlert('Не удалось сформировать замкнутую территорию. Вероятно, маршрут пересекал сам себя.');
@@ -1762,8 +1783,8 @@
 
         async function updateTerritory(newCapture) {
             try {
-                let combinedTerritory = userTerritory ? turf.union(userTerritory, newCapture) : newCapture;
-                userTerritory = turf.cleanCoords(combinedTerritory);
+                let combinedTerritory = AppState.userProfile.territory ? turf.union(AppState.userProfile.territory, newCapture) : newCapture;
+                AppState.userProfile.territory = turf.cleanCoords(combinedTerritory);
                 
                 await saveUserData();
                 refreshAllStats();
@@ -1782,14 +1803,14 @@
         }
 
         async function saveUserData() {
-            let area = userTerritory ? turf.area(userTerritory) : 0;
-            const userData = { id: telegramUser.id, name: telegramUser.first_name, photo_url: telegramUser.photo_url || null, color: userColor, territory: userTerritory, area: area, updated_at: new Date().toISOString() };
+            let area = AppState.userProfile.territory ? turf.area(AppState.userProfile.territory) : 0;
+            const userData = { id: telegramUser.id, name: telegramUser.first_name, photo_url: telegramUser.photo_url || null, color: AppState.userProfile.color, territory: AppState.userProfile.territory, area: area, updated_at: new Date().toISOString() };
             const { error } = await supabase.from('profiles').upsert(userData);
             if (error) console.error('Error saving user data:', error);
         }
 
         async function handlePostSubmission() {
-            const { captureData, area_captured } = currentEditContext;
+            const { captureData, area_captured } = AppState.currentEditContext;
             const title = document.getElementById('creation-modal-name').value.trim();
             
             if (!title) { showCustomAlert("Пожалуйста, введите название."); return; }
@@ -1812,7 +1833,7 @@
                 area_captured: area_captured,
                 user_name: telegramUser.first_name,
                 user_avatar_url: telegramUser.photo_url,
-                user_color: userColor
+                user_color: AppState.userProfile.color
             };
 
             const { error: postError } = await supabase.from('posts').insert(postData);
@@ -1848,7 +1869,7 @@
                 photo_url: photoUrl,
                 user_name: telegramUser.first_name,
                 user_avatar_url: telegramUser.photo_url,
-                user_color: userColor
+                user_color: AppState.userProfile.color
             };
 
             const { error: postError } = await supabase.from('posts').insert(postData);
@@ -1865,15 +1886,15 @@
         async function fetchAllProfilesAndDraw() {
             let { data: profiles, error } = await supabase.from('profiles').select('*, territory_wkt:territory::text');
             if (error) { console.error("Error fetching profiles:", error); return; }
-            allProfilesData = profiles;
+            AppState.allProfilesData = profiles;
             
             territoriesLayerGroup.clearLayers();
-            allUserLayers = {};
+            AppState.allUserLayers = {};
 
             profiles.forEach(profile => {
                 if (telegramUser && profile.id === telegramUser.id) {
-                    userTerritory = parseWKT(profile.territory_wkt) || profile.territory;
-                    userColor = profile.color;
+                    AppState.userProfile.territory = parseWKT(profile.territory_wkt) || profile.territory;
+                    AppState.userProfile.color = profile.color;
                     refreshAllStats();
                 }
                 const userLayerGroup = L.layerGroup();
@@ -1882,7 +1903,7 @@
                     L.geoJSON(territoryGeoJson, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } }).addTo(userLayerGroup);
                 }
                 userLayerGroup.addTo(territoriesLayerGroup);
-                allUserLayers[profile.id] = userLayerGroup;
+                AppState.allUserLayers[profile.id] = userLayerGroup;
             });
             updateLeaderboard(profiles);
         }
@@ -1891,7 +1912,7 @@
             profiles.sort((a, b) => (b.area || 0) - (a.area || 0));
             leaderboardDiv.innerHTML = profiles.map((u, index) => {
                 const isCurrentUser = telegramUser && u.id === telegramUser.id;
-                const name = u.name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                const name = escapeHTML(u.name);
                 const displayName = isCurrentUser ? `${name} (Вы)` : name;
                 const avatar = u.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${name.charAt(0)}`;
                 const area = u.area || 0;
@@ -1909,9 +1930,9 @@
 
         function refreshAllStats() {
             let area = 0;
-            if (userTerritory) {
+            if (AppState.userProfile.territory) {
                 try {
-                    area = turf.area(userTerritory);
+                    area = turf.area(AppState.userProfile.territory);
                 } catch(e) {
                     console.warn("Could not calculate area for user territory", e);
                     area = 0;
@@ -1951,22 +1972,19 @@
                 }
             });
 
-            // NEW: Логика для прокрутки к посту из диплинка
             if (scrollToPostId) {
                 const postElement = document.getElementById(`post-${scrollToPostId}`);
                 if (postElement) {
-                    // Даем время на отрисовку, особенно для карт
                     setTimeout(() => {
                         postElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        // Добавляем временную подсветку
                         postElement.style.transition = 'background-color 0.5s ease';
-                        postElement.style.backgroundColor = 'color-mix(in srgb, var(--button-color) 15%, transparent)';
+                        postElement.style.backgroundColor = 'rgba(var(--button-color-rgb), 0.15)';
                         setTimeout(() => {
                             postElement.style.backgroundColor = '';
-                        }, 2500); // Подсветка на 2.5 секунды
-                    }, 200); // Небольшая задержка
+                        }, 2500);
+                    }, 200);
                 }
-                scrollToPostId = null; // Сбрасываем ID после использования
+                scrollToPostId = null;
             }
         }
         
@@ -1977,9 +1995,9 @@
             const userHasLiked = telegramUser && likes.some(like => like.user_id === telegramUser.id);
             return `<div class="card-bg rounded-2xl shadow-lg overflow-hidden" id="post-${post.id}">
                         <div class="p-4">
-                            <div class="flex items-center space-x-3 cursor-pointer" onclick="showDetailModal('user', ${post.user_id})"><img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar"><div><p class="font-bold">${post.user_name}</p><p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p></div></div>
-                            <p class="mt-4 font-semibold">${post.title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
-                            ${post.description ? `<p class="mt-2 text-sm" style="color: var(--text-color);">${post.description.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>` : ''}
+                            <div class="flex items-center space-x-3 cursor-pointer" onclick="showDetailModal('user', ${post.user_id})"><img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar"><div><p class="font-bold">${escapeHTML(post.user_name)}</p><p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p></div></div>
+                            <p class="mt-4 font-semibold">${escapeHTML(post.title)}</p>
+                            ${post.description ? `<p class="mt-2 text-sm" style="color: var(--text-color);">${escapeHTML(post.description)}</p>` : ''}
                         </div>
                         ${post.photo_url ? `<img src="${post.photo_url}" class="w-full h-64 object-cover" alt="Post photo">` : ''}
                         ${post.territory_captured ? `<div id="mini-map-${post.id}" class="h-48 w-full mini-map"></div>` : ''}
@@ -2055,7 +2073,7 @@
         async function showPostComments(postId) {
             tg.HapticFeedback.impactOccurred('medium');
             tg.BackButton.show();
-            currentReplyTarget = { type: 'post', id: postId, parentCommentId: null };
+            AppState.currentReplyTarget = { type: 'post', id: postId, parentCommentId: null };
             cancelReply();
             
             const modalBody = document.getElementById('comments-modal-body');
@@ -2092,7 +2110,7 @@
 
         function generateCommentHTML(comment, commentsByParent, context = 'post') {
             const replies = commentsByParent[comment.id] || [];
-            const profileName = comment.profiles ? comment.profiles.name : 'Аноним';
+            const profileName = comment.profiles ? escapeHTML(comment.profiles.name) : 'Аноним';
             const avatar = comment.profiles ? (comment.profiles.photo_url || `https://placehold.co/32x32/E5E7EB/4B5563?text=${profileName.charAt(0)}`) : 'https://placehold.co/32x32';
             const replyFn = context === 'post' ? 'setReplyMode' : 'setDetailReplyMode';
             const parentId = comment.post_id || comment.spot_id || comment.route_id;
@@ -2102,7 +2120,7 @@
                         <div class="flex-1">
                             <div class="rounded-lg p-2" style="background-color: var(--bg-color);">
                                 <p class="font-bold text-sm">${profileName}</p>
-                                <p class="text-sm">${comment.content}</p>
+                                <p class="text-sm">${escapeHTML(comment.content)}</p>
                             </div>
                             <div class="text-xs mt-1">
                                 <button onclick="${replyFn}('${parentId}', ${comment.id}, '${profileName.replace(/'/g, "\\'")}')" class="font-medium" style="color: var(--hint-color);">Ответить</button>
@@ -2113,19 +2131,19 @@
         }
         
         function setReplyMode(postId, parentCommentId, parentAuthorName) {
-            currentReplyTarget = { type: 'post', id: postId, parentCommentId };
+            AppState.currentReplyTarget = { type: 'post', id: postId, parentCommentId };
             document.getElementById('reply-indicator-text').textContent = `Ответ: ${parentAuthorName}`;
             document.getElementById('reply-indicator').classList.remove('hidden');
             document.getElementById('main-comment-input').focus();
         }
 
         function cancelReply() {
-            currentReplyTarget.parentCommentId = null;
+            AppState.currentReplyTarget.parentCommentId = null;
             document.getElementById('reply-indicator').classList.add('hidden');
         }
 
         async function postComment() {
-            const { type, id, parentCommentId } = currentReplyTarget;
+            const { type, id, parentCommentId } = AppState.currentReplyTarget;
             if (!id || !telegramUser) return;
             const inputElement = document.getElementById('main-comment-input');
             const content = inputElement.value.trim();
@@ -2142,19 +2160,19 @@
         }
 
         function setDetailReplyMode(id, parentCommentId, parentAuthorName) {
-            currentDetailContext.replyTo = { parentCommentId };
+            AppState.currentDetailContext.replyTo = { parentCommentId };
             document.getElementById('detail-reply-indicator-text').textContent = `Ответ: ${parentAuthorName}`;
             document.getElementById('detail-reply-indicator').classList.remove('hidden');
             document.getElementById('detail-comment-input').focus();
         }
         
         function cancelDetailReply() {
-            currentDetailContext.replyTo = null;
+            AppState.currentDetailContext.replyTo = null;
             document.getElementById('detail-reply-indicator').classList.add('hidden');
         }
 
         async function postDetailComment() {
-            const { type, id, replyTo } = currentDetailContext;
+            const { type, id, replyTo } = AppState.currentDetailContext;
             if (!id || !telegramUser) return;
             const inputElement = document.getElementById('detail-comment-input');
             const content = inputElement.value.trim();
@@ -2234,7 +2252,7 @@
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = '';
             new QRCode(qrContainer, {
-                text: `https://t.me/${BOT_USERNAME}?startapp=user_${telegramUser.id}`, // UPDATED: to startapp
+                text: `https://t.me/${BOT_USERNAME}?startapp=user_${telegramUser.id}`,
                 width: 200,
                 height: 200,
                 colorDark : "#000000",
@@ -2265,17 +2283,14 @@
                 return;
             }
 
-            // Даем приложению немного времени на отрисовку перед показом модальных окон
             setTimeout(() => {
                 switch (type) {
                     case 'user':
                         showDetailModal('user', numericId);
                         break;
                     case 'post':
-                        // UPDATED: Показываем ленту и готовимся к прокрутке
                         showView('feed-view');
                         scrollToPostId = numericId;
-                        // renderFeed() будет вызван при инициализации или через real-time, он подхватит этот ID
                         break;
                     case 'route':
                         showDetailModal('route', numericId);
@@ -2285,7 +2300,6 @@
                         break;
                     default:
                         console.warn("Unknown start_param type:", type);
-                        // Обратная совместимость для старых ссылок только с ID пользователя
                         if (/^\d+$/.test(startParam)) {
                             showDetailModal('user', parseInt(startParam));
                         }
@@ -2304,17 +2318,21 @@
             });
         }
 
-        // NEW: Функция для свайпа модальных окон
+        // Функция для свайпа модальных окон
         function makeModalSwipeable(modalElement, contentElement, closeCallback) {
-            let startY, startHeight, currentY;
+            let startY, currentY, isDragging = false;
 
             const onTouchStart = (e) => {
-                startY = e.touches[0].clientY;
-                startHeight = contentElement.clientHeight;
-                contentElement.style.transition = 'none';
+                // Разрешаем свайп только если тач начался на grabber или в верхней части контента
+                if (e.target.classList.contains('grabber') || e.touches[0].clientY < contentElement.offsetTop + 40) {
+                    isDragging = true;
+                    startY = e.touches[0].clientY;
+                    contentElement.style.transition = 'none';
+                }
             };
 
             const onTouchMove = (e) => {
+                if (!isDragging) return;
                 currentY = e.touches[0].clientY;
                 let deltaY = currentY - startY;
                 if (deltaY > 0) { // Только свайп вниз
@@ -2323,10 +2341,12 @@
             };
 
             const onTouchEnd = (e) => {
+                if (!isDragging) return;
+                isDragging = false;
                 let deltaY = currentY - startY;
                 contentElement.style.transition = 'transform 0.3s ease-in-out';
                 // Если свайпнули больше чем на 30% высоты окна, закрываем
-                if (deltaY > startHeight * 0.3) {
+                if (deltaY > contentElement.clientHeight * 0.3) {
                     closeCallback();
                 } else {
                     // Возвращаем на место
@@ -2334,13 +2354,9 @@
                 }
             };
             
-            // Используем grabber как основную точку для свайпа
-            const grabber = contentElement.querySelector('.grabber');
-            if(grabber) {
-                grabber.addEventListener('touchstart', onTouchStart, { passive: true });
-                grabber.addEventListener('touchmove', onTouchMove, { passive: true });
-                grabber.addEventListener('touchend', onTouchEnd, { passive: true });
-            }
+            modalElement.addEventListener('touchstart', onTouchStart, { passive: true });
+            modalElement.addEventListener('touchmove', onTouchMove, { passive: true });
+            modalElement.addEventListener('touchend', onTouchEnd, { passive: true });
         }
 
 
