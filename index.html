@@ -318,10 +318,10 @@
                 
                 <div class="flex-grow flex justify-center">
                      <div id="mode-switcher" class="hidden">
-                        <button id="mode-capture" class="mode-btn active">Захват</button>
-                        <button id="mode-spots" class="mode-btn">Споты</button>
-                        <button id="mode-routes" class="mode-btn">Маршруты</button>
-                    </div>
+                         <button id="mode-capture" class="mode-btn active">Захват</button>
+                         <button id="mode-spots" class="mode-btn">Споты</button>
+                         <button id="mode-routes" class="mode-btn">Маршруты</button>
+                     </div>
                 </div>
 
                 <div id="map-controls-right" class="flex flex-col items-end gap-2">
@@ -466,11 +466,11 @@
             <div id="simple-post-filename" class="text-sm text-gray-500 truncate"></div>
             <div class="flex justify-between items-center pt-4">
                  <label for="simple-post-photo-input" class="cursor-pointer p-2 rounded-full hover:bg-gray-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" style="color: var(--hint-color);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                    </svg>
-                    <input id="simple-post-photo-input" type="file" class="sr-only" accept="image/*">
-                </label>
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" style="color: var(--hint-color);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                       <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                     </svg>
+                     <input id="simple-post-photo-input" type="file" class="sr-only" accept="image/*">
+                 </label>
                 <button onclick="handleSimplePostSave()" class="text-white font-bold py-2 px-6 rounded-full transition-all" style="background-color: var(--button-color);">Опубликовать</button>
             </div>
         </div>
@@ -551,6 +551,7 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
         const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
         const MAP_TILE_URL = 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}';
+        const BOT_TOKEN = '8203577700:AAHBPcxw4y5kT4trl_bfZY4QRBQ99Q0S2E8'; // ВАШ ТОКЕН БОТА
 
         // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И СОСТОЯНИЕ ---
         const tg = window.Telegram.WebApp;
@@ -561,7 +562,6 @@
         // Состояние режимов
         let currentMode = 'capture'; // 'capture', 'spots', 'routes'
         let isRunning = false; // Для режимов 'capture' и 'routes'
-        let geoWatchId = null;
         let lastKnownLocation = null;
         
         // Данные режимов
@@ -712,13 +712,13 @@
                     break;
                 case 'routes':
                      if (isRunning) {
-                        mainActionBtn.innerHTML = `<span>Завершить и сохранить</span>`;
-                        mainActionBtn.classList.add('running');
-                        mainActionBtn.onclick = stopRouteRecording;
-                    } else {
-                        mainActionBtn.innerHTML = `<span>Начать запись маршрута</span>`;
-                        mainActionBtn.onclick = startRouteRecording;
-                    }
+                         mainActionBtn.innerHTML = `<span>Завершить и сохранить</span>`;
+                         mainActionBtn.classList.add('running');
+                         mainActionBtn.onclick = stopRouteRecording;
+                     } else {
+                         mainActionBtn.innerHTML = `<span>Начать запись маршрута</span>`;
+                         mainActionBtn.onclick = startRouteRecording;
+                     }
                     mainActionBtn.classList.add('w-auto', 'px-8');
                     mainActionBtn.classList.remove('w-20');
                     break;
@@ -1006,13 +1006,13 @@
                          <p class="font-semibold">${spot.name}</p>
                          <p class="text-sm text-gray-600 truncate">${spot.description}</p>
                          <p class="text-xs text-gray-400">${new Date(spot.created_at).toLocaleDateString()}</p>
-                      </div>`;
+                     </div>`;
         }
         function generateMiniRouteHTML(route) {
              return `<div class="card-bg rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-100" onclick="navigateToMapObject('route', ${route.id})">
                          <p class="font-semibold">${route.name}</p>
                          <p class="text-xs text-gray-400">${new Date(route.created_at).toLocaleDateString()}</p>
-                      </div>`;
+                     </div>`;
         }
 
         function navigateToMapObject(type, id) {
@@ -1212,44 +1212,41 @@
             }
         }
         
-        // --- НОВАЯ ЛОГИКА ЗАПРОСА ГЕОЛОКАЦИИ ---
-        async function handleGeoRequest() {
+        // --- НОВАЯ ЛОГИКА ЗАПРОСА ГЕОЛОКАЦИИ ЧЕРЕЗ БОТА ---
+        function handleGeoRequest() {
             const geoBtn = document.getElementById('request-geo-btn');
             const geoLoader = document.getElementById('request-geo-loader');
             const geoText = document.getElementById('request-geo-text');
 
-            geoText.textContent = 'Запрашиваем...';
+            geoText.textContent = 'Ждем ответа...';
             geoLoader.classList.remove('hidden');
             geoBtn.disabled = true;
+            
+            // Показываем кнопку запроса геолокации в интерфейсе Telegram
+            tg.requestLocation(handleLocationReceived);
+        }
 
-            try {
-                const position = await requestAndWatchGeo();
-                const latLng = [position.coords.latitude, position.coords.longitude];
+        function handleLocationReceived(location) {
+            if (location) {
+                const latLng = [location.latitude, location.longitude];
+                lastKnownLocation = latLng;
                 
                 map.flyTo(latLng, 16);
                 updateCurrentUserMarker(latLng);
 
-                geoBtn.classList.add('hidden');
-                document.getElementById('recenter-btn').classList.remove('hidden');
-                document.getElementById('mode-switcher').classList.remove('hidden');
+                requestGeoBtn.classList.add('hidden');
+                recenterBtn.classList.remove('hidden');
+                modeSwitcher.classList.remove('hidden');
                 
                 updateMainActionButton(); // Активируем основную кнопку
                 tg.HapticFeedback.notificationOccurred('success');
-
-            } catch (error) {
-                console.error("Ошибка запроса геолокации:", error);
-                let title = "Ошибка геолокации";
-                let message = "Не удалось получить ваше местоположение. Попробуйте еще раз.";
-                if (error.code === 1) { // Geolocation permission denied
-                    title = "Доступ к геолокации запрещен";
-                    message = "Для работы основных функций приложения нужен доступ к геолокации. Пожалуйста, предоставьте разрешение в настройках вашего устройства и браузера.";
-                }
-                tg.showAlert(message);
-                
-                // Возвращаем кнопку в исходное состояние
+            } else {
+                tg.showAlert("Не удалось получить геолокацию. Попробуйте еще раз.");
+                const geoText = document.getElementById('request-geo-text');
+                const geoLoader = document.getElementById('request-geo-loader');
                 geoText.textContent = 'Дать доступ к гео';
                 geoLoader.classList.add('hidden');
-                geoBtn.disabled = false;
+                requestGeoBtn.disabled = false;
             }
         }
 
@@ -1588,49 +1585,6 @@
              document.documentElement.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
              tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
              tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
-        }
-
-        function requestAndWatchGeo() {
-            loaderText.textContent = 'Определение местоположения...';
-            return new Promise((resolve, reject) => {
-                if (!navigator.geolocation) {
-                    return reject(new Error("Геолокация не поддерживается вашим устройством."));
-                }
-                navigator.geolocation.getCurrentPosition(
-                    (initialPosition) => {
-                        const { latitude, longitude } = initialPosition.coords;
-                        lastKnownLocation = [latitude, longitude];
-                        
-                        if (geoWatchId) {
-                            navigator.geolocation.clearWatch(geoWatchId);
-                        }
-
-                        geoWatchId = navigator.geolocation.watchPosition(
-                            (position) => {
-                                const { latitude, longitude } = position.coords;
-                                lastKnownLocation = [latitude, longitude];
-                                updateCurrentUserMarker(lastKnownLocation);
-
-                                if (isRunning && currentPathPolyline) {
-                                    const newPoint = (currentMode === 'capture') 
-                                        ? [longitude, latitude]
-                                        : [latitude, longitude];
-                                    currentRunPath.push(newPoint);
-                                    currentPathPolyline.addLatLng([latitude, longitude]);
-                                }
-                            },
-                            (err) => {
-                                console.error("Ошибка отслеживания геолокации:", err);
-                                tg.showAlert("Потерян доступ к геолокации.");
-                            },
-                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                        );
-                        resolve(initialPosition);
-                    },
-                    (err) => { reject(err); },
-                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-                );
-            });
         }
         
         async function upsertUserProfile() {
