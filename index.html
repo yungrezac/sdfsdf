@@ -353,10 +353,14 @@
                     <p id="profile-area" class="text-3xl font-bold" style="color: var(--button-color);">0 м²</p>
                 </div>
                 <div class="w-full pt-4 mt-4 border-t" style="border-color: var(--border-color);">
-                    <div class="grid grid-cols-3 gap-4 text-center">
+                    <div class="grid grid-cols-4 gap-2 text-center">
                         <button id="invite-friend-btn" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
                             <div class="p-3 rounded-full" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent);"><i class="fa-solid fa-user-plus h-6 w-6" style="color: var(--button-color);"></i></div>
                             <span class="text-xs font-medium" style="color: var(--hint-color);">Пригласить</span>
+                        </button>
+                        <button id="share-profile-btn" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
+                            <div class="p-3 rounded-full" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent);"><i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--button-color);"></i></div>
+                            <span class="text-xs font-medium" style="color: var(--hint-color);">Поделиться</span>
                         </button>
                         <button id="show-qr-btn" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
                             <div class="p-3 rounded-full" style="background-color: color-mix(in srgb, var(--button-color) 15%, transparent);"><i class="fa-solid fa-qrcode h-6 w-6" style="color: var(--button-color);"></i></div>
@@ -503,6 +507,7 @@
         let supabase;
         let telegramUser = null;
         let locationWatchId = null;
+        let scrollToPostId = null; // NEW: Для диплинков на посты
         
         // Состояние режимов
         let currentMode = 'capture'; // 'capture', 'spots', 'routes'
@@ -554,6 +559,7 @@
         const requestGeoBtn = document.getElementById('request-geo-btn');
         const scanQrBtn = document.getElementById('scan-qr-btn');
         const inviteFriendBtn = document.getElementById('invite-friend-btn');
+        const shareProfileBtn = document.getElementById('share-profile-btn');
         const donateBtn = document.getElementById('donate-btn');
         const showQrBtn = document.getElementById('show-qr-btn');
         const createSimplePostBtn = document.getElementById('create-simple-post-btn');
@@ -594,14 +600,15 @@
         }
 
         /**
-         * NEW: Генерирует диплинк и открывает диалог "Поделиться" в Telegram.
+         * Генерирует диплинк и открывает диалог "Поделиться" в Telegram.
          * @param {'post' | 'route' | 'spot' | 'user'} type - Тип контента.
          * @param {number | string} id - ID контента.
          * @param {string} text - Текст для сообщения.
          */
         function shareContent(type, id, text) {
             tg.HapticFeedback.impactOccurred('light');
-            const url = `https://t.me/${BOT_USERNAME}?start=${type}_${id}`;
+            // UPDATED: Используем startapp для прямого открытия Mini App
+            const url = `https://t.me/${BOT_USERNAME}?startapp=${type}_${id}`;
             tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`);
         }
 
@@ -1529,7 +1536,7 @@
                 if (data.data) {
                     try {
                         const url = new URL(data.data);
-                        const startPayload = url.searchParams.get('start');
+                        const startPayload = url.searchParams.get('startapp'); // UPDATED
                         if (startPayload) {
                             // Передаем весь payload в обработчик
                             handleStartParam({ start_param: startPayload });
@@ -1582,9 +1589,12 @@
                 tg.showScanQrPopup({ text: 'Наведите на QR-код другого игрока' });
             });
 
+            // UPDATED: Replaced invite button with share button logic
             inviteFriendBtn.addEventListener('click', () => {
-                tg.HapticFeedback.impactOccurred('light');
-                shareContent('user', telegramUser.id, 'Присоединяйся ко мне в TerraRun и давай захватывать территории вместе!');
+                 shareContent('user', telegramUser.id, 'Присоединяйся ко мне в TerraRun и давай захватывать территории вместе!');
+            });
+            shareProfileBtn.addEventListener('click', () => {
+                shareContent('user', telegramUser.id, 'Зацени мой профиль и территории в TerraRun!');
             });
             
             createSimplePostBtn.addEventListener('click', showSimplePostModal);
@@ -1886,6 +1896,24 @@
                     }
                 }
             });
+
+            // NEW: Логика для прокрутки к посту из диплинка
+            if (scrollToPostId) {
+                const postElement = document.getElementById(`post-${scrollToPostId}`);
+                if (postElement) {
+                    // Даем время на отрисовку, особенно для карт
+                    setTimeout(() => {
+                        postElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // Добавляем временную подсветку
+                        postElement.style.transition = 'background-color 0.5s ease';
+                        postElement.style.backgroundColor = 'color-mix(in srgb, var(--button-color) 15%, transparent)';
+                        setTimeout(() => {
+                            postElement.style.backgroundColor = '';
+                        }, 2500); // Подсветка на 2.5 секунды
+                    }, 200); // Небольшая задержка
+                }
+                scrollToPostId = null; // Сбрасываем ID после использования
+            }
         }
         
         function generatePostHTML(post, likes, comments) {
@@ -2152,7 +2180,7 @@
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = '';
             new QRCode(qrContainer, {
-                text: `https://t.me/${BOT_USERNAME}?start=user_${telegramUser.id}`, // NEW: Updated QR format
+                text: `https://t.me/${BOT_USERNAME}?startapp=user_${telegramUser.id}`, // UPDATED: to startapp
                 width: 200,
                 height: 200,
                 colorDark : "#000000",
@@ -2190,8 +2218,10 @@
                         showDetailModal('user', numericId);
                         break;
                     case 'post':
-                        // Показ комментариев - хороший способ сделать диплинк на пост
-                        showPostComments(numericId);
+                        // UPDATED: Показываем ленту и готовимся к прокрутке
+                        showView('feed-view');
+                        scrollToPostId = numericId;
+                        // renderFeed() будет вызван при инициализации или через real-time, он подхватит этот ID
                         break;
                     case 'route':
                         showDetailModal('route', numericId);
@@ -2241,7 +2271,7 @@
         window.setDetailReplyMode = setDetailReplyMode;
         window.cancelDetailReply = cancelDetailReply;
         window.hideQrModal = hideQrModal;
-        window.shareContent = shareContent; // NEW: Expose share function
+        window.shareContent = shareContent;
         
         document.addEventListener('DOMContentLoaded', main);
     </script>
