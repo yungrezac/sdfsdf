@@ -544,6 +544,16 @@
             </div>
         </div>
     </div>
+    
+    <!-- NEW: Модальное окно для QR-кода -->
+    <div id="qr-modal" class="modal-overlay justify-center items-center p-4" onclick="if(event.target === this) hideQrModal()">
+        <div class="card-bg rounded-2xl shadow-2xl p-6 w-full max-w-xs fade-in space-y-4 flex flex-col items-center">
+            <h2 class="text-2xl font-bold">Мой QR-код</h2>
+            <div id="qrcode" class="p-2 bg-white rounded-lg"></div>
+            <p class="text-center text-sm" style="color: var(--hint-color);">Покажите этот код другу, чтобы он отсканировал его в приложении.</p>
+            <button onclick="hideQrModal()" class="w-full mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full transition-all">Закрыть</button>
+        </div>
+    </div>
 
     <script type="module">
         // --- КОНФИГУРАЦИЯ И КОНСТАНТЫ ---
@@ -551,7 +561,7 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
         const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
         const MAP_TILE_URL = 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}';
-        const BOT_TOKEN = '8203577700:AAHBPcxw4y5kT4trl_bfZY4QRBQ99Q0S2E8'; // ВАШ ТОКЕН БОТА
+        const BOT_USERNAME = 'TerraRunBot'; // Имя вашего бота
 
         // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И СОСТОЯНИЕ ---
         const tg = window.Telegram.WebApp;
@@ -600,6 +610,7 @@
         const commentsModal = document.getElementById('comments-modal');
         const simplePostModal = document.getElementById('simple-post-modal');
         const creationModal = document.getElementById('creation-modal');
+        const qrModal = document.getElementById('qr-modal');
 
         const leaderboardDiv = document.getElementById('leaderboard');
         const feedContainer = document.getElementById('feed-container');
@@ -637,7 +648,7 @@
             if (currentMode === newMode) return;
             
             if (isRunning) {
-                tg.showAlert("Сначала завершите текущую активность (захват или запись маршрута).");
+                showCustomAlert("Сначала завершите текущую активность (захват или запись маршрута).");
                 return;
             }
 
@@ -704,7 +715,7 @@
                          if(lastKnownLocation) {
                              handleMapClickForSpot({latlng: L.latLng(lastKnownLocation)});
                          } else {
-                             tg.showAlert("Определяем ваше местоположение...");
+                             showCustomAlert("Определяем ваше местоположение...");
                          }
                     };
                     mainActionBtn.classList.add('w-auto', 'px-8');
@@ -1148,6 +1159,7 @@
 
                 listenToRealtimeChanges();
                 setupDynamicEventListeners();
+                handleStartParam(); // NEW: Обработка параметра start
 
                 initialLoader.classList.add('hidden');
                 appContainer.classList.remove('hidden');
@@ -1241,7 +1253,7 @@
                 updateMainActionButton(); // Активируем основную кнопку
                 tg.HapticFeedback.notificationOccurred('success');
             } else {
-                tg.showAlert("Не удалось получить геолокацию. Попробуйте еще раз.");
+                showCustomAlert("Не удалось получить геолокацию. Попробуйте еще раз.");
                 const geoText = document.getElementById('request-geo-text');
                 const geoLoader = document.getElementById('request-geo-loader');
                 geoText.textContent = 'Дать доступ к гео';
@@ -1255,7 +1267,7 @@
         
         function startRun() {
             if (!lastKnownLocation) {
-                tg.showAlert("Сначала определите свое местоположение."); return;
+                showCustomAlert("Сначала определите свое местоположение."); return;
             }
             isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
@@ -1268,9 +1280,7 @@
             currentPathPolyline.addLatLng(lastKnownLocation);
         }
         function stopRun() {
-             tg.showConfirm("Завершить пробежку и захватить территорию?", (ok) => {
-                   if (ok) processStop();
-             });
+             showCustomConfirm("Завершить пробежку и захватить территорию?", processStop);
         }
         function processStop() {
             isRunning = false;
@@ -1280,7 +1290,7 @@
             if (currentRunPath.length > 3) {
                 processRunPath();
             } else {
-                tg.showAlert('Слишком короткий маршрут для захвата.');
+                showCustomAlert('Слишком короткий маршрут для захвата.');
             }
             if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
         }
@@ -1288,10 +1298,8 @@
         function handleMapClickForSpot(e) {
             const { lat, lng } = e.latlng;
             const locationWKT = `POINT(${lng} ${lat})`;
-            tg.showConfirm("Создать новый спот в этом месте?", (ok) => {
-                if (ok) {
-                    showCreationModal('spot', { location: locationWKT });
-                }
+            showCustomConfirm("Создать новый спот в этом месте?", () => {
+                showCreationModal('spot', { location: locationWKT });
             });
         }
 
@@ -1303,14 +1311,14 @@
             const file = document.getElementById('creation-modal-photo-input').files[0];
 
             if (!name || !description) {
-                tg.showAlert("Название и описание обязательны."); return;
+                showCustomAlert("Название и описание обязательны."); return;
             }
             
             let photoUrl = null;
             if (file) {
                 const filePath = `${telegramUser.id}/spots/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                if (error) { console.error("Ошибка загрузки фото:", error); tg.showAlert("Ошибка загрузки фото."); return; }
+                if (error) { console.error("Ошибка загрузки фото:", error); showCustomAlert("Ошибка загрузки фото."); return; }
                 const { data: urlData } = supabase.storage.from('photo').getPublicUrl(data.path);
                 photoUrl = urlData.publicUrl;
             }
@@ -1324,9 +1332,9 @@
             });
 
             if (error) {
-                console.error("Ошибка сохранения спота:", error); tg.showAlert("Не удалось сохранить спот.");
+                console.error("Ошибка сохранения спота:", error); showCustomAlert("Не удалось сохранить спот.");
             } else {
-                tg.showAlert("Спот успешно создан!");
+                showCustomAlert("Спот успешно создан!");
                 hideCreationModal();
             }
         }
@@ -1358,7 +1366,7 @@
 
         function startRouteRecording() {
             if (!lastKnownLocation) {
-                tg.showAlert("Сначала определите свое местоположение."); return;
+                showCustomAlert("Сначала определите свое местоположение."); return;
             }
             isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
@@ -1378,7 +1386,7 @@
             updateMainActionButton();
             
             if (currentRunPath.length < 2) {
-                tg.showAlert("Слишком короткий маршрут.");
+                showCustomAlert("Слишком короткий маршрут.");
                 if (currentPathPolyline) map.removeLayer(currentPathPolyline);
                 currentPathPolyline = null;
                 return;
@@ -1397,7 +1405,7 @@
             const name = document.getElementById('creation-modal-name').value.trim();
             const description = document.getElementById('creation-modal-details').value.trim();
             
-            if (!name) { tg.showAlert("Название обязательно."); return; }
+            if (!name) { showCustomAlert("Название обязательно."); return; }
 
             const { error } = await supabase.rpc('create_route', {
                 user_id_in: telegramUser.id,
@@ -1407,9 +1415,9 @@
             });
 
             if (error) {
-                console.error("Ошибка сохранения маршрута:", error); tg.showAlert("Не удалось сохранить маршрут.");
+                console.error("Ошибка сохранения маршрута:", error); showCustomAlert("Не удалось сохранить маршрут.");
             } else {
-                tg.showAlert("Маршрут сохранен!");
+                showCustomAlert("Маршрут сохранен!");
                 hideCreationModal();
             }
         }
@@ -1497,6 +1505,17 @@
                     hideCreationModal();
                 } else if (simplePostModal.classList.contains('visible')) {
                     hideSimplePostModal();
+                } else if (qrModal.classList.contains('visible')) {
+                    hideQrModal();
+                }
+            });
+            tg.onEvent('qrTextReceived', (data) => {
+                if (data.data) {
+                    const url = new URL(data.data);
+                    const userId = url.searchParams.get('start');
+                    if (userId) {
+                        showDetailModal('user', parseInt(userId));
+                    }
                 }
             });
         }
@@ -1541,13 +1560,22 @@
 
             inviteFriendBtn.addEventListener('click', () => {
                 tg.HapticFeedback.impactOccurred('light');
-                tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(`https://t.me/TerraRunBot/app`)}&text=${encodeURIComponent(`Присоединяйся ко мне в TerraRun и давай захватывать территории вместе!`)}`);
+                const inviteLink = `https://t.me/${BOT_USERNAME}?start=${telegramUser.id}`;
+                tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(`Присоединяйся ко мне в TerraRun и давай захватывать территории вместе!`)}`);
             });
             
             createSimplePostBtn.addEventListener('click', showSimplePostModal);
             
-            showQrBtn.addEventListener('click', () => { /* TODO: Implement */ });
-            donateBtn.addEventListener('click', () => { /* TODO: Implement */ });
+            showQrBtn.addEventListener('click', showQrModal);
+            donateBtn.addEventListener('click', () => {
+                tg.openInvoice('YOUR_PAYMENT_PROVIDER_TOKEN', (status) => {
+                    if (status === 'paid') {
+                        showCustomAlert('Спасибо за вашу поддержку!');
+                    } else if (status === 'failed') {
+                        showCustomAlert('Не удалось обработать платеж.');
+                    }
+                });
+            });
 
             document.body.addEventListener('click', (event) => {
                 const button = event.target.closest('button[data-action], div[data-action]');
@@ -1622,14 +1650,14 @@
             const endPoint = currentRunPath[currentRunPath.length - 1];
             const distance = turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' });
             if (distance > 50) {
-                tg.showAlert('Маршрут не замкнут. Вернитесь к точке старта (в радиус 50м) для захвата.');
+                showCustomAlert('Маршрут не замкнут. Вернитесь к точке старта (в радиус 50м) для захвата.');
                 return;
             }
             currentRunPath.push(startPoint);
             const line = turf.lineString(currentRunPath);
             const polygonized = turf.polygonize(line);
             if (polygonized.features.length === 0) {
-                tg.showAlert('Не удалось сформировать замкнутую территорию. Вероятно, маршрут пересекал сам себя.');
+                showCustomAlert('Не удалось сформировать замкнутую территорию. Вероятно, маршрут пересекал сам себя.');
                 return;
             }
             let newCapture = polygonized.features[0];
@@ -1654,7 +1682,7 @@
                 showEditModal('post', { captureData: newCapture });
             } catch (error) {
                 console.error("Ошибка в updateTerritory:", error);
-                tg.showAlert("Ошибка обработки территории.");
+                showCustomAlert("Ошибка обработки территории.");
             }
         }
 
@@ -1669,14 +1697,14 @@
             const { captureData } = currentEditContext;
             const title = document.getElementById('edit-modal-name').value.trim();
             
-            if (!title) { tg.showAlert("Пожалуйста, введите название."); return; }
+            if (!title) { showCustomAlert("Пожалуйста, введите название."); return; }
 
             let photoUrl = null;
             const file = document.getElementById('edit-modal-photo-input').files[0];
             if (file) {
                 const filePath = `${telegramUser.id}/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                if (error) { console.error("Error uploading photo:", error); tg.showAlert("Не удалось загрузить фото."); return; }
+                if (error) { console.error("Error uploading photo:", error); showCustomAlert("Не удалось загрузить фото."); return; }
                 photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
             }
 
@@ -1695,9 +1723,9 @@
             const { error: postError } = await supabase.from('posts').insert(postData);
             
             if (postError) {
-                console.error("Error saving post:", postError); tg.showAlert("Не удалось сохранить пост.");
+                console.error("Error saving post:", postError); showCustomAlert("Не удалось сохранить пост.");
             } else {
-                tg.showAlert("Пост успешно опубликован!");
+                showCustomAlert("Пост успешно опубликован!");
                 hideEditModal();
             }
         }
@@ -1705,7 +1733,7 @@
         async function handleSimplePostSave() {
             const description = document.getElementById('simple-post-details').value.trim();
             if (!description) {
-                tg.showAlert("Пожалуйста, введите текст поста.");
+                showCustomAlert("Пожалуйста, введите текст поста.");
                 return;
             }
 
@@ -1714,7 +1742,7 @@
             if (file) {
                 const filePath = `${telegramUser.id}/posts/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                if (error) { console.error("Error uploading photo:", error); tg.showAlert("Не удалось загрузить фото."); return; }
+                if (error) { console.error("Error uploading photo:", error); showCustomAlert("Не удалось загрузить фото."); return; }
                 photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
             }
 
@@ -1731,9 +1759,9 @@
             const { error: postError } = await supabase.from('posts').insert(postData);
             
             if (postError) {
-                console.error("Error saving post:", postError); tg.showAlert("Не удалось сохранить пост.");
+                console.error("Error saving post:", postError); showCustomAlert("Не удалось сохранить пост.");
             } else {
-                tg.showAlert("Пост успешно опубликован!");
+                showCustomAlert("Пост успешно опубликован!");
                 hideSimplePostModal();
             }
         }
@@ -1860,7 +1888,7 @@
 
         async function toggleLike(buttonElement, postId) {
             if (!telegramUser) {
-                tg.showAlert('Пользователь не определен. Попробуйте перезагрузить приложение.');
+                showCustomAlert('Пользователь не определен. Попробуйте перезагрузить приложение.');
                 return;
             }
             tg.HapticFeedback.impactOccurred('light');
@@ -1882,7 +1910,7 @@
                 console.error("Ошибка лайка:", error);
                 buttonElement.classList.toggle('liked');
                 countSpan.textContent = currentCount;
-                tg.showAlert('Не удалось поставить лайк. Попробуйте снова.');
+                showCustomAlert('Не удалось поставить лайк. Попробуйте снова.');
             }
         }
         
@@ -1987,7 +2015,7 @@
                 content: content 
             };
             const { error } = await supabase.from('comments').insert(commentData);
-            if (error) { tg.showAlert('Ошибка отправки'); } else { inputElement.value = ''; cancelReply(); }
+            if (error) { showCustomAlert('Ошибка отправки'); } else { inputElement.value = ''; cancelReply(); }
         }
 
         function setDetailReplyMode(id, parentCommentId, parentAuthorName) {
@@ -2025,7 +2053,7 @@
             const { error } = await supabase.from('comments').insert(commentData);
 
             if (error) { 
-                tg.showAlert('Ошибка отправки комментария.'); 
+                showCustomAlert('Ошибка отправки комментария.'); 
                 console.error("Comment post error:", error);
             } else { 
                 inputElement.value = ''; 
@@ -2076,6 +2104,50 @@
             routesContainer.innerHTML = routes.length > 0 ? routes.map(generateMiniRouteHTML).join('') : '<p class="text-center text-gray-500 py-4">У вас нет маршрутов.</p>';
             document.getElementById('profile-tab-routes').textContent = `Маршруты (${routes.length})`;
         }
+        
+        // --- NEW: QR Code Modal ---
+        function showQrModal() {
+            tg.HapticFeedback.impactOccurred('light');
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: `https://t.me/${BOT_USERNAME}?start=${telegramUser.id}`,
+                width: 200,
+                height: 200,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+            qrModal.classList.add('visible');
+            tg.BackButton.show();
+        }
+
+        function hideQrModal() {
+            qrModal.classList.remove('visible');
+            tg.BackButton.hide();
+        }
+        
+        // --- NEW: Handle Start Param ---
+        function handleStartParam() {
+            const startParam = tg.initDataUnsafe.start_param;
+            if (startParam) {
+                // Если параметр - это ID пользователя, показываем его профиль
+                if (/^\d+$/.test(startParam)) {
+                    showDetailModal('user', parseInt(startParam));
+                }
+            }
+        }
+        
+        // --- NEW: Custom Alert/Confirm ---
+        function showCustomAlert(message) {
+            tg.showAlert(message);
+        }
+
+        function showCustomConfirm(message, callback) {
+            tg.showConfirm(message, (ok) => {
+                if (ok) callback();
+            });
+        }
 
 
         // --- ПРИВЯЗКА ГЛОБАЛЬНЫХ ФУНКЦИЙ И ЗАПУСК ---
@@ -2098,6 +2170,7 @@
         window.postDetailComment = postDetailComment;
         window.setDetailReplyMode = setDetailReplyMode;
         window.cancelDetailReply = cancelDetailReply;
+        window.hideQrModal = hideQrModal;
         
         document.addEventListener('DOMContentLoaded', main);
     </script>
