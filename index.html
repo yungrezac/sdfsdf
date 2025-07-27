@@ -232,7 +232,6 @@
             border-radius: 9999px;
             margin: 0.75rem auto;
             flex-shrink: 0;
-            cursor: grab;
         }
         
         .profile-tab, .feed-tab {
@@ -895,11 +894,13 @@
             document.getElementById('simple-post-filename').textContent = '';
             AppState.simplePostContext = {};
             simplePostModal.classList.add('visible');
+            document.body.style.overflow = 'hidden';
             tg.BackButton.show();
         }
 
         function hideSimplePostModal() {
             simplePostModal.classList.remove('visible');
+            document.body.style.overflow = '';
             tg.BackButton.hide();
         }
         
@@ -937,11 +938,13 @@
             }
             
             creationModal.classList.add('visible');
+            document.body.style.overflow = 'hidden';
             tg.BackButton.show();
         }
 
         function hideCreationModal() {
             creationModal.classList.remove('visible');
+            document.body.style.overflow = '';
             tg.BackButton.hide();
             AppState.currentEditContext = {};
         }
@@ -959,6 +962,7 @@
              tg.BackButton.show();
              
              detailModal.classList.add('visible');
+             document.body.style.overflow = 'hidden';
              loadDetailContent();
         }
         
@@ -968,6 +972,7 @@
             }
             tg.BackButton.hide();
             detailModal.classList.remove('visible');
+            document.body.style.overflow = '';
             AppState.currentDetailContext = {};
         }
 
@@ -1711,14 +1716,6 @@
                     case 'show-participants': showParticipants(id); break;
                 }
             });
-
-            // Свайпы для модалок
-            makeModalSwipeable(creationModal, creationModal.querySelector('.bottom-sheet-content'), hideCreationModal);
-            makeModalSwipeable(detailModal, detailModal.querySelector('.bottom-sheet-content'), hideDetailModal);
-            makeModalSwipeable(commentsModal, commentsModal.querySelector('.bottom-sheet-content'), hideCommentsModal);
-            makeModalSwipeable(simplePostModal, simplePostModal.querySelector('#simple-post-content'), hideSimplePostModal);
-            makeModalSwipeable(eventCreationModal, eventCreationModal.querySelector('.bottom-sheet-content'), hideEventCreationModal);
-            makeModalSwipeable(participantsModal, participantsModal.querySelector('.bottom-sheet-content'), hideParticipantsModal);
         }
         
         function showFallbackScreen(title, message, showRetryButton = false) {
@@ -2123,6 +2120,7 @@
             const modalBody = document.getElementById('comments-modal-body');
             modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
             commentsModal.classList.add('visible');
+            document.body.style.overflow = 'hidden';
             
             const { data: comments, error } = await fetchComments('post', postId);
             if (error) { modalBody.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
@@ -2150,6 +2148,7 @@
         function hideCommentsModal() {
             tg.BackButton.hide();
             commentsModal.classList.remove('visible');
+            document.body.style.overflow = '';
         }
 
         function generateCommentHTML(comment, commentsByParent, context = 'post') {
@@ -2316,11 +2315,13 @@
                 colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H
             });
             qrModal.classList.add('visible');
+            document.body.style.overflow = 'hidden';
             tg.BackButton.show();
         }
 
         function hideQrModal() {
             qrModal.classList.remove('visible');
+            document.body.style.overflow = '';
             tg.BackButton.hide();
         }
         
@@ -2358,38 +2359,6 @@
         // --- Custom Alert/Confirm ---
         function showCustomAlert(message) { tg.showAlert(message); }
         function showCustomConfirm(message, callback) { tg.showConfirm(message, (ok) => { if (ok) callback(); }); }
-
-        // --- Swipeable Modals ---
-        function makeModalSwipeable(modalElement, contentElement, closeCallback) {
-            let startY, currentY, isDragging = false;
-            const onTouchStart = (e) => {
-                const contentBody = contentElement.querySelector('.overflow-y-auto');
-                if (contentBody && contentBody.scrollTop > 0) { isDragging = false; return; }
-                isDragging = true;
-                startY = e.touches[0].clientY;
-                contentElement.style.transition = 'none';
-            };
-            const onTouchMove = (e) => {
-                if (!isDragging) return;
-                currentY = e.touches[0].clientY;
-                let deltaY = currentY - startY;
-                if (deltaY > 0) { contentElement.style.transform = `translateY(${deltaY}px)`; }
-            };
-            const onTouchEnd = (e) => {
-                if (!isDragging) return;
-                isDragging = false;
-                let deltaY = currentY - startY;
-                contentElement.style.transition = 'transform 0.3s ease-in-out';
-                if (deltaY > contentElement.clientHeight * 0.3) {
-                    closeCallback();
-                } else {
-                    contentElement.style.transform = 'translateY(0)';
-                }
-            };
-            modalElement.addEventListener('touchstart', onTouchStart, { passive: true });
-            modalElement.addEventListener('touchmove', onTouchMove, { passive: true });
-            modalElement.addEventListener('touchend', onTouchEnd, { passive: true });
-        }
         
         // =================================================================
         // --- НОВЫЙ ФУНКЦИОНАЛ: МЕРОПРИЯТИЯ (ПОКАТУШКИ) ---
@@ -2503,6 +2472,7 @@
             else routes.forEach(r => select.innerHTML += `<option value="${r.id}">${escapeHTML(r.name)}</option>`);
             
             eventCreationModal.classList.add('visible');
+            document.body.style.overflow = 'hidden';
             tg.BackButton.show();
 
             // Инициализация карты для выбора точки
@@ -2511,6 +2481,7 @@
         
         function hideEventCreationModal() {
             eventCreationModal.classList.remove('visible');
+            document.body.style.overflow = '';
             tg.BackButton.hide();
             if (eventPickerMap) {
                 eventPickerMap.destroy();
@@ -2595,6 +2566,7 @@
             const modalBody = document.getElementById('participants-modal-body');
             modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
             participantsModal.classList.add('visible');
+            document.body.style.overflow = 'hidden';
             tg.BackButton.show();
 
             const { data, error } = await supabase.from('event_participants')
@@ -2623,6 +2595,7 @@
         
         function hideParticipantsModal() {
             participantsModal.classList.remove('visible');
+            document.body.style.overflow = '';
             tg.BackButton.hide();
         }
 
