@@ -1018,7 +1018,7 @@
                 : '<p class="text-center text-gray-500 py-4">У этого пользователя нет спотов.</p>';
 
             const routesHTML = routes.length > 0
-                ? routes.map(r => generateMiniRouteHTML(r)).join('')
+                ? routes.map(r => generateMiniRouteHTML(r, false)).join('')
                 : '<p class="text-center text-gray-500 py-4">У этого пользователя нет маршрутов.</p>';
 
             return `
@@ -1164,9 +1164,8 @@
         }
 
         /**
-         * [FIX 2.0] Эта функция была переписана для корректной навигации.
-         * Она вызывает showView со специальной опцией, чтобы избежать конфликта анимаций,
-         * а затем центрирует карту на нужном объекте.
+         * [FIX 3.0] Эта функция была переписана для более точной и плавной навигации
+         * с максимальным приближением к объекту.
          */
         function navigateToMapObject(type, id) {
             hideDetailModal(); 
@@ -1198,10 +1197,11 @@
                     const geoJson = parseWKT(targetObject.location);
                     if (geoJson && geoJson.type === 'Point') {
                         const coords = [geoJson.coordinates[1], geoJson.coordinates[0]]; // lat, long
-                        map.panTo(coords, { flying: true, duration: 1500 })
-                           .then(() => {
-                               map.setZoom(17, { duration: 300 });
-                           });
+                        // Используем setCenter с высоким уровнем приближения для плавного эффекта
+                        map.setCenter(coords, 18, {
+                            duration: 1500,
+                            timingFunction: 'ease-in-out'
+                        });
                     }
                 } else if (type === 'route') {
                     setMapMode('routes');
@@ -1214,10 +1214,11 @@
                     if (geoJson && geoJson.type === 'LineString' && geoJson.coordinates.length > 0) {
                         const yandexCoords = geoJson.coordinates.map(p => [p[1], p[0]]);
                         const polyline = new ymaps.Polyline(yandexCoords);
+                         // Используем setBounds с уменьшенным отступом для максимального приближения
                         map.setBounds(polyline.geometry.getBounds(), { 
                             checkZoomRange: true, 
                             duration: 1000,
-                            zoomMargin: 30
+                            zoomMargin: 15 // Уменьшенный отступ для более плотного приближения
                         });
                     }
                 }
