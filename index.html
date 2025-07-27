@@ -1110,25 +1110,26 @@
 
             } catch (error) {
                 console.error("Критическая ошибка инициализации:", error);
-                let fallbackOptions = {
-                    title: "Ошибка инициализации",
-                    message: "Не удалось запустить приложение. Пожалуйста, попробуйте перезагрузить его.",
-                    button: { text: 'Попробовать снова', action: 'window.location.reload()' }
-                };
-                
+                let fallbackOptions; // Объявляем переменную здесь
+
                 if (error.message === 'GEOLOCATION_DENIED') {
                      fallbackOptions = {
                         title: "Доступ к геолокации необходим",
                         message: "Для работы TerraRun требуется доступ к вашему местоположению. Нажмите кнопку ниже, чтобы предоставить разрешение.",
-                        // ИЗМЕНЕНО: Текст кнопки для соответствия запросу
                         button: { text: 'Включить гео', action: 'requestPermissionAndReload()' }
                      };
                 } else if (error.message.includes("is not a function")) {
-                    fallbackOptions.title = "Ошибка API Telegram";
-                    fallbackOptions.message = "Функция геолокации недоступна. Убедитесь, что вы используете последнюю версию Telegram и ваш бот настроен правильно.";
-                }
-                else if (error.message) {
-                    fallbackOptions.message = error.message;
+                    fallbackOptions = {
+                        title: "Обновите Telegram",
+                        message: "Функция геолокации недоступна. Пожалуйста, обновите ваше приложение Telegram до последней версии и попробуйте снова.",
+                        button: { text: 'Попробовать снова', action: 'window.location.reload()' }
+                    };
+                } else {
+                     fallbackOptions = {
+                        title: "Ошибка инициализации",
+                        message: error.message || "Не удалось запустить приложение. Пожалуйста, попробуйте перезагрузить его.",
+                        button: { text: 'Попробовать снова', action: 'window.location.reload()' }
+                    };
                 }
                 showFallbackScreen(fallbackOptions);
             }
