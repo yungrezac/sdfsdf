@@ -453,10 +453,10 @@
             <textarea id="simple-post-details" class="form-textarea mt-1 block w-full h-1/3" placeholder="Что у вас нового?"></textarea>
             <div id="simple-post-filename" class="text-sm text-gray-500 truncate"></div>
             <div class="flex justify-between items-center pt-4">
-                 <label for="simple-post-photo-input" class="cursor-pointer p-2 rounded-full hover:bg-gray-200">
+                 <!-- --- ИЗМЕНЕНО --- Label заменен на button -->
+                 <button id="simple-post-attach-btn" class="cursor-pointer p-2 rounded-full hover:bg-gray-200">
                      <i class="fa-solid fa-paperclip h-7 w-7" style="color: var(--hint-color);"></i>
-                     <input id="simple-post-photo-input" type="file" class="sr-only" accept="image/*">
-                 </label>
+                 </button>
                 <button onclick="handleSimplePostSave()" class="text-white font-bold py-2 px-6 rounded-full transition-all" style="background-color: var(--button-color);">Опубликовать</button>
             </div>
         </div>
@@ -479,16 +479,16 @@
                 </div>
                 <div id="creation-modal-photo-section">
                     <label class="block text-sm font-medium mb-1">Фото</label>
-                    <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                    <!-- --- ИЗМЕНЕНО --- Label заменен на div-триггер -->
+                    <div id="creation-photo-trigger" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md cursor-pointer">
                         <div class="space-y-1 text-center">
                             <img id="creation-modal-photo-preview" src="" alt="Предпросмотр фото" class="hidden mx-auto h-24 w-auto mb-4 rounded">
                             <i id="creation-modal-photo-icon" class="fa-solid fa-image mx-auto h-12 w-12 text-gray-400"></i>
                             <div class="flex text-sm text-gray-600">
-                                <label for="creation-modal-photo-input" class="relative cursor-pointer rounded-md font-medium" style="color: var(--button-color);">
+                                <span class="relative rounded-md font-medium" style="color: var(--button-color);">
                                     <span>Загрузите файл</span>
-                                    <input id="creation-modal-photo-input" type="file" class="sr-only" accept="image/*">
-                                </label>
-                                <p class="pl-1">или перетащите</p>
+                                </span>
+                                <p class="pl-1">или сделайте снимок</p>
                             </div>
                             <p class="text-xs text-gray-500">PNG, JPG до 10MB</p>
                         </div>
@@ -541,6 +541,32 @@
         </div>
     </div>
 
+    <!-- --- НОВОЕ --- Модальное окно выбора источника фото -->
+    <div id="photo-source-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hidePhotoSourceModal()">
+        <div class="bottom-sheet-content" style="max-height: 40%;">
+            <div class="grabber" onclick="hidePhotoSourceModal()"></div>
+            <div class="p-4">
+                <h2 class="text-xl font-bold text-center mb-4">Добавить фото</h2>
+                <div class="space-y-3">
+                    <button id="take-photo-btn" class="w-full text-lg font-semibold p-3 rounded-xl text-white" style="background-color: var(--button-color);">
+                        <i class="fa-solid fa-camera mr-2"></i>Сделать снимок
+                    </button>
+                    <button id="choose-from-gallery-btn" class="w-full text-lg font-semibold p-3 rounded-xl" style="background-color: var(--bg-color); color: var(--text-color);">
+                        <i class="fa-solid fa-images mr-2"></i>Выбрать из галереи
+                    </button>
+                    <button onclick="hidePhotoSourceModal()" class="w-full text-lg font-semibold p-3 mt-4">
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- --- НОВОЕ --- Скрытые инпуты для выбора файлов -->
+    <input id="gallery-input" type="file" class="sr-only" accept="image/*">
+    <input id="camera-input" type="file" class="sr-only" accept="image/*" capture="environment">
+
+
     <script type="module">
         // --- КОНФИГУРАЦИЯ И КОНСТАНТЫ ---
         const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
@@ -578,6 +604,8 @@
             currentEditContext: {}, // Для модалки создания/редактирования
             currentDetailContext: {}, // Для модалки деталей
             currentReplyTarget: { type: null, id: null, parentCommentId: null },
+            photoContext: null, // 'creation' или 'simple'
+            simplePostContext: {}, // Для хранения файла простого поста
         };
         
         // Коллекции геообъектов Yandex Maps
@@ -839,7 +867,6 @@
         
         function showSimplePostModal() {
             document.getElementById('simple-post-details').value = '';
-            document.getElementById('simple-post-photo-input').value = '';
             document.getElementById('simple-post-filename').textContent = '';
             simplePostModal.classList.add('visible');
             tg.BackButton.show();
@@ -861,7 +888,6 @@
             
             nameInput.value = '';
             detailsInput.value = '';
-            document.getElementById('creation-modal-photo-input').value = '';
             document.getElementById('creation-modal-photo-preview').classList.add('hidden');
             document.getElementById('creation-modal-photo-icon').classList.remove('hidden');
 
@@ -918,6 +944,40 @@
             tg.BackButton.hide();
             detailModal.classList.remove('visible');
             AppState.currentDetailContext = {};
+        }
+
+        // --- НОВЫЕ ФУНКЦИИ ДЛЯ ВЫБОРА ФОТО ---
+        function showPhotoSourceModal() {
+            document.getElementById('photo-source-modal').classList.add('visible');
+            tg.BackButton.show(); 
+        }
+
+        function hidePhotoSourceModal() {
+            document.getElementById('photo-source-modal').classList.remove('visible');
+            if (creationModal.classList.contains('visible') || simplePostModal.classList.contains('visible')) {
+                // Другое модальное окно было открыто, оставляем кнопку "назад"
+            } else {
+                tg.BackButton.hide();
+            }
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (AppState.photoContext === 'creation') {
+                const preview = document.getElementById('creation-modal-photo-preview');
+                preview.src = URL.createObjectURL(file);
+                preview.classList.remove('hidden');
+                document.getElementById('creation-modal-photo-icon').classList.add('hidden');
+                AppState.currentEditContext.file = file;
+            } else if (AppState.photoContext === 'simple') {
+                document.getElementById('simple-post-filename').textContent = file.name;
+                AppState.simplePostContext = { file: file };
+            }
+
+            hidePhotoSourceModal();
+            event.target.value = ''; // Сбрасываем инпут, чтобы можно было выбрать тот же файл снова
         }
 
         async function loadDetailContent() {
@@ -1482,7 +1542,7 @@
             const { location } = AppState.currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
             const description = document.getElementById('creation-modal-details').value.trim();
-            const file = document.getElementById('creation-modal-photo-input').files[0];
+            const file = AppState.currentEditContext.file; // ИЗМЕНЕНО
 
             if (!name || !description) {
                 showCustomAlert("Название и описание обязательны."); return;
@@ -1674,7 +1734,9 @@
         function setupStaticEventListeners() {
             tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
             tg.onEvent('backButtonClicked', () => {
-                if (commentsModal.classList.contains('visible')) {
+                if (document.getElementById('photo-source-modal').classList.contains('visible')) {
+                    hidePhotoSourceModal();
+                } else if (commentsModal.classList.contains('visible')) {
                     hideCommentsModal();
                 } else if (detailModal.classList.contains('visible')) {
                     hideDetailModal();
@@ -1713,21 +1775,24 @@
             
             document.getElementById('save-creation-btn').addEventListener('click', handleSave);
             
-            document.getElementById('creation-modal-photo-input').addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const preview = document.getElementById('creation-modal-photo-preview');
-                    preview.src = URL.createObjectURL(file);
-                    preview.classList.remove('hidden');
-                    document.getElementById('creation-modal-photo-icon').classList.add('hidden');
-                }
+            // --- НОВЫЕ ОБРАБОТЧИКИ ДЛЯ ВЫБОРА ФОТО ---
+            document.getElementById('creation-photo-trigger').addEventListener('click', () => {
+                AppState.photoContext = 'creation';
+                showPhotoSourceModal();
             });
-            document.getElementById('simple-post-photo-input').addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    document.getElementById('simple-post-filename').textContent = file.name;
-                }
+            document.getElementById('simple-post-attach-btn').addEventListener('click', () => {
+                AppState.photoContext = 'simple';
+                showPhotoSourceModal();
             });
+            document.getElementById('take-photo-btn').addEventListener('click', () => {
+                document.getElementById('camera-input').click();
+            });
+            document.getElementById('choose-from-gallery-btn').addEventListener('click', () => {
+                document.getElementById('gallery-input').click();
+            });
+            document.getElementById('camera-input').addEventListener('change', handleFileSelect);
+            document.getElementById('gallery-input').addEventListener('change', handleFileSelect);
+
 
             requestGeoBtn.addEventListener('click', handleGeoRequest);
 
@@ -1894,11 +1959,11 @@
         async function handlePostSubmission() {
             const { captureData, area_captured } = AppState.currentEditContext;
             const title = document.getElementById('creation-modal-name').value.trim();
+            const file = AppState.currentEditContext.file; // ИЗМЕНЕНО
             
             if (!title) { showCustomAlert("Пожалуйста, введите название."); return; }
 
             let photoUrl = null;
-            const file = document.getElementById('creation-modal-photo-input').files[0];
             if (file) {
                 const filePath = `${telegramUser.id}/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
@@ -1930,13 +1995,14 @@
         
         async function handleSimplePostSave() {
             const description = document.getElementById('simple-post-details').value.trim();
+            const file = AppState.simplePostContext?.file; // ИЗМЕНЕНО
+
             if (!description) {
                 showCustomAlert("Пожалуйста, введите текст поста.");
                 return;
             }
 
             let photoUrl = null;
-            const file = document.getElementById('simple-post-photo-input').files[0];
             if (file) {
                 const filePath = `${telegramUser.id}/posts/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
@@ -2470,6 +2536,7 @@
         window.cancelDetailReply = cancelDetailReply;
         window.hideQrModal = hideQrModal;
         window.shareContent = shareContent;
+        window.hidePhotoSourceModal = hidePhotoSourceModal; // Добавляем в window для кнопки "Отмена"
         
         // Запускаем приложение после загрузки API Яндекс Карт
         document.addEventListener('DOMContentLoaded', () => ymaps.ready(runApp));
