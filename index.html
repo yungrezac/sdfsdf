@@ -1480,6 +1480,9 @@
             });
         }
 
+        // =================================================================
+        // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ---
+        // =================================================================
         async function saveSpot() {
             const { location } = AppState.currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
@@ -1487,33 +1490,41 @@
             const file = AppState.currentEditContext.file;
 
             if (!name || !description) {
-                showCustomAlert("Название и описание обязательны."); return;
+                showCustomAlert("Название и описание обязательны.");
+                return;
             }
-            
+
             let photoUrl = null;
             if (file) {
                 const filePath = `${telegramUser.id}/spots/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                if (error) { console.error("Ошибка загрузки фото:", error); showCustomAlert("Ошибка загрузки фото."); return; }
+                if (error) {
+                    console.error("Ошибка загрузки фото:", error);
+                    showCustomAlert("Ошибка загрузки фото.");
+                    return;
+                }
                 const { data: urlData } = supabase.storage.from('photo').getPublicUrl(data.path);
                 photoUrl = urlData.publicUrl;
             }
-            
-            const { error } = await supabase.rpc('create_spot', {
-                user_id_in: telegramUser.id,
-                name_in: name,
-                description_in: description,
-                photo_url_in: photoUrl,
-                location_wkt_in: location
+
+            // Использование прямого insert вместо RPC
+            const { error } = await supabase.from('spots').insert({
+                user_id: telegramUser.id,
+                name: name,
+                description: description,
+                photo_url: photoUrl,
+                location: location // PostGIS примет WKT-строку
             });
 
             if (error) {
-                console.error("Ошибка сохранения спота:", error); showCustomAlert("Не удалось сохранить спот.");
+                console.error("Ошибка сохранения спота:", error);
+                showCustomAlert("Не удалось сохранить спот.");
             } else {
                 showCustomAlert("Спот успешно создан!");
                 hideCreationModal();
                 loadInitialMapData(); // Обновляем данные на карте
-                if(AppState.currentFeedTab === 'spots') renderFeedSpots(); // Обновляем ленту
+                renderMyProfileContent(); // Обновляем контент в профиле
+                if (AppState.currentFeedTab === 'spots') renderFeedSpots(); // Обновляем ленту
             }
         }
         
@@ -1587,27 +1598,36 @@
             });
         }
 
+        // =================================================================
+        // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ---
+        // =================================================================
         async function saveRoute() {
             const { path } = AppState.currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
             const description = document.getElementById('creation-modal-details').value.trim();
             
-            if (!name) { showCustomAlert("Название обязательно."); return; }
+            if (!name) {
+                showCustomAlert("Название обязательно.");
+                return;
+            }
 
-            const { error } = await supabase.rpc('create_route', {
-                user_id_in: telegramUser.id,
-                name_in: name,
-                description_in: description,
-                path_wkt_in: path
+            // Использование прямого insert вместо RPC
+            const { error } = await supabase.from('routes').insert({
+                user_id: telegramUser.id,
+                name: name,
+                description: description,
+                path: path // PostGIS примет WKT-строку
             });
 
             if (error) {
-                console.error("Ошибка сохранения маршрута:", error); showCustomAlert("Не удалось сохранить маршрут.");
+                console.error("Ошибка сохранения маршрута:", error);
+                showCustomAlert("Не удалось сохранить маршрут.");
             } else {
                 showCustomAlert("Маршрут сохранен!");
                 hideCreationModal();
-                loadInitialMapData(); // Обновляем данные
-                if(AppState.currentFeedTab === 'routes') renderFeedRoutes();
+                loadInitialMapData(); // Обновляем данные на карте
+                renderMyProfileContent(); // Обновляем контент в профиле
+                if (AppState.currentFeedTab === 'routes') renderFeedRoutes(); // Обновляем ленту
             }
         }
         
@@ -2708,7 +2728,10 @@
         function hideParticipantsModal() {
             participantsModal.classList.remove('visible');
             document.body.classList.remove('modal-open');
-            tg.BackButton.hide();
+            // Do not hide back button if detail modal is underneath
+            if (!detailModal.classList.contains('visible')) {
+                tg.BackButton.hide();
+            }
         }
 
         // --- Таймер ---
