@@ -388,7 +388,7 @@
     </div>
 
     <!-- Нижний навбар -->
-    <nav id="bottom-navbar" class="hidden fixed bottom-0 left-0 right-0 backdrop-blur-md flex justify-around items-center z-20">
+    <nav id="bottom-navbar" class="hidden fixed bottom-0 left-0 right-0 backdrop-blur-md flex justify-evenly items-center z-20">
         <button class="nav-btn active flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('map-view')"><i class="fa-solid fa-map-location-dot h-7 w-7"></i><span>Карта</span></button>
         <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('feed-view')"><i class="fa-solid fa-newspaper h-7 w-7"></i><span>Лента</span></button>
         <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('top-view')"><i class="fa-solid fa-ranking-star h-7 w-7"></i><span>Топ</span></button>
@@ -640,7 +640,6 @@
             
             const isMapView = viewId === 'map-view';
             
-            // UPDATED: Управляем видимостью новой кнопки
             if (isMapView && lastKnownLocation) {
                 mapActionContainer.classList.remove('hidden');
             } else {
@@ -692,7 +691,6 @@
             updateMapActionButton();
         }
 
-        // NEW: Функция для обновления новой кнопки действия на карте
         function updateMapActionButton() {
             const icon = document.getElementById('map-action-icon');
             const text = document.getElementById('map-action-text');
@@ -735,7 +733,6 @@
             }
         }
         
-        // NEW: Обработчик для новой кнопки
         async function mapActionButtonHandler() {
             mapActionBtn.disabled = true; // Предотвращаем двойные нажатия
             try {
@@ -1144,6 +1141,7 @@
             try {
                 tg.ready();
                 tg.expand();
+                tg.enableClosingConfirmation(); // NEW: Защита от случайного закрытия
                 applyTheme(tg.themeParams);
                 setupStaticEventListeners();
 
@@ -1157,7 +1155,6 @@
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 
                 loaderText.textContent = 'Загрузка данных...';
-                // Инициализируем карту с координатами по умолчанию (например, Москва)
                 initMap({ latitude: 55.751244, longitude: 37.618423 });
                 
                 await upsertUserProfile();
@@ -1172,13 +1169,13 @@
 
                 listenToRealtimeChanges();
                 setupDynamicEventListeners();
-                handleStartParam(); // Обработка параметра start
+                initializeGeolocation(); // NEW: Улучшенная инициализация гео
+                handleStartParam();
 
                 initialLoader.classList.add('hidden');
                 appContainer.classList.remove('hidden');
                 bottomNavbar.classList.remove('hidden');
                 
-                // Загружаем последний использованный режим из облачного хранилища
                 tg.CloudStorage.getItem('currentMode', (error, value) => {
                     if (error) {
                         console.error("CloudStorage error:", error);
@@ -1198,7 +1195,6 @@
         function initMap(coords) {
             if (map) return;
             const latLng = [coords.latitude, coords.longitude];
-            // Устанавливаем более низкий зум по умолчанию
             map = L.map('map', { zoomControl: false, attributionControl: false }).setView(latLng, 5);
             
             L.tileLayer(MAP_TILE_URL, {
@@ -1245,42 +1241,82 @@
         }
         
         // --- Логика геолокации ---
+        // NEW: Улучшенная функция инициализации
+        async function initializeGeolocation() {
+            if (!navigator.geolocation) {
+                showCustomAlert("Геолокация не поддерживается вашим устройством.");
+                return;
+            }
+
+            try {
+                const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
+
+                if (permissionStatus.state === 'granted') {
+                    startGeoTracking();
+                } else if (permissionStatus.state === 'prompt') {
+                    requestGeoBtn.classList.remove('hidden');
+                } else if (permissionStatus.state === 'denied') {
+                    showCustomAlert("Доступ к геолокации заблокирован. Пожалуйста, разрешите его в настройках вашего устройства.");
+                    requestGeoBtn.classList.add('hidden');
+                }
+
+                permissionStatus.onchange = () => {
+                    if (permissionStatus.state === 'granted') {
+                        startGeoTracking();
+                    } else {
+                        lastKnownLocation = null;
+                        mapActionContainer.classList.add('hidden');
+                        modeSwitcher.classList.add('hidden');
+                        requestGeoBtn.classList.remove('hidden');
+                    }
+                };
+            } catch (e) {
+                console.warn("API разрешений не поддерживается, используем старый метод.", e);
+                requestGeoBtn.classList.remove('hidden');
+            }
+        }
+
         function handleGeoRequest() {
-            const geoBtn = document.getElementById('request-geo-btn');
             const geoLoader = document.getElementById('request-geo-loader');
             const geoText = document.getElementById('request-geo-text');
 
             geoText.textContent = 'Ждем ответа...';
             geoLoader.classList.remove('hidden');
-            geoBtn.disabled = true;
+            requestGeoBtn.disabled = true;
             
-            // Запрашиваем разрешение и первую геолокацию
-            navigator.geolocation.getCurrentPosition(
+            startGeoTracking();
+        }
+
+        function startGeoTracking() {
+             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     tg.HapticFeedback.notificationOccurred('success');
                     const latLng = [position.coords.latitude, position.coords.longitude];
+                    if (!lastKnownLocation) { // Центрируемся только при первом определении
+                        map.flyTo(latLng, 16);
+                    }
                     lastKnownLocation = latLng;
                     
-                    map.flyTo(latLng, 16);
                     updateCurrentUserMarker(latLng);
 
-                    geoBtn.classList.add('hidden');
+                    requestGeoBtn.classList.add('hidden');
                     recenterBtn.classList.remove('hidden');
                     modeSwitcher.classList.remove('hidden');
                     mapActionContainer.classList.remove('hidden');
                     
                     updateMapActionButton();
                     
-                    // Запускаем постоянное отслеживание
                     startWatchingLocation();
                 },
                 (error) => {
                     tg.HapticFeedback.notificationOccurred('error');
                     console.error("Geolocation error:", error);
                     showCustomAlert("Не удалось получить геолокацию. Проверьте разрешения в настройках вашего устройства.");
+                    const geoText = document.getElementById('request-geo-text');
+                    const geoLoader = document.getElementById('request-geo-loader');
                     geoText.textContent = 'Дать доступ к гео';
                     geoLoader.classList.add('hidden');
-                    geoBtn.disabled = false;
+                    requestGeoBtn.disabled = false;
                 },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
@@ -1613,7 +1649,6 @@
                 tg.showScanQrPopup({ text: 'Наведите на QR-код другого игрока' });
             });
 
-            // UPDATED: Removed invite and donate listeners, kept share
             shareProfileBtn.addEventListener('click', () => {
                 shareContent('user', telegramUser.id, telegramUser.id);
             });
@@ -1640,6 +1675,11 @@
                     showPostComments(id);
                 }
             });
+
+            // NEW: Добавляем обработчики свайпов для модальных окон
+            makeModalSwipeable(creationModal, creationModal.querySelector('.bottom-sheet-content'), hideCreationModal);
+            makeModalSwipeable(detailModal, detailModal.querySelector('.bottom-sheet-content'), hideDetailModal);
+            makeModalSwipeable(commentsModal, commentsModal.querySelector('.bottom-sheet-content'), hideCommentsModal);
         }
         
         function showFallbackScreen(title, message, showRetryButton = false) {
@@ -2264,6 +2304,45 @@
             });
         }
 
+        // NEW: Функция для свайпа модальных окон
+        function makeModalSwipeable(modalElement, contentElement, closeCallback) {
+            let startY, startHeight, currentY;
+
+            const onTouchStart = (e) => {
+                startY = e.touches[0].clientY;
+                startHeight = contentElement.clientHeight;
+                contentElement.style.transition = 'none';
+            };
+
+            const onTouchMove = (e) => {
+                currentY = e.touches[0].clientY;
+                let deltaY = currentY - startY;
+                if (deltaY > 0) { // Только свайп вниз
+                    contentElement.style.transform = `translateY(${deltaY}px)`;
+                }
+            };
+
+            const onTouchEnd = (e) => {
+                let deltaY = currentY - startY;
+                contentElement.style.transition = 'transform 0.3s ease-in-out';
+                // Если свайпнули больше чем на 30% высоты окна, закрываем
+                if (deltaY > startHeight * 0.3) {
+                    closeCallback();
+                } else {
+                    // Возвращаем на место
+                    contentElement.style.transform = 'translateY(0)';
+                }
+            };
+            
+            // Используем grabber как основную точку для свайпа
+            const grabber = contentElement.querySelector('.grabber');
+            if(grabber) {
+                grabber.addEventListener('touchstart', onTouchStart, { passive: true });
+                grabber.addEventListener('touchmove', onTouchMove, { passive: true });
+                grabber.addEventListener('touchend', onTouchEnd, { passive: true });
+            }
+        }
+
 
         // --- ПРИВЯЗКА ГЛОБАЛЬНЫХ ФУНКЦИЙ И ЗАПУСК ---
         window.showView = showView;
@@ -2291,4 +2370,4 @@
     </script>
 
 </body>
-</ht
+</html>
