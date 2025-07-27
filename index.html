@@ -1139,9 +1139,9 @@
 
         function generateMiniSpotHTML(spot, isFeed = false) {
              const buttonHTML = isFeed 
-                ? `<button onclick="event.stopPropagation(); navigateToMapObject('spot', ${spot.id})" class="mt-2 w-full text-sm text-center font-semibold p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);">Показать на карте</button>` 
+                ? `<button onclick="event.stopPropagation(); navigateToMapObject('spot', '${spot.id}')" class="mt-2 w-full text-sm text-center font-semibold p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);">Показать на карте</button>` 
                 : '';
-             return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('spot', ${spot.id})">
+             return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('spot', '${spot.id}')">
                          ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Фото спота">` : ''}
                          <p class="font-bold">${escapeHTML(spot.name)}</p>
                          <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(spot.description)}</p>
@@ -1150,7 +1150,7 @@
                        </div>`;
         }
         function generateMiniRouteHTML(route) {
-             return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('route', ${route.id})">
+             return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('route', '${route.id}')">
                            <p class="font-bold flex items-center gap-2"><i class="fa-solid fa-route" style="color: var(--hint-color);"></i> ${escapeHTML(route.name)}</p>
                            <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(route.description)}</p>
                            <p class="text-xs text-gray-400 mt-2">${new Date(route.created_at).toLocaleDateString()}</p>
@@ -2536,7 +2536,7 @@
                                 <img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar">
                                 <div><p class="font-bold">${escapeHTML(author.name)}</p><p class="text-xs" style="color: var(--hint-color);">Организатор</p></div>
                             </div>
-                            <h3 class="text-xl font-bold cursor-pointer hover:text-blue-600" onclick="showDetailModal('event', ${event.id})">${escapeHTML(event.title)}</h3>
+                            <h3 class="text-xl font-bold cursor-pointer hover:text-blue-600" onclick="showDetailModal('event', '${event.id}')">${escapeHTML(event.title)}</h3>
                             <p class="mt-2 text-sm text-gray-600">${escapeHTML(event.description)}</p>
                             <div class="mt-4 p-3 rounded-lg" style="background-color: var(--bg-color);">
                                 <div class="flex items-center space-x-3">
@@ -2557,7 +2557,7 @@
                                         <span data-participants-count>${participants.length}</span>
                                     </button>
                                 </div>
-                                <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="shareContent('event', ${event.id}, ${author.id})" style="color: var(--hint-color);">
+                                <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="shareContent('event', '${event.id}', ${author.id})" style="color: var(--hint-color);">
                                     <i class="fa-solid fa-arrow-up-from-bracket h-5 w-5"></i>
                                 </button>
                             </div>
