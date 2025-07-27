@@ -8,15 +8,11 @@
     <!-- Подключение Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Подключение Leaflet JS и CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- ПОДКЛЮЧЕНИЕ YANDEX MAPS API -->
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=6559b722-5ab3-4376-b85c-ce2c99df7d46&lang=ru_RU" type="text/javascript"></script>
 
     <!-- Подключение Turf.js для гео-анализа -->
     <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></script>
-    
-    <!-- Подключение плагина Leaflet.TextPath для текста вдоль линии -->
-    <script src="https://unpkg.com/leaflet-textpath/leaflet.textpath.js"></script>
     
     <!-- Подключение Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -518,8 +514,6 @@
         // --- КОНФИГУРАЦИЯ И КОНСТАНТЫ ---
         const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
-        const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q';
-        const MAP_TILE_URL = 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token={accessToken}';
         const BOT_USERNAME = 'TerraRunBot'; // Имя вашего бота
 
         // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И СОСТОЯНИЕ ---
@@ -555,10 +549,8 @@
             currentReplyTarget: { type: null, id: null, parentCommentId: null },
         };
         
-        // Слои карты
-        const territoriesLayerGroup = L.layerGroup();
-        const spotMarkersLayer = L.layerGroup();
-        const routePolylinesLayer = L.layerGroup();
+        // Коллекции геообъектов Yandex Maps
+        let territoriesCollection, spotCollection, routeCollection;
         
         // --- ЭЛЕМЕНТЫ DOM ---
         const initialLoader = document.getElementById('initial-loader');
@@ -592,6 +584,39 @@
         const mapActionBtn = document.getElementById('map-action-btn');
 
         // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
+        
+        /**
+         * Осветляет или затемняет цвет в формате hex.
+         * @param {string} color - Строка цвета в формате hex (например, "#RRGGBB").
+         * @param {number} percent - Процент для осветления (положительный) или затемнения (отрицательный).
+         * @returns {string} Новая строка цвета в формате hex.
+         */
+        function shadeColor(color, percent) {
+            if (!color || !color.startsWith('#')) {
+                return '#e5e7eb'; 
+            }
+            let R = parseInt(color.substring(1, 3), 16);
+            let G = parseInt(color.substring(3, 5), 16);
+            let B = parseInt(color.substring(5, 7), 16);
+
+            R = parseInt(R * (100 + percent) / 100);
+            G = parseInt(G * (100 + percent) / 100);
+            B = parseInt(B * (100 + percent) / 100);
+
+            R = (R < 255) ? R : 255;
+            G = (G < 255) ? G : 255;
+            B = (B < 255) ? B : 255;
+            
+            R = (R > 0) ? R : 0;
+            G = (G > 0) ? G : 0;
+            B = (B > 0) ? B : 0;
+
+            const RR = ((R.toString(16).length === 1) ? "0" + R.toString(16) : R.toString(16));
+            const GG = ((G.toString(16).length === 1) ? "0" + G.toString(16) : G.toString(16));
+            const BB = ((B.toString(16).length === 1) ? "0" + B.toString(16) : B.toString(16));
+
+            return "#" + RR + GG + BB;
+        }
 
         /**
          * Преобразует цвет HEX в массив RGB.
@@ -626,7 +651,7 @@
                     text = isOwner ? 'Зацени мой маршрут в TerraRun!' : 'Смотри какой интересный маршрут в TerraRun!';
                     break;
                 case 'spot':
-                    text = isOwner ? 'Смотри какой спот я отметил в TerraRun!' : 'Смотри какой интересный спот в TerraRun!';
+                    text = isOwner ? 'Смотри какой интересный спот в TerraRun!' : 'Смотри какой интересный спот в TerraRun!';
                     break;
                 case 'user':
                     text = isOwner ? 'Это мой профиль в TerraRun, присоединяйся!' : 'Смотри профиль этого бегуна в TerraRun!';
@@ -667,12 +692,12 @@
             modeSwitcher.classList.toggle('hidden', !isMapView || !AppState.lastKnownLocation);
             
             if (isMapView) {
-                setTimeout(() => map?.invalidateSize(), 100);
+                setTimeout(() => map?.container.fitToViewport(), 100);
             }
         }
 
         async function setMode(newMode) {
-            if (AppState.currentMode === newMode) return;
+            if (AppState.currentMode === newMode || !map) return;
             
             if (AppState.isRunning) {
                 showCustomAlert("Сначала завершите текущую активность (захват или запись маршрута).");
@@ -688,24 +713,18 @@
                 btn.classList.toggle('active', btn.id === `mode-${newMode}`);
             });
 
-            map.off('click');
-            
-            if (map.hasLayer(territoriesLayerGroup)) map.removeLayer(territoriesLayerGroup);
-            if (map.hasLayer(spotMarkersLayer)) map.removeLayer(spotMarkersLayer);
-            if (map.hasLayer(routePolylinesLayer)) map.removeLayer(routePolylinesLayer);
+            // Удаляем старый обработчик клика
+            map.events.remove('click', handleMapClickForSpot);
 
-            switch (newMode) {
-                case 'capture':
-                    map.addLayer(territoriesLayerGroup);
-                    break;
-                case 'spots':
-                    map.addLayer(spotMarkersLayer);
-                    map.on('click', handleMapClickForSpot);
-                    break;
-                case 'routes':
-                    map.addLayer(routePolylinesLayer);
-                    break;
+            // Управляем видимостью коллекций
+            territoriesCollection.options.set('visible', newMode === 'capture');
+            spotCollection.options.set('visible', newMode === 'spots');
+            routeCollection.options.set('visible', newMode === 'routes');
+            
+            if (newMode === 'spots') {
+                map.events.add('click', handleMapClickForSpot);
             }
+
             updateMapActionButton();
         }
 
@@ -760,7 +779,7 @@
                         break;
                     case 'spots':
                         if(AppState.lastKnownLocation) {
-                            handleMapClickForSpot({latlng: L.latLng(AppState.lastKnownLocation)});
+                            handleMapClickForSpot({ get: (key) => key === 'coords' ? AppState.lastKnownLocation : null });
                         } else {
                             showCustomAlert("Определяем ваше местоположение...");
                         }
@@ -851,7 +870,7 @@
         }
         
         function showDetailModal(type, id) {
-             AppState.currentDetailContext = { type, id };
+             AppState.currentDetailContext = { type, id, mapInstances: [] };
              tg.HapticFeedback.impactOccurred('medium');
              tg.BackButton.show();
              
@@ -860,6 +879,10 @@
         }
         
         function hideDetailModal() {
+            // Уничтожаем все инстансы карт в модалке
+            if (AppState.currentDetailContext.mapInstances) {
+                AppState.currentDetailContext.mapInstances.forEach(mapInstance => mapInstance.destroy());
+            }
             tg.BackButton.hide();
             detailModal.classList.remove('visible');
             AppState.currentDetailContext = {};
@@ -950,11 +973,13 @@
                 setTimeout(() => {
                     const mapContainer = document.getElementById('detail-mini-map');
                     const routeGeoJson = parseWKT(route.path_wkt);
-                    if (mapContainer && !mapContainer._leaflet_id && routeGeoJson) {
-                        const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
-                        L.tileLayer(MAP_TILE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
-                        const routeLayer = L.geoJSON(routeGeoJson, { style: { color: '#ff7800', weight: 3 } }).addTo(miniMap);
-                        miniMap.fitBounds(routeLayer.getBounds(), { padding: [10, 10] });
+                    if (mapContainer && routeGeoJson) {
+                        const miniMap = new ymaps.Map(mapContainer, { center: [55.75, 37.62], zoom: 9, controls: [] });
+                        AppState.currentDetailContext.mapInstances.push(miniMap);
+                        
+                        const routeObject = new ymaps.Polyline(routeGeoJson.coordinates.map(c => [c[1], c[0]]), {}, { strokeColor: '#ff7800', strokeWidth: 3 });
+                        miniMap.geoObjects.add(routeObject);
+                        miniMap.setBounds(routeObject.geometry.getBounds(), { checkZoomRange: true, zoomMargin: 10 });
                     }
                 }, 100);
                  loadAndRenderComments(type, id, 'detail-comments-list');
@@ -1025,11 +1050,19 @@
                     posts.forEach(post => {
                         if (post.territory_captured) {
                             const mapContainer = body.querySelector(`#mini-map-${post.id}`);
-                            if (mapContainer && !mapContainer._leaflet_id) {
-                                const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
-                                L.tileLayer(MAP_TILE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
-                                const territoryLayer = L.geoJSON(post.territory_captured, { style: { color: post.user_color, weight: 2, opacity: 0.8, fillColor: post.user_color, fillOpacity: 0.5 } }).addTo(miniMap);
-                                miniMap.fitBounds(territoryLayer.getBounds(), { padding: [10, 10] });
+                            if (mapContainer) {
+                                const miniMap = new ymaps.Map(mapContainer, { center: [55.75, 37.62], zoom: 9, controls: [] });
+                                AppState.currentDetailContext.mapInstances.push(miniMap);
+
+                                const territoryObject = ymaps.geoQuery(post.territory_captured).addToMap(miniMap);
+                                territoryObject.setOptions({
+                                    fillColor: post.user_color,
+                                    fillOpacity: 0.5,
+                                    strokeColor: post.user_color,
+                                    strokeWidth: 2,
+                                    strokeOpacity: 0.8
+                                });
+                                miniMap.setBounds(territoryObject.getBounds(), { checkZoomRange: true, zoomMargin: 10 });
                             }
                         }
                     });
@@ -1061,25 +1094,24 @@
         function navigateToMapObject(type, id) {
             hideDetailModal(); 
             showView('map-view');
-            setMode(type === 'spot' ? 'spots' : 'routes'); 
-
-            let target;
+            
+            let targetObject;
             if (type === 'spot') {
-                target = AppState.allSpots.find(s => s.id === id);
-                const geoJson = parseWKT(target?.location_wkt);
+                setMode('spots');
+                targetObject = AppState.allSpots.find(s => s.id === id);
+                const geoJson = parseWKT(targetObject?.location_wkt);
                 if (geoJson) {
-                    const coords = geoJson.coordinates;
-                    map.flyTo([coords[1], coords[0]], 17);
+                    const coords = [geoJson.coordinates[1], geoJson.coordinates[0]]; // lat, long
+                    map.panTo(coords, { flying: true, duration: 1500 }).then(() => map.setZoom(17));
                 }
             } else if (type === 'route') {
-                target = AppState.allRoutes.find(r => r.id === id);
-                const geoJson = parseWKT(target?.path_wkt);
-                if (geoJson) {
-                    const coords = geoJson.coordinates.map(p => [p[1], p[0]]);
-                    if (coords.length >= 2) {
-                        const polyline = L.polyline(coords);
-                        map.flyToBounds(polyline.getBounds(), { padding: [50, 50] });
-                    }
+                setMode('routes');
+                targetObject = AppState.allRoutes.find(r => r.id === id);
+                const geoJson = parseWKT(targetObject?.path_wkt);
+                 if (geoJson && geoJson.coordinates.length > 0) {
+                    const yandexCoords = geoJson.coordinates.map(p => [p[1], p[0]]);
+                    const polyline = new ymaps.Polyline(yandexCoords);
+                    map.setBounds(polyline.geometry.getBounds(), { checkZoomRange: true, duration: 1000 });
                 }
             }
         }
@@ -1091,14 +1123,12 @@
          */
         function parseWKT(wkt) {
             if (!wkt) return null;
-            // Если это уже объект GeoJSON, возвращаем его
             if (typeof wkt === 'object' && wkt.type && wkt.coordinates) {
                 return wkt;
             }
             if (typeof wkt !== 'string') return null;
             
             try {
-                // Пытаемся распарсить как JSON (если это строка GeoJSON)
                 if (wkt.trim().startsWith('{')) {
                     const parsed = JSON.parse(wkt);
                     if (parsed.type && parsed.coordinates) {
@@ -1106,7 +1136,6 @@
                     }
                 }
 
-                // Парсинг WKT
                 const match = wkt.match(/(POINT|LINESTRING|POLYGON|MULTIPOLYGON)\s*\((.+)\)/i);
                 if (!match) return null;
 
@@ -1128,7 +1157,6 @@
                 }
                 
                 if (type === 'POLYGON' || type === 'MULTIPOLYGON') {
-                    // Этот парсер упрощен и может не обрабатывать полигоны с дырами.
                     const rings = content.match(/\(([^()]+)\)/g);
                     if (!rings) return null;
                     
@@ -1155,7 +1183,7 @@
         }
 
         // --- ОСНОВНАЯ ЛОГИКА И ИНИЦИАЛИЗАЦИЯ ---
-        async function main() {
+        async function runApp() {
             try {
                 tg.ready();
                 tg.expand();
@@ -1213,16 +1241,22 @@
         function initMap(coords) {
             if (map) return;
             const latLng = [coords.latitude, coords.longitude];
-            map = L.map('map', { zoomControl: false, attributionControl: false }).setView(latLng, 5);
+            map = new ymaps.Map('map', { 
+                center: latLng, 
+                zoom: 5,
+                controls: [] // Отключаем стандартные элементы управления
+            });
             
-            L.tileLayer(MAP_TILE_URL, {
-                maxZoom: 19,
-                tileSize: 512,
-                zoomOffset: -1,
-                accessToken: MAPBOX_ACCESS_TOKEN
-            }).addTo(map);
+            // Создаем коллекции для разных типов объектов
+            territoriesCollection = new ymaps.GeoObjectCollection();
+            spotCollection = new ymaps.GeoObjectCollection();
+            routeCollection = new ymaps.GeoObjectCollection();
+
+            map.geoObjects.add(territoriesCollection);
+            map.geoObjects.add(spotCollection);
+            map.geoObjects.add(routeCollection);
             
-            setTimeout(() => map?.invalidateSize(), 100);
+            setTimeout(() => map?.container.fitToViewport(), 100);
         }
 
         function updateUI() {
@@ -1244,17 +1278,22 @@
         function updateCurrentUserMarker(latLng) {
             if (!map) return;
             const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${telegramUser.first_name.charAt(0)}`;
-            const icon = L.divIcon({
-                html: `<div class="avatar-marker current-user-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${AppState.userProfile.color};"></div>`,
-                className: '',
-                iconSize: [40, 40],
-                iconAnchor: [20, 20]
-            });
+            
+            const iconLayout = ymaps.templateLayoutFactory.createClass(
+                `<div class="avatar-marker current-user-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${AppState.userProfile.color};"></div>`
+            );
             
             if (AppState.currentUserMarker) {
-                AppState.currentUserMarker.setLatLng(latLng);
+                AppState.currentUserMarker.geometry.setCoordinates(latLng);
             } else {
-                AppState.currentUserMarker = L.marker(latLng, { icon: icon, zIndexOffset: 1000 }).addTo(map);
+                AppState.currentUserMarker = new ymaps.Placemark(latLng, {}, {
+                    iconLayout: iconLayout,
+                    iconShape: {
+                        type: 'Rectangle',
+                        coordinates: [[-20, -20], [20, 20]]
+                    }
+                });
+                map.geoObjects.add(AppState.currentUserMarker);
             }
         }
         
@@ -1304,8 +1343,8 @@
                  (position) => {
                      tg.HapticFeedback.notificationOccurred('success');
                      const latLng = [position.coords.latitude, position.coords.longitude];
-                     if (!AppState.lastKnownLocation) { // Центрируемся только при первом определении
-                         map.flyTo(latLng, 16);
+                     if (!AppState.lastKnownLocation) {
+                         map.panTo(latLng, {flying: true, duration: 1500}).then(() => map.setZoom(16));
                      }
                      AppState.lastKnownLocation = latLng;
                      
@@ -1345,9 +1384,9 @@
                     updateCurrentUserMarker(latLng);
 
                     if (AppState.isRunning && AppState.currentPathPolyline) {
-                        const newPoint = [latLng[1], latLng[0]]; // lng, lat
+                        const newPoint = [latLng[1], latLng[0]]; // lng, lat для Turf.js
                         AppState.currentRunPath.push(newPoint);
-                        AppState.currentPathPolyline.addLatLng(latLng);
+                        AppState.currentPathPolyline.geometry.append(latLng);
                     }
                 },
                 (error) => {
@@ -1370,9 +1409,13 @@
             updateMapActionButton();
             
             AppState.currentRunPath = [ [AppState.lastKnownLocation[1], AppState.lastKnownLocation[0]] ];
-            if (AppState.currentPathPolyline) map.removeLayer(AppState.currentPathPolyline);
-            AppState.currentPathPolyline = L.polyline([], { color: 'var(--destructive-color)', weight: 5, opacity: 0.9 }).addTo(map);
-            AppState.currentPathPolyline.addLatLng(AppState.lastKnownLocation);
+            if (AppState.currentPathPolyline) map.geoObjects.remove(AppState.currentPathPolyline);
+            AppState.currentPathPolyline = new ymaps.Polyline([AppState.lastKnownLocation], {}, { 
+                strokeColor: 'var(--destructive-color)', 
+                strokeWidth: 5, 
+                strokeOpacity: 0.9 
+            });
+            map.geoObjects.add(AppState.currentPathPolyline);
         }
         async function stopRun() {
             return new Promise(resolve => {
@@ -1387,7 +1430,7 @@
                         showCustomAlert('Слишком короткий маршрут для захвата.');
                     }
                     if (AppState.currentPathPolyline) {
-                        map.removeLayer(AppState.currentPathPolyline);
+                        map.geoObjects.remove(AppState.currentPathPolyline);
                         AppState.currentPathPolyline = null;
                     }
                     resolve();
@@ -1396,8 +1439,8 @@
         }
         
         function handleMapClickForSpot(e) {
-            const { lat, lng } = e.latlng;
-            const locationWKT = `POINT(${lng} ${lat})`;
+            const coords = e.get('coords');
+            const locationWKT = `POINT(${coords[1]} ${coords[0]})`;
             showCustomConfirm("Создать новый спот в этом месте?", () => {
                 showCreationModal('spot', { location: locationWKT });
             });
@@ -1447,12 +1490,12 @@
                     console.warn(`Не удалось обработать геолокацию спота ${spot.id}:`, wkt);
                     return;
                 }
-
-                const spotLayer = L.geoJSON(geoJsonPoint, {
-                    pointToLayer: (feature, latlng) => L.marker(latlng)
-                }).on('click', () => showDetailModal('spot', spot.id));
                 
-                spotMarkersLayer.addLayer(spotLayer);
+                const coords = [geoJsonPoint.coordinates[1], geoJsonPoint.coordinates[0]]; // lat, long
+                const spotPlacemark = new ymaps.Placemark(coords);
+                spotPlacemark.events.add('click', () => showDetailModal('spot', spot.id));
+                
+                spotCollection.add(spotPlacemark);
             } catch (e) {
                 console.error(`Ошибка при добавлении спота ${spot.id} на карту.`, e, spot);
             }
@@ -1468,9 +1511,13 @@
             updateMapActionButton();
             
             AppState.currentRunPath = [ [AppState.lastKnownLocation[1], AppState.lastKnownLocation[0]] ];
-            if (AppState.currentPathPolyline) map.removeLayer(AppState.currentPathPolyline);
-            AppState.currentPathPolyline = L.polyline([], { color: 'var(--button-color)', weight: 5, opacity: 0.9 }).addTo(map);
-            AppState.currentPathPolyline.addLatLng(AppState.lastKnownLocation);
+            if (AppState.currentPathPolyline) map.geoObjects.remove(AppState.currentPathPolyline);
+            AppState.currentPathPolyline = new ymaps.Polyline([AppState.lastKnownLocation], {}, { 
+                strokeColor: 'var(--button-color)', 
+                strokeWidth: 5, 
+                strokeOpacity: 0.9 
+            });
+            map.geoObjects.add(AppState.currentPathPolyline);
         }
 
         async function stopRouteRecording() {
@@ -1482,7 +1529,7 @@
                 
                 if (AppState.currentRunPath.length < 2) {
                     showCustomAlert("Слишком короткий маршрут.");
-                    if (AppState.currentPathPolyline) map.removeLayer(AppState.currentPathPolyline);
+                    if (AppState.currentPathPolyline) map.geoObjects.remove(AppState.currentPathPolyline);
                     AppState.currentPathPolyline = null;
                     resolve();
                     return;
@@ -1493,7 +1540,7 @@
                 showCreationModal('route', { path: pathWKT });
 
                 if (AppState.currentPathPolyline) {
-                    map.removeLayer(AppState.currentPathPolyline);
+                    map.geoObjects.remove(AppState.currentPathPolyline);
                     AppState.currentPathPolyline = null;
                 }
                 resolve();
@@ -1532,10 +1579,13 @@
                     return;
                 }
 
-                const routeLayer = L.geoJSON(geoJsonLine, {
-                    style: { color: '#ff7800', weight: 3 }
-                }).on('click', () => showDetailModal('route', route.id));
-                routePolylinesLayer.addLayer(routeLayer);
+                const yandexCoords = geoJsonLine.coordinates.map(c => [c[1], c[0]]); // lat, long
+                const routePolyline = new ymaps.Polyline(yandexCoords, {}, {
+                    strokeColor: '#ff7800', 
+                    strokeWidth: 3
+                });
+                routePolyline.events.add('click', () => showDetailModal('route', route.id));
+                routeCollection.add(routePolyline);
             } catch (e) {
                 console.error(`Ошибка при добавлении маршрута ${route.id} на карту.`, e, route);
             }
@@ -1548,7 +1598,7 @@
                 console.error("Ошибка загрузки спотов:", spotsError);
             } else {
                 AppState.allSpots = spots;
-                spotMarkersLayer.clearLayers();
+                spotCollection.removeAll();
                 AppState.allSpots.forEach(addSpotToMap);
             }
 
@@ -1557,7 +1607,7 @@
                 console.error("Ошибка загрузки маршрутов:", routesError);
             } else {
                 AppState.allRoutes = routes;
-                routePolylinesLayer.clearLayers();
+                routeCollection.removeAll();
                 AppState.allRoutes.forEach(addRouteToMap);
             }
         }
@@ -1651,7 +1701,7 @@
 
             recenterBtn.addEventListener('click', () => {
                 tg.HapticFeedback.impactOccurred('medium');
-                if (AppState.lastKnownLocation) map.flyTo(AppState.lastKnownLocation, 16);
+                if (AppState.lastKnownLocation) map.panTo(AppState.lastKnownLocation, {flying: true});
             });
             
             scanQrBtn.addEventListener('click', () => {
@@ -1888,7 +1938,7 @@
             if (error) { console.error("Error fetching profiles:", error); return; }
             AppState.allProfilesData = profiles;
             
-            territoriesLayerGroup.clearLayers();
+            territoriesCollection.removeAll();
             AppState.allUserLayers = {};
 
             profiles.forEach(profile => {
@@ -1897,13 +1947,17 @@
                     AppState.userProfile.color = profile.color;
                     refreshAllStats();
                 }
-                const userLayerGroup = L.layerGroup();
                 const territoryGeoJson = parseWKT(profile.territory_wkt || profile.territory);
                 if (territoryGeoJson) {
-                    L.geoJSON(territoryGeoJson, { style: { color: profile.color, weight: 2, opacity: 0.8, fillColor: profile.color, fillOpacity: 0.4 } }).addTo(userLayerGroup);
+                    const territoryObject = ymaps.geoQuery(territoryGeoJson).addTo(territoriesCollection);
+                    territoryObject.setOptions({
+                        fillColor: profile.color,
+                        fillOpacity: 0.4,
+                        strokeColor: profile.color,
+                        strokeWidth: 2,
+                        strokeOpacity: 0.8
+                    });
                 }
-                userLayerGroup.addTo(territoriesLayerGroup);
-                AppState.allUserLayers[profile.id] = userLayerGroup;
             });
             updateLeaderboard(profiles);
         }
@@ -1963,11 +2017,17 @@
             posts.forEach(post => {
                 if (post.territory_captured) {
                     const mapContainer = document.getElementById(`mini-map-${post.id}`);
-                    if (mapContainer && !mapContainer._leaflet_id) {
-                        const miniMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
-                        L.tileLayer(MAP_TILE_URL, { maxZoom: 19, accessToken: MAPBOX_ACCESS_TOKEN, tileSize: 512, zoomOffset: -1 }).addTo(miniMap);
-                        const territoryLayer = L.geoJSON(post.territory_captured, { style: { color: post.user_color, weight: 2, opacity: 0.8, fillColor: post.user_color, fillOpacity: 0.5 } }).addTo(miniMap);
-                        miniMap.fitBounds(territoryLayer.getBounds(), { padding: [10, 10] });
+                    if (mapContainer) {
+                         const miniMap = new ymaps.Map(mapContainer, { center: [55.75, 37.62], zoom: 9, controls: [] });
+                         const territoryObject = ymaps.geoQuery(post.territory_captured).addTo(miniMap);
+                         territoryObject.setOptions({
+                             fillColor: post.user_color,
+                             fillOpacity: 0.5,
+                             strokeColor: post.user_color,
+                             strokeWidth: 2,
+                             strokeOpacity: 0.8
+                         });
+                         miniMap.setBounds(territoryObject.getBounds(), { checkZoomRange: true, zoomMargin: 10 });
                     }
                 }
             });
@@ -2323,7 +2383,6 @@
             let startY, currentY, isDragging = false;
 
             const onTouchStart = (e) => {
-                // Разрешаем свайп только если тач начался на grabber или в верхней части контента
                 if (e.target.classList.contains('grabber') || e.touches[0].clientY < contentElement.offsetTop + 40) {
                     isDragging = true;
                     startY = e.touches[0].clientY;
@@ -2345,11 +2404,9 @@
                 isDragging = false;
                 let deltaY = currentY - startY;
                 contentElement.style.transition = 'transform 0.3s ease-in-out';
-                // Если свайпнули больше чем на 30% высоты окна, закрываем
                 if (deltaY > contentElement.clientHeight * 0.3) {
                     closeCallback();
                 } else {
-                    // Возвращаем на место
                     contentElement.style.transform = 'translateY(0)';
                 }
             };
@@ -2382,7 +2439,8 @@
         window.hideQrModal = hideQrModal;
         window.shareContent = shareContent;
         
-        document.addEventListener('DOMContentLoaded', main);
+        // Запускаем приложение после загрузки API Яндекс Карт
+        document.addEventListener('DOMContentLoaded', () => ymaps.ready(runApp));
     </script>
 
 </body>
