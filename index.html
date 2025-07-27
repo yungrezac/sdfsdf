@@ -453,10 +453,15 @@
             <textarea id="simple-post-details" class="form-textarea mt-1 block w-full h-1/3" placeholder="Что у вас нового?"></textarea>
             <div id="simple-post-filename" class="text-sm text-gray-500 truncate"></div>
             <div class="flex justify-between items-center pt-4">
-                 <!-- --- ИЗМЕНЕНО --- Label заменен на button -->
-                 <button id="simple-post-attach-btn" class="cursor-pointer p-2 rounded-full hover:bg-gray-200">
-                     <i class="fa-solid fa-paperclip h-7 w-7" style="color: var(--hint-color);"></i>
-                 </button>
+                 <!-- --- ИЗМЕНЕНО --- Добавлены отдельные кнопки для галереи и камеры -->
+                 <div class="flex items-center gap-2">
+                    <button id="simple-post-gallery-btn" class="cursor-pointer p-2 rounded-full hover:bg-gray-200">
+                        <i class="fa-solid fa-images h-7 w-7" style="color: var(--hint-color);"></i>
+                    </button>
+                    <button id="simple-post-camera-btn" class="cursor-pointer p-2 rounded-full hover:bg-gray-200">
+                        <i class="fa-solid fa-camera h-7 w-7" style="color: var(--hint-color);"></i>
+                    </button>
+                </div>
                 <button onclick="handleSimplePostSave()" class="text-white font-bold py-2 px-6 rounded-full transition-all" style="background-color: var(--button-color);">Опубликовать</button>
             </div>
         </div>
@@ -479,18 +484,18 @@
                 </div>
                 <div id="creation-modal-photo-section">
                     <label class="block text-sm font-medium mb-1">Фото</label>
-                    <!-- --- ИЗМЕНЕНО --- Label заменен на div-триггер -->
-                    <div id="creation-photo-trigger" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md cursor-pointer">
-                        <div class="space-y-1 text-center">
-                            <img id="creation-modal-photo-preview" src="" alt="Предпросмотр фото" class="hidden mx-auto h-24 w-auto mb-4 rounded">
-                            <i id="creation-modal-photo-icon" class="fa-solid fa-image mx-auto h-12 w-12 text-gray-400"></i>
-                            <div class="flex text-sm text-gray-600">
-                                <span class="relative rounded-md font-medium" style="color: var(--button-color);">
-                                    <span>Загрузите файл</span>
-                                </span>
-                                <p class="pl-1">или сделайте снимок</p>
-                            </div>
-                            <p class="text-xs text-gray-500">PNG, JPG до 10MB</p>
+                    <!-- --- ИЗМЕНЕНО --- Trigger заменен на кнопки -->
+                    <div class="mt-1">
+                        <img id="creation-modal-photo-preview" src="" alt="Предпросмотр фото" class="hidden w-full h-auto mb-4 rounded-lg object-cover max-h-48">
+                        <div class="flex gap-3">
+                            <button id="creation-gallery-btn" class="w-full flex items-center justify-center gap-2 p-3 rounded-xl" style="background-color: var(--bg-color); color: var(--text-color);">
+                                <i class="fa-solid fa-images"></i>
+                                <span>Из галереи</span>
+                            </button>
+                            <button id="creation-camera-btn" class="w-full flex items-center justify-center gap-2 p-3 rounded-xl text-white" style="background-color: var(--button-color);">
+                                <i class="fa-solid fa-camera"></i>
+                                <span>Сделать снимок</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -541,26 +546,7 @@
         </div>
     </div>
 
-    <!-- --- НОВОЕ --- Модальное окно выбора источника фото -->
-    <div id="photo-source-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hidePhotoSourceModal()">
-        <div class="bottom-sheet-content" style="max-height: 40%;">
-            <div class="grabber" onclick="hidePhotoSourceModal()"></div>
-            <div class="p-4">
-                <h2 class="text-xl font-bold text-center mb-4">Добавить фото</h2>
-                <div class="space-y-3">
-                    <button id="take-photo-btn" class="w-full text-lg font-semibold p-3 rounded-xl text-white" style="background-color: var(--button-color);">
-                        <i class="fa-solid fa-camera mr-2"></i>Сделать снимок
-                    </button>
-                    <button id="choose-from-gallery-btn" class="w-full text-lg font-semibold p-3 rounded-xl" style="background-color: var(--bg-color); color: var(--text-color);">
-                        <i class="fa-solid fa-images mr-2"></i>Выбрать из галереи
-                    </button>
-                    <button onclick="hidePhotoSourceModal()" class="w-full text-lg font-semibold p-3 mt-4">
-                        Отмена
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- --- УДАЛЕНО --- Модальное окно выбора источника фото -->
 
     <!-- --- НОВОЕ --- Скрытые инпуты для выбора файлов -->
     <input id="gallery-input" type="file" class="sr-only" accept="image/*">
@@ -888,8 +874,10 @@
             
             nameInput.value = '';
             detailsInput.value = '';
-            document.getElementById('creation-modal-photo-preview').classList.add('hidden');
-            document.getElementById('creation-modal-photo-icon').classList.remove('hidden');
+            const preview = document.getElementById('creation-modal-photo-preview');
+            preview.classList.add('hidden');
+            preview.src = '';
+
 
             // Скрываем все секции по умолчанию
             detailsSection.style.display = 'none';
@@ -947,20 +935,6 @@
         }
 
         // --- НОВЫЕ ФУНКЦИИ ДЛЯ ВЫБОРА ФОТО ---
-        function showPhotoSourceModal() {
-            document.getElementById('photo-source-modal').classList.add('visible');
-            tg.BackButton.show(); 
-        }
-
-        function hidePhotoSourceModal() {
-            document.getElementById('photo-source-modal').classList.remove('visible');
-            if (creationModal.classList.contains('visible') || simplePostModal.classList.contains('visible')) {
-                // Другое модальное окно было открыто, оставляем кнопку "назад"
-            } else {
-                tg.BackButton.hide();
-            }
-        }
-
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -969,14 +943,12 @@
                 const preview = document.getElementById('creation-modal-photo-preview');
                 preview.src = URL.createObjectURL(file);
                 preview.classList.remove('hidden');
-                document.getElementById('creation-modal-photo-icon').classList.add('hidden');
                 AppState.currentEditContext.file = file;
             } else if (AppState.photoContext === 'simple') {
                 document.getElementById('simple-post-filename').textContent = file.name;
                 AppState.simplePostContext = { file: file };
             }
 
-            hidePhotoSourceModal();
             event.target.value = ''; // Сбрасываем инпут, чтобы можно было выбрать тот же файл снова
         }
 
@@ -1734,9 +1706,7 @@
         function setupStaticEventListeners() {
             tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
             tg.onEvent('backButtonClicked', () => {
-                if (document.getElementById('photo-source-modal').classList.contains('visible')) {
-                    hidePhotoSourceModal();
-                } else if (commentsModal.classList.contains('visible')) {
+                if (commentsModal.classList.contains('visible')) {
                     hideCommentsModal();
                 } else if (detailModal.classList.contains('visible')) {
                     hideDetailModal();
@@ -1776,20 +1746,24 @@
             document.getElementById('save-creation-btn').addEventListener('click', handleSave);
             
             // --- НОВЫЕ ОБРАБОТЧИКИ ДЛЯ ВЫБОРА ФОТО ---
-            document.getElementById('creation-photo-trigger').addEventListener('click', () => {
-                AppState.photoContext = 'creation';
-                showPhotoSourceModal();
-            });
-            document.getElementById('simple-post-attach-btn').addEventListener('click', () => {
+            document.getElementById('simple-post-gallery-btn').addEventListener('click', () => {
                 AppState.photoContext = 'simple';
-                showPhotoSourceModal();
-            });
-            document.getElementById('take-photo-btn').addEventListener('click', () => {
-                document.getElementById('camera-input').click();
-            });
-            document.getElementById('choose-from-gallery-btn').addEventListener('click', () => {
                 document.getElementById('gallery-input').click();
             });
+            document.getElementById('simple-post-camera-btn').addEventListener('click', () => {
+                AppState.photoContext = 'simple';
+                document.getElementById('camera-input').click();
+            });
+
+            document.getElementById('creation-gallery-btn').addEventListener('click', () => {
+                AppState.photoContext = 'creation';
+                document.getElementById('gallery-input').click();
+            });
+            document.getElementById('creation-camera-btn').addEventListener('click', () => {
+                AppState.photoContext = 'creation';
+                document.getElementById('camera-input').click();
+            });
+
             document.getElementById('camera-input').addEventListener('change', handleFileSelect);
             document.getElementById('gallery-input').addEventListener('change', handleFileSelect);
 
@@ -2536,7 +2510,6 @@
         window.cancelDetailReply = cancelDetailReply;
         window.hideQrModal = hideQrModal;
         window.shareContent = shareContent;
-        window.hidePhotoSourceModal = hidePhotoSourceModal; // Добавляем в window для кнопки "Отмена"
         
         // Запускаем приложение после загрузки API Яндекс Карт
         document.addEventListener('DOMContentLoaded', () => ymaps.ready(runApp));
