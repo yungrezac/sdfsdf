@@ -82,14 +82,14 @@
         .view.active {
             display: block;
         }
-        .nav-btn.active svg, .nav-btn.active span {
+        .nav-btn.active i, .nav-btn.active span {
             color: var(--button-color);
         }
         .nav-btn span {
              color: var(--hint-color);
         }
-        .nav-btn.active span {
-            color: var(--button-color);
+        .nav-btn i {
+             color: var(--hint-color);
         }
         .card-bg {
             background-color: var(--secondary-bg-color);
@@ -113,7 +113,7 @@
             box-shadow: 0 2px 15px rgba(0,0,0,0.4);
             background-size: cover;
             background-position: center;
-            transition: transform 0.2s ease-in-out;
+            transition: transform 0.2s ease-in-out, left 0.5s linear, top 0.5s linear;
         }
         .avatar-marker:hover {
             transform: scale(1.1);
@@ -126,9 +126,9 @@
             70% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 15px color-mix(in srgb, var(--button-color) 0%, transparent); }
             100% { box-shadow: 0 2px 15px rgba(0,0,0,0.4), 0 0 0 0 color-mix(in srgb, var(--button-color) 0%, transparent); }
         }
-        .like-btn.liked svg {
-            fill: var(--destructive-color);
+        .like-btn.liked i {
             color: var(--destructive-color);
+            font-weight: 900; /* Solid heart */
         }
         #initial-loader {
             background-color: var(--bg-color);
@@ -502,6 +502,7 @@
         let map;
         let supabase;
         let telegramUser = null;
+        let locationWatchId = null;
         
         // Состояние режимов
         let currentMode = 'capture'; // 'capture', 'spots', 'routes'
@@ -658,21 +659,26 @@
             tg.MainButton.onClick(mainButtonHandler);
         }
         
-        function mainButtonHandler() {
-            switch (currentMode) {
-                case 'capture':
-                    isRunning ? stopRun() : startRun();
-                    break;
-                case 'spots':
-                    if(lastKnownLocation) {
-                        handleMapClickForSpot({latlng: L.latLng(lastKnownLocation)});
-                    } else {
-                        showCustomAlert("Определяем ваше местоположение...");
-                    }
-                    break;
-                case 'routes':
-                    isRunning ? stopRouteRecording() : startRouteRecording();
-                    break;
+        async function mainButtonHandler() {
+            tg.MainButton.showProgress();
+            try {
+                switch (currentMode) {
+                    case 'capture':
+                        isRunning ? await stopRun() : startRun();
+                        break;
+                    case 'spots':
+                        if(lastKnownLocation) {
+                            handleMapClickForSpot({latlng: L.latLng(lastKnownLocation)});
+                        } else {
+                            showCustomAlert("Определяем ваше местоположение...");
+                        }
+                        break;
+                    case 'routes':
+                        isRunning ? await stopRouteRecording() : startRouteRecording();
+                        break;
+                }
+            } finally {
+                tg.MainButton.hideProgress();
             }
         }
         
@@ -693,10 +699,12 @@
             document.getElementById('simple-post-photo-input').value = '';
             document.getElementById('simple-post-filename').textContent = '';
             simplePostModal.classList.add('visible');
+            tg.BackButton.show();
         }
 
         function hideSimplePostModal() {
             simplePostModal.classList.remove('visible');
+            tg.BackButton.hide();
         }
         
         function showCreationModal(type, context = {}) {
@@ -734,10 +742,12 @@
             }
             
             creationModal.classList.add('visible');
+            tg.BackButton.show();
         }
 
         function hideCreationModal() {
             creationModal.classList.remove('visible');
+            tg.BackButton.hide();
             currentEditContext = {};
         }
 
@@ -1154,35 +1164,58 @@
             geoLoader.classList.remove('hidden');
             geoBtn.disabled = true;
             
-            // Используем одноразовый запрос местоположения
-            tg.requestLocation(handleLocationReceived);
+            // Запрашиваем разрешение и первую геолокацию
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    tg.HapticFeedback.notificationOccurred('success');
+                    const latLng = [position.coords.latitude, position.coords.longitude];
+                    lastKnownLocation = latLng;
+                    
+                    map.flyTo(latLng, 16);
+                    updateCurrentUserMarker(latLng);
+
+                    geoBtn.classList.add('hidden');
+                    recenterBtn.classList.remove('hidden');
+                    modeSwitcher.classList.remove('hidden');
+                    
+                    updateMainButton(); // Активируем главную кнопку
+                    
+                    // Запускаем постоянное отслеживание
+                    startWatchingLocation();
+                },
+                (error) => {
+                    tg.HapticFeedback.notificationOccurred('error');
+                    console.error("Geolocation error:", error);
+                    showCustomAlert("Не удалось получить геолокацию. Проверьте разрешения в настройках вашего устройства.");
+                    geoText.textContent = 'Дать доступ к гео';
+                    geoLoader.classList.add('hidden');
+                    geoBtn.disabled = false;
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
         }
-
-        function handleLocationReceived(location) {
-            const geoBtn = document.getElementById('request-geo-btn');
-            const geoLoader = document.getElementById('request-geo-loader');
-            const geoText = document.getElementById('request-geo-text');
-
-            if (location) {
-                tg.HapticFeedback.notificationOccurred('success');
-                const latLng = [location.latitude, location.longitude];
-                lastKnownLocation = latLng;
-                
-                map.flyTo(latLng, 16);
-                updateCurrentUserMarker(latLng);
-
-                geoBtn.classList.add('hidden');
-                recenterBtn.classList.remove('hidden');
-                modeSwitcher.classList.remove('hidden');
-                
-                updateMainButton(); // Активируем главную кнопку
-            } else {
-                tg.HapticFeedback.notificationOccurred('error');
-                showCustomAlert("Не удалось получить геолокацию. Попробуйте еще раз.");
-                geoText.textContent = 'Дать доступ к гео';
-                geoLoader.classList.add('hidden');
-                geoBtn.disabled = false;
+        
+        function startWatchingLocation() {
+            if (locationWatchId) {
+                navigator.geolocation.clearWatch(locationWatchId);
             }
+            locationWatchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    const latLng = [position.coords.latitude, position.coords.longitude];
+                    lastKnownLocation = latLng;
+                    updateCurrentUserMarker(latLng);
+
+                    if (isRunning && currentPathPolyline) {
+                        const newPoint = [latLng[1], latLng[0]]; // lng, lat
+                        currentRunPath.push(newPoint);
+                        currentPathPolyline.addLatLng(latLng);
+                    }
+                },
+                (error) => {
+                    console.warn("Ошибка отслеживания геолокации:", error.message);
+                },
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            );
         }
 
 
@@ -1202,20 +1235,25 @@
             currentPathPolyline = L.polyline([], { color: 'var(--destructive-color)', weight: 5, opacity: 0.9 }).addTo(map);
             currentPathPolyline.addLatLng(lastKnownLocation);
         }
-        function stopRun() {
-             showCustomConfirm("Завершить пробежку и захватить территорию?", processStop);
-        }
-        function processStop() {
-            isRunning = false;
-            tg.HapticFeedback.notificationOccurred('success');
-            tg.isClosingConfirmationEnabled = false;
-            updateMainButton();
-            if (currentRunPath.length > 3) {
-                processRunPath();
-            } else {
-                showCustomAlert('Слишком короткий маршрут для захвата.');
-            }
-            if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
+        async function stopRun() {
+            return new Promise(resolve => {
+                showCustomConfirm("Завершить пробежку и захватить территорию?", async () => {
+                    isRunning = false;
+                    tg.HapticFeedback.notificationOccurred('success');
+                    tg.isClosingConfirmationEnabled = false;
+                    updateMainButton();
+                    if (currentRunPath.length > 3) {
+                        await processRunPath();
+                    } else {
+                        showCustomAlert('Слишком короткий маршрут для захвата.');
+                    }
+                    if (currentPathPolyline) {
+                        map.removeLayer(currentPathPolyline);
+                        currentPathPolyline = null;
+                    }
+                    resolve();
+                });
+            });
         }
         
         function handleMapClickForSpot(e) {
@@ -1290,30 +1328,37 @@
             tg.isClosingConfirmationEnabled = true;
             updateMainButton();
             
-            currentRunPath = [ [lastKnownLocation[0], lastKnownLocation[1]] ];
+            currentRunPath = [ [lastKnownLocation[1], lastKnownLocation[0]] ];
             if (currentPathPolyline) map.removeLayer(currentPathPolyline);
             currentPathPolyline = L.polyline([], { color: 'var(--button-color)', weight: 5, opacity: 0.9 }).addTo(map);
             currentPathPolyline.addLatLng(lastKnownLocation);
         }
 
-        function stopRouteRecording() {
-            isRunning = false;
-            tg.HapticFeedback.notificationOccurred('success');
-            tg.isClosingConfirmationEnabled = false;
-            updateMainButton();
-            
-            if (currentRunPath.length < 2) {
-                showCustomAlert("Слишком короткий маршрут.");
-                if (currentPathPolyline) map.removeLayer(currentPathPolyline);
-                currentPathPolyline = null;
-                return;
-            }
-            
-            const pathCoordinates = currentRunPath.map(p => `${p[1]} ${p[0]}`).join(', ');
-            const pathWKT = `LINESTRING(${pathCoordinates})`;
-            showCreationModal('route', { path: pathWKT });
+        async function stopRouteRecording() {
+             return new Promise(resolve => {
+                isRunning = false;
+                tg.HapticFeedback.notificationOccurred('success');
+                tg.isClosingConfirmationEnabled = false;
+                updateMainButton();
+                
+                if (currentRunPath.length < 2) {
+                    showCustomAlert("Слишком короткий маршрут.");
+                    if (currentPathPolyline) map.removeLayer(currentPathPolyline);
+                    currentPathPolyline = null;
+                    resolve();
+                    return;
+                }
+                
+                const pathCoordinates = currentRunPath.map(p => `${p[0]} ${p[1]}`).join(', ');
+                const pathWKT = `LINESTRING(${pathCoordinates})`;
+                showCreationModal('route', { path: pathWKT });
 
-            if (currentPathPolyline) setTimeout(() => { if(currentPathPolyline) map.removeLayer(currentPathPolyline); currentPathPolyline = null; }, 2000);
+                if (currentPathPolyline) {
+                    map.removeLayer(currentPathPolyline);
+                    currentPathPolyline = null;
+                }
+                resolve();
+            });
         }
 
         async function saveRoute() {
@@ -1433,6 +1478,11 @@
                         showCustomAlert("Неверный QR-код.");
                     }
                 }
+            });
+            // NEW: Settings Button
+            tg.SettingsButton.onClick(() => {
+                tg.HapticFeedback.impactOccurred('light');
+                tg.openTelegramLink(`https://t.me/${BOT_USERNAME}`);
             });
         }
 
@@ -1583,7 +1633,7 @@
                     console.error("Turf union error:", e);
                 }
             }
-            updateTerritory(newCapture);
+            await updateTerritory(newCapture);
         }
 
         async function updateTerritory(newCapture) {
@@ -1795,11 +1845,11 @@
                             ${post.area_captured ? `<p class="font-semibold">Захвачено: <span class="font-bold" style="color: var(--button-color);">${formattedArea}</span></p>` : ''}
                             <div class="flex items-center space-x-6 mt-3" style="color: var(--hint-color);">
                                 <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" data-action="like" data-post-id="${post.id}">
-                                    <i class="fa-solid fa-heart h-6 w-6"></i>
+                                    <i class="fa-${userHasLiked ? 'solid' : 'regular'} fa-heart h-6 w-6"></i>
                                     <span data-likes-count>${likes.length}</span>
                                 </button>
                                 <button class="flex items-center space-x-1 hover:text-blue-500 transition" data-action="comment" data-post-id="${post.id}">
-                                    <i class="fa-solid fa-comment h-6 w-6"></i>
+                                    <i class="fa-regular fa-comment h-6 w-6"></i>
                                     <span>${comments.length}</span>
                                 </button>
                             </div>
@@ -1816,9 +1866,12 @@
             
             const hasLiked = buttonElement.classList.contains('liked');
             const countSpan = buttonElement.querySelector('[data-likes-count]');
+            const icon = buttonElement.querySelector('i');
             let currentCount = parseInt(countSpan.textContent, 10);
 
             buttonElement.classList.toggle('liked');
+            icon.classList.toggle('fa-solid', !hasLiked);
+            icon.classList.toggle('fa-regular', hasLiked);
             countSpan.textContent = hasLiked ? currentCount - 1 : currentCount + 1;
 
             try {
@@ -1830,6 +1883,8 @@
             } catch (error) {
                 console.error("Ошибка лайка:", error);
                 buttonElement.classList.toggle('liked');
+                icon.classList.toggle('fa-solid');
+                icon.classList.toggle('fa-regular');
                 countSpan.textContent = currentCount;
                 showCustomAlert('Не удалось поставить лайк. Попробуйте снова.');
             }
