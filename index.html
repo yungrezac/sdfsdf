@@ -593,6 +593,18 @@
             return "#" + RR + GG + BB;
         }
 
+        /**
+         * NEW: Генерирует диплинк и открывает диалог "Поделиться" в Telegram.
+         * @param {'post' | 'route' | 'spot' | 'user'} type - Тип контента.
+         * @param {number | string} id - ID контента.
+         * @param {string} text - Текст для сообщения.
+         */
+        function shareContent(type, id, text) {
+            tg.HapticFeedback.impactOccurred('light');
+            const url = `https://t.me/${BOT_USERNAME}?start=${type}_${id}`;
+            tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`);
+        }
+
         // --- ФУНКЦИИ UI ---
         function showView(viewId) {
             tg.HapticFeedback.selectionChanged();
@@ -818,7 +830,7 @@
                 <div id="detail-comments-section" class="mt-4">
                     <h3 class="text-xl font-bold px-4">Комментарии</h3>
                     <div id="detail-comments-list" class="p-4 space-y-4">
-                          <p class="text-center text-gray-500">Загрузка комментариев...</p>
+                         <p class="text-center text-gray-500">Загрузка комментариев...</p>
                     </div>
                 </div>
                 <div id="detail-comment-input-form" class="flex-shrink-0 p-2 border-t" style="background-color: var(--secondary-bg-color); border-color: var(--border-color);">
@@ -847,7 +859,12 @@
                     <div class="space-y-4 pb-4">
                         ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-64 object-cover" alt="Spot photo">` : ''}
                         <div class="px-4">
-                            <h2 class="text-3xl font-bold">${spot.name}</h2>
+                            <div class="flex justify-between items-start">
+                                <h2 class="text-3xl font-bold flex-1">${spot.name}</h2>
+                                <button onclick="shareContent('spot', ${spot.id}, 'Смотри какой спот я нашел в TerraRun!')" class="p-2 rounded-full hover:bg-gray-200 ml-2 flex-shrink-0">
+                                    <i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--hint-color);"></i>
+                                </button>
+                            </div>
                             <div class="flex items-center space-x-3 mt-2 cursor-pointer" onclick="showDetailModal('user', ${spot.user_id})">
                                 <img src="${avatar}" class="w-8 h-8 rounded-full" alt="author avatar">
                                 <span class="font-semibold text-sm">Автор: ${author.name}</span>
@@ -870,7 +887,12 @@
                     <div class="space-y-4 pb-4">
                         <div id="detail-mini-map" class="h-64 w-full bg-gray-200"></div>
                         <div class="px-4">
-                            <h2 class="text-3xl font-bold">${route.name}</h2>
+                             <div class="flex justify-between items-start">
+                                <h2 class="text-3xl font-bold flex-1">${route.name}</h2>
+                                <button onclick="shareContent('route', ${route.id}, 'Зацени мой маршрут в TerraRun!')" class="p-2 rounded-full hover:bg-gray-200 ml-2 flex-shrink-0">
+                                    <i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--hint-color);"></i>
+                                </button>
+                            </div>
                             <div class="flex items-center space-x-3 mt-2 cursor-pointer" onclick="showDetailModal('user', ${route.user_id})">
                                 <img src="${avatar}" class="w-8 h-8 rounded-full" alt="author avatar">
                                 <span class="font-semibold text-sm">Автор: ${author.name}</span>
@@ -924,13 +946,16 @@
 
                 body.innerHTML = `
                     <div class="p-4">
-                        <div class="flex items-center space-x-4">
+                        <div class="flex items-start space-x-4">
                             <img src="${avatar}" class="w-20 h-20 rounded-full" alt="avatar">
-                            <div>
+                            <div class="flex-1">
                                 <h2 class="text-2xl font-bold">${profile.name}</h2>
                                 <p class="text-sm" style="color: var(--hint-color);">Общая площадь</p>
                                 <p class="text-xl font-bold" style="color: var(--button-color);">${formattedArea}</p>
                             </div>
+                             <button onclick="shareContent('user', ${profile.id}, 'Смотри мой профиль в TerraRun!')" class="p-2 rounded-full hover:bg-gray-200 flex-shrink-0">
+                                <i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--hint-color);"></i>
+                            </button>
                         </div>
                     </div>
                     
@@ -1504,9 +1529,10 @@
                 if (data.data) {
                     try {
                         const url = new URL(data.data);
-                        const userId = url.searchParams.get('start');
-                        if (userId) {
-                            showDetailModal('user', parseInt(userId));
+                        const startPayload = url.searchParams.get('start');
+                        if (startPayload) {
+                            // Передаем весь payload в обработчик
+                            handleStartParam({ start_param: startPayload });
                         }
                     } catch (e) {
                         console.error("Invalid QR code data", e);
@@ -1558,8 +1584,7 @@
 
             inviteFriendBtn.addEventListener('click', () => {
                 tg.HapticFeedback.impactOccurred('light');
-                const inviteLink = `https://t.me/${BOT_USERNAME}?start=${telegramUser.id}`;
-                tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(`Присоединяйся ко мне в TerraRun и давай захватывать территории вместе!`)}`);
+                shareContent('user', telegramUser.id, 'Присоединяйся ко мне в TerraRun и давай захватывать территории вместе!');
             });
             
             createSimplePostBtn.addEventListener('click', showSimplePostModal);
@@ -1878,14 +1903,19 @@
                         ${post.territory_captured ? `<div id="mini-map-${post.id}" class="h-48 w-full mini-map"></div>` : ''}
                         <div class="p-4">
                             ${post.area_captured ? `<p class="font-semibold">Захвачено: <span class="font-bold" style="color: var(--button-color);">${formattedArea}</span></p>` : ''}
-                            <div class="flex items-center space-x-6 mt-3" style="color: var(--hint-color);">
-                                <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" data-action="like" data-post-id="${post.id}">
-                                    <i class="fa-${userHasLiked ? 'solid' : 'regular'} fa-heart h-6 w-6"></i>
-                                    <span data-likes-count>${likes.length}</span>
-                                </button>
-                                <button class="flex items-center space-x-1 hover:text-blue-500 transition" data-action="comment" data-post-id="${post.id}">
-                                    <i class="fa-regular fa-comment h-6 w-6"></i>
-                                    <span>${comments.length}</span>
+                            <div class="flex items-center justify-between mt-3">
+                                <div class="flex items-center space-x-6" style="color: var(--hint-color);">
+                                    <button class="like-btn flex items-center space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" data-action="like" data-post-id="${post.id}">
+                                        <i class="fa-${userHasLiked ? 'solid' : 'regular'} fa-heart h-6 w-6"></i>
+                                        <span data-likes-count>${likes.length}</span>
+                                    </button>
+                                    <button class="flex items-center space-x-1 hover:text-blue-500 transition" data-action="comment" data-post-id="${post.id}">
+                                        <i class="fa-regular fa-comment h-6 w-6"></i>
+                                        <span>${comments.length}</span>
+                                    </button>
+                                </div>
+                                <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="shareContent('post', ${post.id}, 'Оцени мой пост в TerraRun!')" style="color: var(--hint-color);">
+                                    <i class="fa-solid fa-arrow-up-from-bracket h-5 w-5"></i>
                                 </button>
                             </div>
                         </div>
@@ -2122,7 +2152,7 @@
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = '';
             new QRCode(qrContainer, {
-                text: `https://t.me/${BOT_USERNAME}?start=${telegramUser.id}`,
+                text: `https://t.me/${BOT_USERNAME}?start=user_${telegramUser.id}`, // NEW: Updated QR format
                 width: 200,
                 height: 200,
                 colorDark : "#000000",
@@ -2141,12 +2171,42 @@
         // --- Handle Start Param ---
         function handleStartParam() {
             const startParam = tg.initDataUnsafe.start_param;
-            if (startParam) {
-                // Если параметр - это ID пользователя, показываем его профиль
-                if (/^\d+$/.test(startParam)) {
-                    showDetailModal('user', parseInt(startParam));
-                }
+            if (!startParam) return;
+
+            const parts = startParam.split('_');
+            const type = parts.length > 1 ? parts[0] : 'user'; // Default to 'user' for old links
+            const id = parts.length > 1 ? parts[1] : startParam;
+            const numericId = parseInt(id, 10);
+
+            if (isNaN(numericId)) {
+                console.warn("Invalid ID in start_param:", startParam);
+                return;
             }
+
+            // Даем приложению немного времени на отрисовку перед показом модальных окон
+            setTimeout(() => {
+                switch (type) {
+                    case 'user':
+                        showDetailModal('user', numericId);
+                        break;
+                    case 'post':
+                        // Показ комментариев - хороший способ сделать диплинк на пост
+                        showPostComments(numericId);
+                        break;
+                    case 'route':
+                        showDetailModal('route', numericId);
+                        break;
+                    case 'spot':
+                        showDetailModal('spot', numericId);
+                        break;
+                    default:
+                        console.warn("Unknown start_param type:", type);
+                        // Обратная совместимость для старых ссылок только с ID пользователя
+                        if (/^\d+$/.test(startParam)) {
+                            showDetailModal('user', parseInt(startParam));
+                        }
+                }
+            }, 500); 
         }
         
         // --- Custom Alert/Confirm ---
@@ -2181,6 +2241,7 @@
         window.setDetailReplyMode = setDetailReplyMode;
         window.cancelDetailReply = cancelDetailReply;
         window.hideQrModal = hideQrModal;
+        window.shareContent = shareContent; // NEW: Expose share function
         
         document.addEventListener('DOMContentLoaded', main);
     </script>
