@@ -70,7 +70,7 @@
             top: 0;
             left: 0;
             right: 0;
-            bottom: 65px; /* 80px - 15px overlap */
+            bottom: 80px; /* Высота навбара */
         }
         .view {
             display: none;
@@ -144,13 +144,38 @@
             right: 0;
             z-index: 20;
             display: flex;
-            justify-content: flex-end; /* Changed */
+            justify-content: space-between;
             align-items: flex-start;
             padding: 0 1rem;
             pointer-events: none; /* Позволяет кликать сквозь контейнер */
         }
+        #mode-switcher {
+            background-color: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 9999px;
+            padding: 0.25rem;
+            display: flex;
+            gap: 0.25rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            pointer-events: all; /* Включаем клики для самого свитчера */
+        }
         #map-controls-right {
             pointer-events: all; /* Включаем клики для кнопок справа */
+        }
+        .mode-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--hint-color);
+            transition: all 0.2s ease-in-out;
+            border: none;
+            background-color: transparent;
+        }
+        .mode-btn.active {
+            background-color: var(--button-color);
+            color: var(--button-text-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
         
         /* Стили для модальных окон */
@@ -208,13 +233,8 @@
             cursor: grab;
         }
         
-        /* Стили для табов */
-        .tab-bar {
-            display: flex;
-            border-bottom: 1px solid var(--border-color);
-            background-color: var(--secondary-bg-color);
-        }
-        .tab-btn {
+        /* Стили для табов в профиле */
+        .profile-tab {
             flex-grow: 1;
             text-align: center;
             padding: 0.75rem 0.5rem;
@@ -224,17 +244,28 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        .tab-btn.active {
+        .profile-tab.active {
             color: var(--button-color);
             border-bottom-color: var(--button-color);
         }
-        .tab-content {
+        .profile-tab-content {
             display: none;
         }
-        .tab-content.active {
+        .profile-tab-content.active {
             display: block;
         }
         
+        /* Стили для комментариев в модальном окне деталей */
+        #detail-comments-section {
+            border-top: 1px solid var(--border-color);
+            padding: 1rem;
+        }
+        #detail-comment-input-form {
+            padding: 0.5rem 1rem 1rem;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--secondary-bg-color);
+        }
+
         /* Скелетная загрузка */
         .skeleton {
             background-color: #e2e8f0;
@@ -277,65 +308,42 @@
     <div id="app-container" class="hidden">
         <!-- Вид 1: Карта -->
         <div id="map-view" class="view active">
-            <!-- NEW: Container for map itself -->
-            <div id="map-container" class="w-full h-full">
-                <div id="map" class="w-full h-full"></div>
+            <div id="map"></div>
             
-                <!-- NEW: Centered container for geo request button -->
-                <div id="map-center-controls" class="fixed inset-0 z-20 flex justify-center items-center pointer-events-none hidden">
-                    <button id="request-geo-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-lg flex items-center gap-2 pointer-events-auto">
-                        <i class="fa-solid fa-location-arrow h-5 w-5"></i>
-                        <span id="request-geo-text">Дать доступ к гео</span>
-                        <svg id="request-geo-loader" class="animate-spin h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    </button>
-                </div>
+            <!-- NEW: Centered container for geo request button -->
+            <div id="map-center-controls" class="fixed inset-0 z-20 flex justify-center items-center pointer-events-none hidden">
+                <button id="request-geo-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-lg flex items-center gap-2 pointer-events-auto">
+                    <i class="fa-solid fa-location-arrow h-5 w-5"></i>
+                    <span id="request-geo-text">Дать доступ к гео</span>
+                    <svg id="request-geo-loader" class="animate-spin h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                </button>
+            </div>
+            
+            <!-- Панель управления на карте -->
+            <div id="map-top-panel">
+                <div class="w-12"></div> <!-- Пустой див для баланса слева -->
                 
-                <!-- Панель управления на карте -->
-                <div id="map-top-panel">
-                    <div id="map-controls-right" class="flex items-center gap-2">
-                         <button id="info-btn" class="bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg pointer-events-all">
-                            <i class="fa-solid fa-circle-info h-6 w-6 text-gray-700"></i>
-                        </button>
-                        <button id="recenter-btn" class="hidden bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg pointer-events-all">
-                            <i class="fa-solid fa-location-crosshairs h-6 w-6 text-gray-700"></i>
-                        </button>
-                    </div>
+                <div class="flex-grow flex justify-center">
+                     <div id="mode-switcher" class="hidden">
+                         <button id="mode-capture" class="mode-btn active">Захват</button>
+                         <button id="mode-spots" class="mode-btn">Споты</button>
+                         <button id="mode-routes" class="mode-btn">Маршруты</button>
+                     </div>
                 </div>
 
-                <!-- NEW: Bottom controls container -->
-                <div id="map-bottom-controls" class="fixed bottom-[95px] right-4 z-20 flex flex-col items-end gap-3">
-                     <button id="toggle-view-btn" class="bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg pointer-events-all">
-                        <i id="toggle-view-icon" class="fa-solid fa-list h-6 w-6 text-gray-700"></i>
-                    </button>
-                </div>
-                
-                <!-- Основная кнопка действия на карте -->
-                <div id="map-action-container" class="hidden fixed bottom-[100px] left-0 right-0 z-20 flex justify-center pointer-events-none">
-                    <button id="map-action-btn" class="text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 flex items-center gap-2 pointer-events-auto">
-                        <i id="map-action-icon" class="fa-solid fa-play h-5 w-5"></i>
-                        <span id="map-action-text">Начать захват</span>
+                <div id="map-controls-right" class="flex flex-col items-end gap-2">
+                    <button id="recenter-btn" class="hidden bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg pointer-events-all">
+                        <i class="fa-solid fa-location-crosshairs h-6 w-6 text-gray-700"></i>
                     </button>
                 </div>
             </div>
             
-            <!-- NEW: Container for list view -->
-            <div id="list-container" class="hidden w-full h-full flex flex-col">
-                <div class="flex-shrink-0 p-4 pb-0">
-                    <div class="flex justify-between items-center">
-                         <h1 class="text-3xl font-bold">Объекты</h1>
-                         <button id="back-to-map-btn" class="p-2 rounded-full hover:bg-gray-200" style="background-color: var(--secondary-bg-color);">
-                            <i class="fa-solid fa-map h-7 w-7" style="color: var(--button-color);"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="tab-bar mt-4 sticky top-0 z-10">
-                    <button id="list-tab-spots" class="tab-btn active" onclick="switchListTab('spots')">Споты</button>
-                    <button id="list-tab-routes" class="tab-btn" onclick="switchListTab('routes')">Маршруты</button>
-                </div>
-                <div class="flex-grow overflow-y-auto">
-                    <div id="list-content-spots" class="tab-content active p-4 space-y-3"></div>
-                    <div id="list-content-routes" class="tab-content p-4 space-y-3"></div>
-                </div>
+            <!-- Основная кнопка действия на карте -->
+            <div id="map-action-container" class="hidden fixed bottom-[100px] left-0 right-0 z-20 flex justify-center pointer-events-none">
+                <button id="map-action-btn" class="text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 flex items-center gap-2 pointer-events-auto">
+                    <i id="map-action-icon" class="fa-solid fa-play h-5 w-5"></i>
+                    <span id="map-action-text"></span>
+                </button>
             </div>
         </div>
 
@@ -387,27 +395,27 @@
                 </div>
             </div>
              <!-- Табы -->
-            <div class="tab-bar mt-6 sticky top-0 z-10">
-                <button id="profile-tab-posts" class="tab-btn active" onclick="switchMainProfileTab('posts')">Посты</button>
-                <button id="profile-tab-spots" class="tab-btn" onclick="switchMainProfileTab('spots')">Споты</button>
-                <button id="profile-tab-routes" class="tab-btn" onclick="switchMainProfileTab('routes')">Маршруты</button>
+            <div class="flex border-b mt-6 sticky top-0 z-10" style="background-color: var(--bg-color);">
+                <div id="profile-tab-posts" class="profile-tab active" onclick="switchMainProfileTab('posts')">Посты</div>
+                <div id="profile-tab-spots" class="profile-tab" onclick="switchMainProfileTab('spots')">Споты</div>
+                <div id="profile-tab-routes" class="profile-tab" onclick="switchMainProfileTab('routes')">Маршруты</div>
             </div>
 
-            <div id="profile-content-posts" class="tab-content active mt-4 space-y-4"></div>
-            <div id="profile-content-spots" class="tab-content mt-4 space-y-4"></div>
-            <div id="profile-content-routes" class="tab-content mt-4 space-y-4"></div>
+            <div id="profile-content-posts" class="profile-tab-content active mt-4 space-y-4"></div>
+            <div id="profile-content-spots" class="profile-tab-content mt-4 space-y-4"></div>
+            <div id="profile-content-routes" class="profile-tab-content mt-4 space-y-4"></div>
         </div>
     </div>
 
     <!-- Нижний навбар -->
     <nav id="bottom-navbar" class="hidden fixed bottom-0 left-0 right-0 flex justify-evenly items-center z-20">
-        <button class="nav-btn active flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('map-view')"><i class="fa-solid fa-map-location-dot h-8 w-8"></i><span>Карта</span></button>
-        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('feed-view')"><i class="fa-solid fa-newspaper h-8 w-8"></i><span>Лента</span></button>
-        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('top-view')"><i class="fa-solid fa-ranking-star h-8 w-8"></i><span>Топ</span></button>
-        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('profile-view')"><i class="fa-solid fa-user h-8 w-8"></i><span>Профиль</span></button>
+        <button class="nav-btn active flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('map-view')"><i class="fa-solid fa-map-location-dot h-7 w-7"></i><span>Карта</span></button>
+        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('feed-view')"><i class="fa-solid fa-newspaper h-7 w-7"></i><span>Лента</span></button>
+        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('top-view')"><i class="fa-solid fa-ranking-star h-7 w-7"></i><span>Топ</span></button>
+        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('profile-view')"><i class="fa-solid fa-user h-7 w-7"></i><span>Профиль</span></button>
     </nav>
     
-    <!-- Модальное окно создания простого поста -->
+    <!-- Модальное окно создания простого поста (сверху вниз, 45%) -->
     <div id="simple-post-modal" class="modal-overlay" onclick="if(event.target === this) hideSimplePostModal()">
         <div id="simple-post-content" class="card-bg rounded-b-2xl shadow-2xl p-6 w-full max-w-lg space-y-4" style="height: 45vh;">
             <div class="flex justify-between items-center">
@@ -427,7 +435,7 @@
         </div>
     </div>
 
-    <!-- Модальное окно создания Спота/Маршрута/Поста -->
+    <!-- Модальное окно создания Спота/Маршрута/Поста (снизу вверх, 75%) -->
     <div id="creation-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideCreationModal()">
         <div class="bottom-sheet-content" style="height: 75%; max-height: calc(100vh - env(safe-area-inset-top) - 1rem);">
             <div class="grabber" onclick="hideCreationModal()"></div>
@@ -467,7 +475,7 @@
         </div>
     </div>
 
-    <!-- Модальное окно деталей -->
+    <!-- Модальное окно деталей (выдвигается снизу) -->
     <div id="detail-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideDetailModal()">
         <div class="bottom-sheet-content" style="height: 90%; max-height: calc(100vh - env(safe-area-inset-top) - 1rem);">
             <div class="grabber" onclick="hideDetailModal()"></div>
@@ -475,7 +483,7 @@
         </div>
     </div>
 
-    <!-- Модальное окно с комментариями -->
+    <!-- Модальное окно с комментариями (ДЛЯ ПОСТОВ) -->
     <div id="comments-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideCommentsModal()">
         <div class="bottom-sheet-content" style="height: 75%;">
              <div class="grabber" onclick="hideCommentsModal()"></div>
@@ -506,24 +514,6 @@
         </div>
     </div>
 
-    <!-- NEW: Info Modal -->
-    <div id="info-modal" class="modal-overlay justify-center items-center p-4" onclick="if(event.target === this) hideInfoModal()">
-        <div class="card-bg rounded-2xl shadow-2xl p-6 w-full max-w-md fade-in space-y-4 flex flex-col">
-            <div class="flex justify-between items-center">
-                <h2 class="text-2xl font-bold">Как пользоваться?</h2>
-                <button onclick="hideInfoModal()" class="p-2 -mr-2 rounded-full hover:bg-gray-200"><i class="fa-solid fa-times"></i></button>
-            </div>
-            <div class="text-sm space-y-3 text-left" style="color: var(--text-color);">
-                <p><strong><i class="fa-solid fa-map-location-dot w-5"></i> Карта:</strong> Основной экран. Здесь вы захватываете территории и просматриваете объекты.</p>
-                <p><strong><i class="fa-solid fa-play w-5"></i> Захват:</strong> Нажмите "Начать захват", пробегите по замкнутому маршруту и вернитесь в начальную точку, чтобы захватить территорию.</p>
-                <p><strong><i class="fa-solid fa-location-dot w-5"></i> Споты:</strong> Нажмите на любое место на карте, чтобы создать "спот" - интересную точку с фото и описанием.</p>
-                <p><strong><i class="fa-solid fa-list w-5"></i> Список:</strong> Нажмите на иконку списка на карте, чтобы увидеть все созданные споты и маршруты в удобном виде.</p>
-                <p><strong><i class="fa-solid fa-newspaper w-5"></i> Лента:</strong> Смотрите посты и достижения других бегунов.</p>
-            </div>
-            <button onclick="hideInfoModal()" class="w-full mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full transition-all">Понятно</button>
-        </div>
-    </div>
-
     <script type="module">
         // --- КОНФИГУРАЦИЯ И КОНСТАНТЫ ---
         const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
@@ -540,7 +530,8 @@
         
         // Состояние приложения
         const AppState = {
-            isRunning: false, // Для режима 'capture'
+            currentMode: 'capture', // 'capture', 'spots', 'routes'
+            isRunning: false, // Для режимов 'capture' и 'routes'
             lastKnownLocation: null,
             userProfile: {
                 id: null,
@@ -553,6 +544,7 @@
             currentRunPath: [],
             currentPathPolyline: null,
             currentUserMarker: null,
+            allUserLayers: {},
             allSpots: [],
             allRoutes: [],
             allProfilesData: [],
@@ -571,6 +563,7 @@
         const fallbackContent = document.getElementById('fallback-content');
         const appContainer = document.getElementById('app-container');
         const bottomNavbar = document.getElementById('bottom-navbar');
+        const modeSwitcher = document.getElementById('mode-switcher');
         
         // Модальные окна
         const detailModal = document.getElementById('detail-modal');
@@ -578,7 +571,6 @@
         const simplePostModal = document.getElementById('simple-post-modal');
         const creationModal = document.getElementById('creation-modal');
         const qrModal = document.getElementById('qr-modal');
-        const infoModal = document.getElementById('info-modal');
 
         const leaderboardDiv = document.getElementById('leaderboard');
         const feedContainer = document.getElementById('feed-container');
@@ -595,12 +587,6 @@
         const createSimplePostBtn = document.getElementById('create-simple-post-btn');
         const mapActionContainer = document.getElementById('map-action-container');
         const mapActionBtn = document.getElementById('map-action-btn');
-        const infoBtn = document.getElementById('info-btn');
-        const toggleViewBtn = document.getElementById('toggle-view-btn');
-        const backToMapBtn = document.getElementById('back-to-map-btn');
-        const mapContainer = document.getElementById('map-container');
-        const listContainer = document.getElementById('list-container');
-
 
         // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
         
@@ -700,11 +686,53 @@
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             document.querySelector(`button[onclick="showView('${viewId}')"]`).classList.add('active');
             
-            if (viewId === 'map-view') {
+            const isMapView = viewId === 'map-view';
+            
+            if (isMapView && AppState.lastKnownLocation) {
+                mapActionContainer.classList.remove('hidden');
+            } else {
+                mapActionContainer.classList.add('hidden');
+            }
+
+            modeSwitcher.classList.toggle('hidden', !isMapView || !AppState.lastKnownLocation);
+            
+            if (isMapView) {
                 setTimeout(() => map?.container.fitToViewport(), 100);
             }
         }
-        
+
+        async function setMode(newMode) {
+            if (AppState.currentMode === newMode || !map) return;
+            
+            if (AppState.isRunning) {
+                showCustomAlert("Сначала завершите текущую активность (захват или запись маршрута).");
+                return;
+            }
+
+            tg.HapticFeedback.selectionChanged();
+            AppState.currentMode = newMode;
+            
+            tg.CloudStorage.setItem('currentMode', newMode);
+
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.id === `mode-${newMode}`);
+            });
+
+            // Удаляем старый обработчик клика
+            map.events.remove('click', handleMapClickForSpot);
+
+            // Управляем видимостью коллекций
+            territoriesCollection.options.set('visible', newMode === 'capture');
+            spotCollection.options.set('visible', newMode === 'spots');
+            routeCollection.options.set('visible', newMode === 'routes');
+            
+            if (newMode === 'spots') {
+                map.events.add('click', handleMapClickForSpot);
+            }
+
+            updateMapActionButton();
+        }
+
         function updateMapActionButton() {
             const icon = document.getElementById('map-action-icon');
             const text = document.getElementById('map-action-text');
@@ -716,21 +744,55 @@
             
             mapActionContainer.classList.remove('hidden');
 
-            if (AppState.isRunning) {
-                text.textContent = "Остановить захват";
-                mapActionBtn.style.backgroundColor = 'var(--destructive-color)';
-                icon.className = 'fa-solid fa-stop h-5 w-5';
-            } else {
-                text.textContent = "Начать захват";
-                mapActionBtn.style.backgroundColor = 'var(--button-color)';
-                icon.className = 'fa-solid fa-play h-5 w-5';
+            switch (AppState.currentMode) {
+                case 'capture':
+                    if (AppState.isRunning) {
+                        text.textContent = "Остановить захват";
+                        mapActionBtn.style.backgroundColor = 'var(--destructive-color)';
+                        icon.className = 'fa-solid fa-stop h-5 w-5';
+                    } else {
+                        text.textContent = "Начать захват";
+                        mapActionBtn.style.backgroundColor = 'var(--button-color)';
+                        icon.className = 'fa-solid fa-play h-5 w-5';
+                    }
+                    break;
+                case 'spots':
+                    text.textContent = "Добавить спот здесь";
+                    mapActionBtn.style.backgroundColor = 'var(--success-color)';
+                    icon.className = 'fa-solid fa-location-dot h-5 w-5';
+                    break;
+                case 'routes':
+                    if (AppState.isRunning) {
+                        text.textContent = "Завершить маршрут";
+                        mapActionBtn.style.backgroundColor = 'var(--destructive-color)';
+                        icon.className = 'fa-solid fa-stop h-5 w-5';
+                    } else {
+                        text.textContent = "Начать запись маршрута";
+                        mapActionBtn.style.backgroundColor = 'var(--button-color)';
+                        icon.className = 'fa-solid fa-route h-5 w-5';
+                    }
+                    break;
             }
         }
         
         async function mapActionButtonHandler() {
             mapActionBtn.disabled = true; // Предотвращаем двойные нажатия
             try {
-                AppState.isRunning ? await stopRun() : startRun();
+                switch (AppState.currentMode) {
+                    case 'capture':
+                        AppState.isRunning ? await stopRun() : startRun();
+                        break;
+                    case 'spots':
+                        if(AppState.lastKnownLocation) {
+                            handleMapClickForSpot({ get: (key) => key === 'coords' ? AppState.lastKnownLocation : null });
+                        } else {
+                            showCustomAlert("Определяем ваше местоположение...");
+                        }
+                        break;
+                    case 'routes':
+                        AppState.isRunning ? await stopRouteRecording() : startRouteRecording();
+                        break;
+                }
             } finally {
                 mapActionBtn.disabled = false;
             }
@@ -748,15 +810,6 @@
 
         // --- ЛОГИКА МОДАЛЬНЫХ ОКОН ---
         
-        function showInfoModal() {
-            infoModal.classList.add('visible');
-            tg.BackButton.show();
-        }
-        function hideInfoModal() {
-            infoModal.classList.remove('visible');
-            tg.BackButton.hide();
-        }
-
         function showSimplePostModal() {
             document.getElementById('simple-post-details').value = '';
             document.getElementById('simple-post-photo-input').value = '';
@@ -981,19 +1034,19 @@
                         </div>
                     </div>
                     
-                    <div class="tab-bar mt-4 px-4">
-                        <button id="tab-posts" class="tab-btn active" onclick="switchProfileTab('posts')">Посты (${posts.length})</button>
-                        <button id="tab-spots" class="tab-btn" onclick="switchProfileTab('spots')">Споты (${spots.length})</button>
-                        <button id="tab-routes" class="tab-btn" onclick="switchProfileTab('routes')">Маршруты (${routes.length})</button>
+                    <div class="flex border-b mt-4 px-4">
+                        <div id="tab-posts" class="profile-tab active" onclick="switchProfileTab('posts')">Посты (${posts.length})</div>
+                        <div id="tab-spots" class="profile-tab" onclick="switchProfileTab('spots')">Споты (${spots.length})</div>
+                        <div id="tab-routes" class="profile-tab" onclick="switchProfileTab('routes')">Маршруты (${routes.length})</div>
                     </div>
 
-                    <div id="content-posts" class="tab-content active p-4 space-y-4">
+                    <div id="content-posts" class="profile-tab-content active p-4 space-y-4">
                         ${posts.length > 0 ? posts.map(p => generatePostHTML(p, likesByPost[p.id] || [], commentsByPost[p.id] || [])).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет постов.</p>'}
                     </div>
-                    <div id="content-spots" class="tab-content p-4 space-y-4">
+                    <div id="content-spots" class="profile-tab-content p-4 space-y-4">
                         ${spots.length > 0 ? spots.map(generateMiniSpotHTML).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет спотов.</p>'}
                     </div>
-                    <div id="content-routes" class="tab-content p-4 space-y-4">
+                    <div id="content-routes" class="profile-tab-content p-4 space-y-4">
                          ${routes.length > 0 ? routes.map(generateMiniRouteHTML).join('') : '<p class="text-center text-gray-500 py-4">У пользователя нет маршрутов.</p>'}
                     </div>
                 `;
@@ -1023,8 +1076,8 @@
         }
         
         function switchProfileTab(tabName) {
-            document.querySelectorAll('#detail-modal .tab-btn').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('#detail-modal .tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('#detail-modal .profile-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('#detail-modal .profile-tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById(`tab-${tabName}`).classList.add('active');
             document.getElementById(`content-${tabName}`).classList.add('active');
         }
@@ -1044,11 +1097,12 @@
         }
 
         function navigateToMapObject(type, id) {
-            // Switch back to map view from list view
-            toggleMapOrListView(true); 
+            hideDetailModal(); 
+            showView('map-view');
             
             let targetObject;
             if (type === 'spot') {
+                setMode('spots');
                 targetObject = AppState.allSpots.find(s => s.id === id);
                 const geoJson = parseWKT(targetObject?.location_wkt);
                 if (geoJson) {
@@ -1056,6 +1110,7 @@
                     map.panTo(coords, { flying: true, duration: 1500 }).then(() => map.setZoom(17));
                 }
             } else if (type === 'route') {
+                setMode('routes');
                 targetObject = AppState.allRoutes.find(r => r.id === id);
                 const geoJson = parseWKT(targetObject?.path_wkt);
                  if (geoJson && geoJson.coordinates.length > 0) {
@@ -1172,6 +1227,15 @@
                 appContainer.classList.remove('hidden');
                 bottomNavbar.classList.remove('hidden');
                 
+                tg.CloudStorage.getItem('currentMode', (error, value) => {
+                    if (error) {
+                        console.error("CloudStorage error:", error);
+                        setMode('capture');
+                        return;
+                    }
+                    setMode(value || 'capture');
+                });
+
             } catch (error) {
                 console.error("Критическая ошибка инициализации:", error);
                 let message = error.message || "Не удалось запустить приложение. Пожалуйста, попробуйте перезагрузить его.";
@@ -1196,9 +1260,6 @@
             map.geoObjects.add(territoriesCollection);
             map.geoObjects.add(spotCollection);
             map.geoObjects.add(routeCollection);
-
-            // Добавляем обработчик клика для создания спотов
-            map.events.add('click', handleMapClickForSpot);
             
             setTimeout(() => map?.container.fitToViewport(), 100);
         }
@@ -1257,8 +1318,8 @@
                     } else {
                         AppState.lastKnownLocation = null;
                         mapActionContainer.classList.add('hidden');
+                        modeSwitcher.classList.add('hidden');
                         mapCenterControls.classList.remove('hidden');
-                        recenterBtn.classList.add('hidden');
                     }
                 };
 
@@ -1296,6 +1357,7 @@
 
                      mapCenterControls.classList.add('hidden');
                      recenterBtn.classList.remove('hidden');
+                     modeSwitcher.classList.remove('hidden');
                      mapActionContainer.classList.remove('hidden');
                      
                      updateMapActionButton();
@@ -1543,7 +1605,6 @@
                 AppState.allSpots = spots;
                 spotCollection.removeAll();
                 AppState.allSpots.forEach(addSpotToMap);
-                renderSpotsList();
             }
 
             const { data: routes, error: routesError } = await supabase.from('routes').select('*, path_wkt:path::text');
@@ -1553,7 +1614,6 @@
                 AppState.allRoutes = routes;
                 routeCollection.removeAll();
                 AppState.allRoutes.forEach(addRouteToMap);
-                renderRoutesList();
             }
         }
 
@@ -1587,9 +1647,7 @@
         function setupStaticEventListeners() {
             tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
             tg.onEvent('backButtonClicked', () => {
-                if(infoModal.classList.contains('visible')) {
-                    hideInfoModal();
-                } else if (commentsModal.classList.contains('visible')) {
+                if (commentsModal.classList.contains('visible')) {
                     hideCommentsModal();
                 } else if (detailModal.classList.contains('visible')) {
                     hideDetailModal();
@@ -1622,9 +1680,9 @@
         }
 
         function setupDynamicEventListeners() {
-            infoBtn.addEventListener('click', showInfoModal);
-            toggleViewBtn.addEventListener('click', () => toggleMapOrListView(false));
-            backToMapBtn.addEventListener('click', () => toggleMapOrListView(true));
+            document.getElementById('mode-capture').addEventListener('click', () => setMode('capture'));
+            document.getElementById('mode-spots').addEventListener('click', () => setMode('spots'));
+            document.getElementById('mode-routes').addEventListener('click', () => setMode('routes'));
             
             document.getElementById('save-creation-btn').addEventListener('click', handleSave);
             
@@ -1886,6 +1944,7 @@
             AppState.allProfilesData = profiles;
             
             territoriesCollection.removeAll();
+            AppState.allUserLayers = {};
 
             profiles.forEach(profile => {
                 if (telegramUser && profile.id === telegramUser.id) {
@@ -2211,8 +2270,8 @@
 
 
         function switchMainProfileTab(tabName) {
-            document.querySelectorAll('#profile-view .tab-btn').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('#profile-view .tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('#profile-view .profile-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('#profile-view .profile-tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById(`profile-tab-${tabName}`).classList.add('active');
             document.getElementById(`profile-content-${tabName}`).classList.add('active');
         }
@@ -2362,46 +2421,6 @@
             modalElement.addEventListener('touchend', onTouchEnd, { passive: true });
         }
 
-        // --- NEW: Map/List View Toggle Logic ---
-        function toggleMapOrListView(forceMap = false) {
-            const isMapVisible = !mapContainer.classList.contains('hidden');
-            if (forceMap || !isMapVisible) {
-                mapContainer.classList.remove('hidden');
-                listContainer.classList.add('hidden');
-                map.container.fitToViewport();
-            } else {
-                mapContainer.classList.add('hidden');
-                listContainer.classList.remove('hidden');
-                renderSpotsList();
-                renderRoutesList();
-            }
-        }
-
-        function switchListTab(listType) {
-            document.querySelectorAll('#list-container .tab-btn').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('#list-container .tab-content').forEach(c => c.classList.remove('active'));
-            document.getElementById(`list-tab-${listType}`).classList.add('active');
-            document.getElementById(`list-content-${listType}`).classList.add('active');
-        }
-
-        function renderSpotsList() {
-            const container = document.getElementById('list-content-spots');
-            if (AppState.allSpots.length > 0) {
-                container.innerHTML = AppState.allSpots.map(generateMiniSpotHTML).join('');
-            } else {
-                container.innerHTML = '<p class="text-center text-gray-500 py-4">Пока нет ни одного спота.</p>';
-            }
-        }
-
-        function renderRoutesList() {
-            const container = document.getElementById('list-content-routes');
-            if (AppState.allRoutes.length > 0) {
-                container.innerHTML = AppState.allRoutes.map(generateMiniRouteHTML).join('');
-            } else {
-                container.innerHTML = '<p class="text-center text-gray-500 py-4">Пока нет ни одного маршрута.</p>';
-            }
-        }
-
 
         // --- ПРИВЯЗКА ГЛОБАЛЬНЫХ ФУНКЦИЙ И ЗАПУСК ---
         window.showView = showView;
@@ -2413,7 +2432,7 @@
         window.cancelReply = cancelReply;
         window.postComment = postComment;
         window.showDetailModal = showDetailModal;
-        window.switchProfileTab = switchMainProfileTab; // Note: using same function for both profile tabs
+        window.switchProfileTab = switchProfileTab;
         window.switchMainProfileTab = switchMainProfileTab;
         window.navigateToMapObject = navigateToMapObject;
         window.hideSimplePostModal = hideSimplePostModal;
@@ -2424,8 +2443,6 @@
         window.cancelDetailReply = cancelDetailReply;
         window.hideQrModal = hideQrModal;
         window.shareContent = shareContent;
-        window.hideInfoModal = hideInfoModal;
-        window.switchListTab = switchListTab;
         
         // Запускаем приложение после загрузки API Яндекс Карт
         document.addEventListener('DOMContentLoaded', () => ymaps.ready(runApp));
