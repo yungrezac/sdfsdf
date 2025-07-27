@@ -209,6 +209,11 @@
             visibility: visible;
         }
 
+        /* FIX: Prevent background scroll when modal is open */
+        body.modal-open .view.active {
+            overflow-y: hidden;
+        }
+
         .bottom-sheet-modal {
             align-items: flex-end;
         }
@@ -894,13 +899,13 @@
             document.getElementById('simple-post-filename').textContent = '';
             AppState.simplePostContext = {};
             simplePostModal.classList.add('visible');
-            document.body.style.overflow = 'hidden';
+            document.body.classList.add('modal-open');
             tg.BackButton.show();
         }
 
         function hideSimplePostModal() {
             simplePostModal.classList.remove('visible');
-            document.body.style.overflow = '';
+            document.body.classList.remove('modal-open');
             tg.BackButton.hide();
         }
         
@@ -938,13 +943,13 @@
             }
             
             creationModal.classList.add('visible');
-            document.body.style.overflow = 'hidden';
+            document.body.classList.add('modal-open');
             tg.BackButton.show();
         }
 
         function hideCreationModal() {
             creationModal.classList.remove('visible');
-            document.body.style.overflow = '';
+            document.body.classList.remove('modal-open');
             tg.BackButton.hide();
             AppState.currentEditContext = {};
         }
@@ -962,7 +967,7 @@
              tg.BackButton.show();
              
              detailModal.classList.add('visible');
-             document.body.style.overflow = 'hidden';
+             document.body.classList.add('modal-open');
              loadDetailContent();
         }
         
@@ -972,7 +977,7 @@
             }
             tg.BackButton.hide();
             detailModal.classList.remove('visible');
-            document.body.style.overflow = '';
+            document.body.classList.remove('modal-open');
             AppState.currentDetailContext = {};
         }
 
@@ -991,6 +996,65 @@
                 AppState.simplePostContext = { file: file };
             }
             event.target.value = '';
+        }
+        
+        // FIX: Added function to generate user profile HTML
+        async function generateUserProfileDetailHTML(profile, posts, spots, routes, events, likesByPost, commentsByPost) {
+            const profileName = escapeHTML(profile.name);
+            const avatar = profile.photo_url || `https://placehold.co/96x96/E2E8F0/4A5568?text=${profileName.charAt(0)}`;
+            const area = profile.area || 0;
+            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
+
+            const postsHTML = posts.length > 0
+                ? posts.map(p => generatePostHTML(p, likesByPost[p.id] || [], commentsByPost[p.id] || [])).join('')
+                : '<p class="text-center text-gray-500 py-4">У этого пользователя нет постов.</p>';
+
+            const eventsHTML = events.length > 0
+                ? (await Promise.all(events.map(e => generateEventCardHTML(e)))).join('')
+                : '<p class="text-center text-gray-500 py-4">Этот пользователь не участвует в мероприятиях.</p>';
+
+            const spotsHTML = spots.length > 0
+                ? spots.map(s => generateMiniSpotHTML(s, false)).join('')
+                : '<p class="text-center text-gray-500 py-4">У этого пользователя нет спотов.</p>';
+
+            const routesHTML = routes.length > 0
+                ? routes.map(r => generateMiniRouteHTML(r)).join('')
+                : '<p class="text-center text-gray-500 py-4">У этого пользователя нет маршрутов.</p>';
+
+            return `
+                <div class="p-4">
+                    <div class="card-bg rounded-2xl shadow-lg p-6 flex flex-col items-center space-y-4">
+                        <div class="w-24 h-24 rounded-full border-4 flex-shrink-0" style="border-color: ${profile.color || '#ccc'};">
+                            <img src="${avatar}" class="w-full h-full rounded-full object-cover" alt="avatar">
+                        </div>
+                        <div class="text-center">
+                            <h2 class="text-2xl font-bold">${profileName}</h2>
+                            <p class="text-sm mt-2" style="color: var(--hint-color);">Общая площадь</p>
+                            <p class="text-3xl font-bold" style="color: var(--button-color);">${formattedArea}</p>
+                        </div>
+                        <div class="w-full pt-4 mt-4 border-t" style="border-color: var(--border-color);">
+                            <div class="flex justify-center gap-8 w-full">
+                                <button onclick="shareContent('user', ${profile.id}, ${profile.id})" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
+                                    <div class="p-3 rounded-full" style="background-color: rgba(var(--button-color-rgb), 0.15);"><i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--button-color);"></i></div>
+                                    <span class="text-xs font-medium" style="color: var(--hint-color);">Поделиться</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex border-b sticky top-0 z-10 overflow-x-auto" style="background-color: var(--bg-color);">
+                    <div id="tab-posts" class="profile-tab active" onclick="switchProfileTab('posts')">Посты (${posts.length})</div>
+                    <div id="tab-events" class="profile-tab" onclick="switchProfileTab('events')">Покатушки (${events.length})</div>
+                    <div id="tab-spots" class="profile-tab" onclick="switchProfileTab('spots')">Споты (${spots.length})</div>
+                    <div id="tab-routes" class="profile-tab" onclick="switchProfileTab('routes')">Маршруты (${routes.length})</div>
+                </div>
+                <div class="p-4 space-y-4">
+                    <div id="content-posts" class="profile-tab-content active space-y-4">${postsHTML}</div>
+                    <div id="content-events" class="profile-tab-content space-y-4">${eventsHTML}</div>
+                    <div id="content-spots" class="profile-tab-content grid grid-cols-1 md:grid-cols-2 gap-4">${spotsHTML}</div>
+                    <div id="content-routes" class="profile-tab-content space-y-4">${routesHTML}</div>
+                </div>
+            `;
         }
 
         async function loadDetailContent() {
@@ -1027,16 +1091,17 @@
                 setTimeout(() => renderMiniMapForEvent(event), 100);
                 loadAndRenderComments('event', id, 'event-comments-list');
             } else if (type === 'user') {
+                // FIX: Correctly load user profile data
                 const [profileRes, postsRes, spotsRes, routesRes, eventsRes] = await Promise.all([
                     supabase.from('profiles').select('*').eq('id', id).single(),
                     supabase.from('posts').select('*').eq('user_id', id).order('created_at', { ascending: false }),
                     supabase.from('spots').select('*, location_wkt:location::text').eq('user_id', id).order('created_at', { ascending: false }),
                     supabase.from('routes').select('*, path_wkt:path::text').eq('user_id', id).order('created_at', { ascending: false }),
-                    supabase.rpc('get_user_events', { p_user_id: id }) // NEW: Получаем мероприятия пользователя
+                    supabase.rpc('get_user_events', { p_user_id: id })
                 ]);
 
                 if (profileRes.error) {
-                    body.innerHTML = `<p class="text-red-500 text-center">Не удалось загрузить профиль.</p>`;
+                    body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить профиль.</p>`;
                     return;
                 }
                 const profile = profileRes.data;
@@ -1045,7 +1110,18 @@
                 const routes = routesRes.data || [];
                 const events = eventsRes.data || [];
 
-                body.innerHTML = generateUserProfileDetailHTML(profile, posts, spots, routes, events);
+                // Fetch likes and comments for the posts
+                const postIds = posts.map(p => p.id);
+                const likesByPost = {};
+                const commentsByPost = {};
+                if (postIds.length > 0) {
+                    const { data: likes } = await supabase.from('likes').select('*').in('post_id', postIds);
+                    const { data: comments } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
+                    if(likes) likes.forEach(like => (likesByPost[like.post_id] = likesByPost[like.post_id] || []).push(like));
+                    if(comments) comments.forEach(comment => (commentsByPost[comment.post_id] = commentsByPost[comment.post_id] || []).push(comment));
+                }
+
+                body.innerHTML = await generateUserProfileDetailHTML(profile, posts, spots, routes, events, likesByPost, commentsByPost);
                 
                 // Инициализация карт для постов в профиле
                 setTimeout(() => {
@@ -1071,19 +1147,19 @@
                 ? `<button onclick="navigateToMapObject('spot', ${spot.id})" class="mt-2 w-full text-sm text-center font-semibold p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);">Показать на карте</button>` 
                 : '';
              return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('spot', ${spot.id})">
-                        ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Фото спота">` : ''}
-                        <p class="font-bold">${escapeHTML(spot.name)}</p>
-                        <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(spot.description)}</p>
-                        <p class="text-xs text-gray-400 mt-2">${new Date(spot.created_at).toLocaleDateString()}</p>
-                        ${buttonHTML}
-                     </div>`;
+                         ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Фото спота">` : ''}
+                         <p class="font-bold">${escapeHTML(spot.name)}</p>
+                         <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(spot.description)}</p>
+                         <p class="text-xs text-gray-400 mt-2">${new Date(spot.created_at).toLocaleDateString()}</p>
+                         ${buttonHTML}
+                       </div>`;
         }
         function generateMiniRouteHTML(route) {
              return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('route', ${route.id})">
-                         <p class="font-bold flex items-center gap-2"><i class="fa-solid fa-route" style="color: var(--hint-color);"></i> ${escapeHTML(route.name)}</p>
-                         <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(route.description)}</p>
-                         <p class="text-xs text-gray-400 mt-2">${new Date(route.created_at).toLocaleDateString()}</p>
-                      </div>`;
+                           <p class="font-bold flex items-center gap-2"><i class="fa-solid fa-route" style="color: var(--hint-color);"></i> ${escapeHTML(route.name)}</p>
+                           <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(route.description)}</p>
+                           <p class="text-xs text-gray-400 mt-2">${new Date(route.created_at).toLocaleDateString()}</p>
+                         </div>`;
         }
 
         function navigateToMapObject(type, id) {
@@ -1729,24 +1805,24 @@
         }
 
         function applyTheme(themeParams) {
-              const root = document.documentElement;
-              root.style.setProperty('--bg-color', themeParams.bg_color || '#f3f4f6');
-              root.style.setProperty('--secondary-bg-color', themeParams.secondary_bg_color || '#ffffff');
-              root.style.setProperty('--text-color', themeParams.text_color || '#1f2937');
-              root.style.setProperty('--hint-color', themeParams.hint_color || '#6b7280');
-              root.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
-              root.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
-              root.style.setProperty('--border-color', themeParams.bg_color ? shadeColor(themeParams.bg_color, -10) : '#e5e7eb');
-              
-              const buttonColorRgb = hexToRgb(themeParams.button_color || '#3b82f6');
-              if (buttonColorRgb) root.style.setProperty('--button-color-rgb', buttonColorRgb.join(', '));
-              
-              const secondaryBgRgb = hexToRgb(themeParams.secondary_bg_color || '#ffffff');
-              if (secondaryBgRgb) root.style.setProperty('--secondary-bg-color-rgb', secondaryBgRgb.join(', '));
+             const root = document.documentElement;
+             root.style.setProperty('--bg-color', themeParams.bg_color || '#f3f4f6');
+             root.style.setProperty('--secondary-bg-color', themeParams.secondary_bg_color || '#ffffff');
+             root.style.setProperty('--text-color', themeParams.text_color || '#1f2937');
+             root.style.setProperty('--hint-color', themeParams.hint_color || '#6b7280');
+             root.style.setProperty('--button-color', themeParams.button_color || '#3b82f6');
+             root.style.setProperty('--button-text-color', themeParams.button_text_color || '#ffffff');
+             root.style.setProperty('--border-color', themeParams.bg_color ? shadeColor(themeParams.bg_color, -10) : '#e5e7eb');
+             
+             const buttonColorRgb = hexToRgb(themeParams.button_color || '#3b82f6');
+             if (buttonColorRgb) root.style.setProperty('--button-color-rgb', buttonColorRgb.join(', '));
+             
+             const secondaryBgRgb = hexToRgb(themeParams.secondary_bg_color || '#ffffff');
+             if (secondaryBgRgb) root.style.setProperty('--secondary-bg-color-rgb', secondaryBgRgb.join(', '));
 
-              tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
-              tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
-         }
+             tg.setHeaderColor(themeParams.secondary_bg_color || '#ffffff');
+             tg.setBackgroundColor(themeParams.bg_color || '#f3f4f6');
+       }
         
         async function upsertUserProfile() {
             if (!telegramUser) throw new Error("Пользователь Telegram не определен для upsertUserProfile.");
@@ -1945,13 +2021,13 @@
                 const area = u.area || 0;
                 const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
                 return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showDetailModal('user', ${u.id})">
-                            <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
-                            <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
-                            <div class="flex-grow">
-                                <p class="font-bold">${displayName}</p>
-                                <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
-                            </div>
-                        </div>`
+                                <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
+                                <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
+                                <div class="flex-grow">
+                                    <p class="font-bold">${displayName}</p>
+                                    <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
+                                </div>
+                            </div>`
             }).join('');
         }
 
@@ -2120,7 +2196,7 @@
             const modalBody = document.getElementById('comments-modal-body');
             modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
             commentsModal.classList.add('visible');
-            document.body.style.overflow = 'hidden';
+            document.body.classList.add('modal-open');
             
             const { data: comments, error } = await fetchComments('post', postId);
             if (error) { modalBody.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
@@ -2148,7 +2224,7 @@
         function hideCommentsModal() {
             tg.BackButton.hide();
             commentsModal.classList.remove('visible');
-            document.body.style.overflow = '';
+            document.body.classList.remove('modal-open');
         }
 
         function generateCommentHTML(comment, commentsByParent, context = 'post') {
@@ -2315,13 +2391,13 @@
                 colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H
             });
             qrModal.classList.add('visible');
-            document.body.style.overflow = 'hidden';
+            document.body.classList.add('modal-open');
             tg.BackButton.show();
         }
 
         function hideQrModal() {
             qrModal.classList.remove('visible');
-            document.body.style.overflow = '';
+            document.body.classList.remove('modal-open');
             tg.BackButton.hide();
         }
         
@@ -2472,7 +2548,7 @@
             else routes.forEach(r => select.innerHTML += `<option value="${r.id}">${escapeHTML(r.name)}</option>`);
             
             eventCreationModal.classList.add('visible');
-            document.body.style.overflow = 'hidden';
+            document.body.classList.add('modal-open');
             tg.BackButton.show();
 
             // Инициализация карты для выбора точки
@@ -2481,7 +2557,7 @@
         
         function hideEventCreationModal() {
             eventCreationModal.classList.remove('visible');
-            document.body.style.overflow = '';
+            document.body.classList.remove('modal-open');
             tg.BackButton.hide();
             if (eventPickerMap) {
                 eventPickerMap.destroy();
@@ -2566,7 +2642,7 @@
             const modalBody = document.getElementById('participants-modal-body');
             modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
             participantsModal.classList.add('visible');
-            document.body.style.overflow = 'hidden';
+            document.body.classList.add('modal-open');
             tg.BackButton.show();
 
             const { data, error } = await supabase.from('event_participants')
@@ -2595,7 +2671,7 @@
         
         function hideParticipantsModal() {
             participantsModal.classList.remove('visible');
-            document.body.style.overflow = '';
+            document.body.classList.remove('modal-open');
             tg.BackButton.hide();
         }
 
