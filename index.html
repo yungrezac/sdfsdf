@@ -603,11 +603,29 @@
          * Генерирует диплинк и открывает диалог "Поделиться" в Telegram.
          * @param {'post' | 'route' | 'spot' | 'user'} type - Тип контента.
          * @param {number | string} id - ID контента.
-         * @param {string} text - Текст для сообщения.
+         * @param {number | string} ownerId - ID владельца контента.
          */
-        function shareContent(type, id, text) {
+        function shareContent(type, id, ownerId) {
             tg.HapticFeedback.impactOccurred('light');
-            // UPDATED: Используем startapp для прямого открытия Mini App
+            const isOwner = telegramUser && ownerId.toString() === telegramUser.id.toString();
+            let text = '';
+
+            // UPDATED: Контекстно-зависимый текст
+            switch (type) {
+                case 'post':
+                    text = isOwner ? 'Оцени мой пост в TerraRun!' : 'Смотри какой интересный пост в TerraRun!';
+                    break;
+                case 'route':
+                    text = isOwner ? 'Зацени мой маршрут в TerraRun!' : 'Смотри какой интересный маршрут в TerraRun!';
+                    break;
+                case 'spot':
+                    text = isOwner ? 'Смотри какой спот я отметил в TerraRun!' : 'Смотри какой интересный спот в TerraRun!';
+                    break;
+                case 'user':
+                    text = isOwner ? 'Это мой профиль в TerraRun, присоединяйся!' : 'Смотри профиль этого бегуна в TerraRun!';
+                    break;
+            }
+
             const url = `https://t.me/${BOT_USERNAME}?startapp=${type}_${id}`;
             tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`);
         }
@@ -868,7 +886,7 @@
                         <div class="px-4">
                             <div class="flex justify-between items-start">
                                 <h2 class="text-3xl font-bold flex-1">${spot.name}</h2>
-                                <button onclick="shareContent('spot', ${spot.id}, 'Смотри какой спот я нашел в TerraRun!')" class="p-2 rounded-full hover:bg-gray-200 ml-2 flex-shrink-0">
+                                <button onclick="shareContent('spot', ${spot.id}, ${spot.user_id})" class="p-2 rounded-full hover:bg-gray-200 ml-2 flex-shrink-0">
                                     <i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--hint-color);"></i>
                                 </button>
                             </div>
@@ -896,7 +914,7 @@
                         <div class="px-4">
                              <div class="flex justify-between items-start">
                                 <h2 class="text-3xl font-bold flex-1">${route.name}</h2>
-                                <button onclick="shareContent('route', ${route.id}, 'Зацени мой маршрут в TerraRun!')" class="p-2 rounded-full hover:bg-gray-200 ml-2 flex-shrink-0">
+                                <button onclick="shareContent('route', ${route.id}, ${route.user_id})" class="p-2 rounded-full hover:bg-gray-200 ml-2 flex-shrink-0">
                                     <i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--hint-color);"></i>
                                 </button>
                             </div>
@@ -960,7 +978,7 @@
                                 <p class="text-sm" style="color: var(--hint-color);">Общая площадь</p>
                                 <p class="text-xl font-bold" style="color: var(--button-color);">${formattedArea}</p>
                             </div>
-                             <button onclick="shareContent('user', ${profile.id}, 'Смотри мой профиль в TerraRun!')" class="p-2 rounded-full hover:bg-gray-200 flex-shrink-0">
+                             <button onclick="shareContent('user', ${profile.id}, ${profile.id})" class="p-2 rounded-full hover:bg-gray-200 flex-shrink-0">
                                 <i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--hint-color);"></i>
                             </button>
                         </div>
@@ -1591,10 +1609,10 @@
 
             // UPDATED: Replaced invite button with share button logic
             inviteFriendBtn.addEventListener('click', () => {
-                 shareContent('user', telegramUser.id, 'Присоединяйся ко мне в TerraRun и давай захватывать территории вместе!');
+                 shareContent('user', telegramUser.id, telegramUser.id);
             });
             shareProfileBtn.addEventListener('click', () => {
-                shareContent('user', telegramUser.id, 'Зацени мой профиль и территории в TerraRun!');
+                shareContent('user', telegramUser.id, telegramUser.id);
             });
             
             createSimplePostBtn.addEventListener('click', showSimplePostModal);
@@ -1942,7 +1960,7 @@
                                         <span>${comments.length}</span>
                                     </button>
                                 </div>
-                                <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="shareContent('post', ${post.id}, 'Оцени мой пост в TerraRun!')" style="color: var(--hint-color);">
+                                <button class="flex items-center space-x-1 hover:text-blue-500 transition" onclick="shareContent('post', ${post.id}, ${post.user_id})" style="color: var(--hint-color);">
                                     <i class="fa-solid fa-arrow-up-from-bracket h-5 w-5"></i>
                                 </button>
                             </div>
