@@ -743,7 +743,7 @@
             }
         }
         
-        // NEW: Переключение табов в ленте
+        // Переключение табов в ленте
         function switchFeedTab(tabName) {
             if (AppState.currentFeedTab === tabName) return;
             tg.HapticFeedback.selectionChanged();
@@ -754,21 +754,25 @@
             document.getElementById(`feed-tab-${tabName}`).classList.add('active');
             document.getElementById(`feed-content-${tabName}`).classList.add('active');
 
-            // Обновляем кнопку создания
+            // Обновляем видимость и назначение кнопки создания
             const createIcon = feedCreateBtn.querySelector('i');
-            if (tabName === 'events') {
-                feedCreateBtn.onclick = showEventCreationModal;
-                createIcon.className = 'fa-solid fa-calendar-plus h-7 w-7';
-            } else {
+            if (tabName === 'posts') {
+                feedCreateBtn.classList.remove('hidden');
                 feedCreateBtn.onclick = showSimplePostModal;
                 createIcon.className = 'fa-solid fa-plus h-7 w-7';
+            } else if (tabName === 'events') {
+                feedCreateBtn.classList.remove('hidden');
+                feedCreateBtn.onclick = showEventCreationModal;
+                createIcon.className = 'fa-solid fa-calendar-plus h-7 w-7';
+            } else { // Для 'spots' и 'routes'
+                feedCreateBtn.classList.add('hidden');
             }
             
             // Загружаем контент для таба
             renderCurrentFeedTab();
         }
         
-        // NEW: Загрузка контента для активного таба ленты
+        // Загрузка контента для активного таба ленты
         function renderCurrentFeedTab() {
             clearCountdownTimers(); // Очищаем старые таймеры перед рендером
             switch(AppState.currentFeedTab) {
@@ -1686,7 +1690,7 @@
             
             showQrBtn.addEventListener('click', showQrModal);
             mapActionBtn.addEventListener('click', mapActionButtonHandler);
-            feedCreateBtn.addEventListener('click', showSimplePostModal); // Изначально на создание поста
+            feedCreateBtn.onclick = showSimplePostModal; // Изначально на создание поста
             
             // Глобальный обработчик для динамических кнопок
             document.body.addEventListener('click', (event) => {
