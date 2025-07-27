@@ -726,7 +726,7 @@
         }
 
         // --- ФУНКЦИИ UI ---
-        function showView(viewId) {
+        function showView(viewId, options = {}) { // [FIX] Добавлен параметр options
             tg.HapticFeedback.selectionChanged();
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
@@ -742,9 +742,8 @@
             }
             modeSwitcher.classList.toggle('hidden', !isMapView || !AppState.lastKnownLocation);
             
-            if (isMapView) {
-                // We fit viewport here to ensure the map resizes correctly when switching views.
-                // Specific navigation like panTo or setBounds will override this.
+            // [FIX] Не центрируем карту, если это не требуется
+            if (isMapView && !options.preventFit) { 
                 setTimeout(() => map?.container.fitToViewport(), 100);
             }
         }
@@ -1151,37 +1150,32 @@
                          ${buttonHTML}
                        </div>`;
         }
-        function generateMiniRouteHTML(route) {
+        
+        function generateMiniRouteHTML(route, isFeed = false) { // [FIX] Добавлен флаг isFeed
+             const buttonHTML = isFeed 
+                ? `<button onclick="event.stopPropagation(); navigateToMapObject('route', '${route.id}')" class="mt-2 w-full text-sm text-center font-semibold p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);">Показать на карте</button>` 
+                : '';
              return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('route', '${route.id}')">
                                <p class="font-bold flex items-center gap-2"><i class="fa-solid fa-route" style="color: var(--hint-color);"></i> ${escapeHTML(route.name)}</p>
                                <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(route.description)}</p>
                                <p class="text-xs text-gray-400 mt-2">${new Date(route.created_at).toLocaleDateString()}</p>
+                               ${buttonHTML}
                              </div>`;
         }
 
         /**
-         * [FIXED] Эта функция была переписана для корректной навигации.
-         * Она вручную переключает вид на карту, а затем, с небольшой задержкой,
-         * центрирует карту на нужном объекте. Это решает проблему конфликта
-         * между общим переключением вида и конкретной навигацией.
-         * Также исправлено сравнение ID (строка -> число).
+         * [FIX 2.0] Эта функция была переписана для корректной навигации.
+         * Она вызывает showView со специальной опцией, чтобы избежать конфликта анимаций,
+         * а затем центрирует карту на нужном объекте.
          */
         function navigateToMapObject(type, id) {
             hideDetailModal(); 
 
-            // 1. Вручную активируем вид карты и кнопку навигации
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById('map-view').classList.add('active');
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.querySelector(`button[onclick="showView('map-view')"]`).classList.add('active');
+            // 1. Переключаемся на вид карты, но отключаем стандартное центрирование,
+            // чтобы избежать конфликта с нашей анимацией.
+            showView('map-view', { preventFit: true });
             
-            // 2. Показываем элементы управления картой, если они были скрыты
-            if (AppState.lastKnownLocation) {
-                mapActionContainer.classList.remove('hidden');
-                modeSwitcher.classList.remove('hidden');
-            }
-
-            // 3. Используем таймаут, чтобы дать DOM время обновиться перед манипуляцией картой
+            // 2. Используем таймаут, чтобы дать DOM время обновиться перед манипуляцией картой
             setTimeout(() => {
                 if (!map) {
                     console.error("Карта не инициализирована.");
@@ -1192,7 +1186,7 @@
                 map.container.fitToViewport();
 
                 let targetObject;
-                const numericId = parseInt(id, 10); // Преобразуем ID в число для корректного поиска
+                const numericId = parseInt(id, 10);
 
                 if (type === 'spot') {
                     setMapMode('spots');
@@ -1222,11 +1216,12 @@
                         const polyline = new ymaps.Polyline(yandexCoords);
                         map.setBounds(polyline.geometry.getBounds(), { 
                             checkZoomRange: true, 
-                            duration: 1000 
+                            duration: 1000,
+                            zoomMargin: 30
                         });
                     }
                 }
-            }, 200); // Небольшая задержка для рендера
+            }, 250); 
         }
 
 
@@ -2482,7 +2477,7 @@
             // Маршруты
             const routes = routesRes.data || [];
             const routesContainer = document.getElementById('profile-content-routes');
-            routesContainer.innerHTML = routes.length > 0 ? routes.map(generateMiniRouteHTML).join('') : '<p class="text-center text-gray-500 py-4">У вас нет маршрутов.</p>';
+            routesContainer.innerHTML = routes.length > 0 ? routes.map(r => generateMiniRouteHTML(r, false)).join('') : '<p class="text-center text-gray-500 py-4">У вас нет маршрутов.</p>';
             document.getElementById('profile-tab-routes').textContent = `Маршруты (${routes.length})`;
             
             // Мероприятия
@@ -2600,7 +2595,7 @@
             const { data, error } = await supabase.from('routes').select('*').order('created_at', { ascending: false }).limit(20);
             if(error) { container.innerHTML = '<p class="text-center text-red-500 py-8">Не удалось загрузить маршруты.</p>'; return; }
             if(data.length === 0) { container.innerHTML = '<p class="text-center text-gray-500 py-8">Маршрутов пока нет.</p>'; return; }
-            container.innerHTML = data.map(generateMiniRouteHTML).join('');
+            container.innerHTML = data.map(r => generateMiniRouteHTML(r, true)).join(''); // [FIX] Передаем true
         }
 
         async function generateEventCardHTML(event) {
