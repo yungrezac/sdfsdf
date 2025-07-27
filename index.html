@@ -1142,19 +1142,19 @@
                 ? `<button onclick="event.stopPropagation(); navigateToMapObject('spot', '${spot.id}')" class="mt-2 w-full text-sm text-center font-semibold p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);">Показать на карте</button>` 
                 : '';
              return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('spot', '${spot.id}')">
-                         ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Фото спота">` : ''}
-                         <p class="font-bold">${escapeHTML(spot.name)}</p>
-                         <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(spot.description)}</p>
-                         <p class="text-xs text-gray-400 mt-2">${new Date(spot.created_at).toLocaleDateString()}</p>
-                         ${buttonHTML}
-                       </div>`;
+                        ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Фото спота">` : ''}
+                        <p class="font-bold">${escapeHTML(spot.name)}</p>
+                        <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(spot.description)}</p>
+                        <p class="text-xs text-gray-400 mt-2">${new Date(spot.created_at).toLocaleDateString()}</p>
+                        ${buttonHTML}
+                      </div>`;
         }
         function generateMiniRouteHTML(route) {
              return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('route', '${route.id}')">
-                           <p class="font-bold flex items-center gap-2"><i class="fa-solid fa-route" style="color: var(--hint-color);"></i> ${escapeHTML(route.name)}</p>
-                           <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(route.description)}</p>
-                           <p class="text-xs text-gray-400 mt-2">${new Date(route.created_at).toLocaleDateString()}</p>
-                         </div>`;
+                            <p class="font-bold flex items-center gap-2"><i class="fa-solid fa-route" style="color: var(--hint-color);"></i> ${escapeHTML(route.name)}</p>
+                            <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(route.description)}</p>
+                            <p class="text-xs text-gray-400 mt-2">${new Date(route.created_at).toLocaleDateString()}</p>
+                          </div>`;
         }
 
         function navigateToMapObject(type, id) {
@@ -1480,9 +1480,6 @@
             });
         }
 
-        // =================================================================
-        // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ---
-        // =================================================================
         async function saveSpot() {
             const { location } = AppState.currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
@@ -1507,24 +1504,43 @@
                 photoUrl = urlData.publicUrl;
             }
 
-            // Использование прямого insert вместо RPC
-            const { error } = await supabase.from('spots').insert({
-                user_id: telegramUser.id,
-                name: name,
-                description: description,
-                photo_url: photoUrl,
-                location: location // PostGIS примет WKT-строку
+            /*
+            ВАЖНО: Для работы этого метода в вашей базе данных Supabase должна быть создана SQL-функция.
+            Перейдите в SQL Editor в вашей панели Supabase и выполните следующий код:
+
+            CREATE OR REPLACE FUNCTION create_spot(
+                p_user_id bigint,
+                p_name text,
+                p_description text,
+                p_photo_url text,
+                p_location_wkt text
+            )
+            RETURNS void AS $$
+            BEGIN
+                INSERT INTO public.spots (user_id, name, description, photo_url, location)
+                VALUES (p_user_id, p_name, p_description, p_photo_url, ST_SetSRID(ST_GeomFromText(p_location_wkt), 4326));
+            END;
+            $$ LANGUAGE plpgsql;
+
+            Эта функция будет принимать данные и корректно преобразовывать текстовую геометрию (WKT) в тип geometry.
+            */
+            const { error } = await supabase.rpc('create_spot', {
+                p_user_id: telegramUser.id,
+                p_name: name,
+                p_description: description,
+                p_photo_url: photoUrl,
+                p_location_wkt: location
             });
 
             if (error) {
-                console.error("Ошибка сохранения спота:", error);
-                showCustomAlert("Не удалось сохранить спот.");
+                console.error("Ошибка сохранения спота через RPC:", error);
+                showCustomAlert("Не удалось сохранить спот. Убедитесь, что SQL-функция 'create_spot' создана в базе данных.");
             } else {
                 showCustomAlert("Спот успешно создан!");
                 hideCreationModal();
-                loadInitialMapData(); // Обновляем данные на карте
-                renderMyProfileContent(); // Обновляем контент в профиле
-                if (AppState.currentFeedTab === 'spots') renderFeedSpots(); // Обновляем ленту
+                loadInitialMapData();
+                renderMyProfileContent();
+                if (AppState.currentFeedTab === 'spots') renderFeedSpots();
             }
         }
         
@@ -1598,9 +1614,6 @@
             });
         }
 
-        // =================================================================
-        // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ---
-        // =================================================================
         async function saveRoute() {
             const { path } = AppState.currentEditContext;
             const name = document.getElementById('creation-modal-name').value.trim();
@@ -1611,23 +1624,41 @@
                 return;
             }
 
-            // Использование прямого insert вместо RPC
-            const { error } = await supabase.from('routes').insert({
-                user_id: telegramUser.id,
-                name: name,
-                description: description,
-                path: path // PostGIS примет WKT-строку
+            /*
+            ВАЖНО: Для работы этого метода в вашей базе данных Supabase должна быть создана SQL-функция.
+            Перейдите в SQL Editor в вашей панели Supabase и выполните следующий код:
+
+            CREATE OR REPLACE FUNCTION create_route(
+                p_user_id bigint,
+                p_name text,
+                p_description text,
+                p_path_wkt text
+            )
+            RETURNS void AS $$
+            BEGIN
+                INSERT INTO public.routes (user_id, name, description, path)
+                VALUES (p_user_id, p_name, p_description, ST_SetSRID(ST_GeomFromText(p_path_wkt), 4326));
+            END;
+            $$ LANGUAGE plpgsql;
+
+            Эта функция будет принимать данные и корректно преобразовывать текстовую геометрию (WKT) в тип geometry.
+            */
+            const { error } = await supabase.rpc('create_route', {
+                p_user_id: telegramUser.id,
+                p_name: name,
+                p_description: description,
+                p_path_wkt: path
             });
 
             if (error) {
-                console.error("Ошибка сохранения маршрута:", error);
-                showCustomAlert("Не удалось сохранить маршрут.");
+                console.error("Ошибка сохранения маршрута через RPC:", error);
+                showCustomAlert("Не удалось сохранить маршрут. Убедитесь, что SQL-функция 'create_route' создана в базе данных.");
             } else {
                 showCustomAlert("Маршрут сохранен!");
                 hideCreationModal();
-                loadInitialMapData(); // Обновляем данные на карте
-                renderMyProfileContent(); // Обновляем контент в профиле
-                if (AppState.currentFeedTab === 'routes') renderFeedRoutes(); // Обновляем ленту
+                loadInitialMapData();
+                renderMyProfileContent();
+                if (AppState.currentFeedTab === 'routes') renderFeedRoutes();
             }
         }
         
@@ -2062,13 +2093,13 @@
                 const area = u.area || 0;
                 const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
                 return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showDetailModal('user', ${u.id})">
-                                <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
-                                <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
-                                <div class="flex-grow">
-                                    <p class="font-bold">${displayName}</p>
-                                    <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
-                                </div>
-                            </div>`
+                                    <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
+                                    <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
+                                    <div class="flex-grow">
+                                        <p class="font-bold">${displayName}</p>
+                                        <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
+                                    </div>
+                                </div>`
             }).join('');
         }
 
@@ -2810,3 +2841,11 @@
     </script>
 </body>
 </html>
+```
+
+Я обновил код. Теперь для сохранения спотов и маршрутов используются специальные функции в базе данных, что повышает надежность.
+
+**Важный следующий шаг:**
+Тебе нужно зайти в свой проект Supabase, открыть **SQL Editor** и выполнить два SQL-запроса, которые я добавил в виде комментариев внутри функций `saveSpot` и `saveRoute`. Это создаст необходимые функции `create_spot` и `create_route` в твоей базе данных.
+
+После этого все должно работать коррект
