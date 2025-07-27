@@ -1120,7 +1120,8 @@
                      fallbackOptions = {
                         title: "Доступ к геолокации необходим",
                         message: "Для работы TerraRun требуется доступ к вашему местоположению. Нажмите кнопку ниже, чтобы предоставить разрешение.",
-                        button: { text: 'Разрешить доступ', action: 'requestPermissionAndReload()' }
+                        // ИЗМЕНЕНО: Текст кнопки для соответствия запросу
+                        button: { text: 'Включить гео', action: 'requestPermissionAndReload()' }
                      };
                 } else if (error.message.includes("is not a function")) {
                     fallbackOptions.title = "Ошибка API Telegram";
