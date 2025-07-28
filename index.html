@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TerraRun | Обновление</title>
+    <title>TerraRun | Обновление 2.0</title>
 
     <!-- Подключение Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -51,18 +51,19 @@
         body {
             padding-top: constant(safe-area-inset-top);
             padding-top: env(safe-area-inset-top);
-        }
-
-        body {
             overscroll-behavior: none;
             background-color: var(--bg-color);
             color: var(--text-color);
             transition: background-color 0.3s, color 0.3s;
             font-family: 'Inter', sans-serif;
         }
-        .mini-map, #detail-mini-map, #event-map-picker {
-            z-index: 10;
-            background-color: var(--bg-color);
+
+        /* Улучшенная блокировка скролла при открытом модальном окне */
+        body.modal-open {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
         }
         
         #map {
@@ -76,14 +77,15 @@
         
         .view {
             display: none;
-            height: 100vh;
+            height: 100vh; /* Занимает всю высоту видимой области */
             overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
+            -webkit-overflow-scrolling: touch; /* Плавный скролл на iOS */
             transition: opacity 0.3s ease-in-out;
             background-color: var(--bg-color);
             box-sizing: border-box;
         }
         
+        /* Паддинг для контента, чтобы он не заезжал под навбар */
         #feed-view, #top-view, #profile-view {
             padding-bottom: calc(80px + 1rem + env(safe-area-inset-bottom));
         }
@@ -154,7 +156,7 @@
             pointer-events: none;
         }
         #mode-switcher {
-            background-color: rgba(255, 255, 255, 0.8);
+            background-color: rgba(var(--secondary-bg-color-rgb), 0.8);
             backdrop-filter: blur(10px);
             border-radius: 9999px;
             padding: 0.25rem;
@@ -191,7 +193,11 @@
             justify-content: center;
             pointer-events: none;
             bottom: calc(80px + 1rem + env(safe-area-inset-bottom));
-            transition: bottom 0.3s ease-in-out;
+            transition: bottom 0.3s ease-in-out, transform 0.3s ease-in-out;
+            transform: translateY(200%); /* Start hidden */
+        }
+        #map-action-container.visible {
+            transform: translateY(0); /* Animate in */
         }
         
         .modal-overlay {
@@ -209,11 +215,6 @@
             visibility: visible;
         }
 
-        /* FIX: Prevent background scroll when modal is open */
-        body.modal-open .view.active {
-            overflow-y: hidden;
-        }
-
         .bottom-sheet-modal {
             align-items: flex-end;
         }
@@ -226,6 +227,7 @@
             flex-direction: column;
             transform: translateY(100%);
             transition: transform 0.3s ease-in-out;
+            max-height: calc(100vh - env(safe-area-inset-top) - 1rem); /* Safe upper limit */
         }
         .modal-overlay.visible .bottom-sheet-content {
             transform: translateY(0);
@@ -261,15 +263,7 @@
             display: block;
         }
         
-        #detail-comments-section, #event-comments-section, #spot-comments-section, #route-comments-section {
-            border-top: 1px solid var(--border-color);
-        }
-        #detail-comment-input-form, #event-comment-input-form {
-            padding: 0.5rem 1rem 1rem;
-            border-top: 1px solid var(--border-color);
-            background-color: var(--secondary-bg-color);
-        }
-
+        /* Skeleton Loader Styles */
         .skeleton {
             background-color: #e2e8f0;
             border-radius: 0.5rem;
@@ -353,7 +347,7 @@
                 </div>
             </div>
             
-            <div id="map-action-container" class="hidden">
+            <div id="map-action-container">
                 <button id="map-action-btn" class="text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 flex items-center gap-2 pointer-events-auto">
                     <i id="map-action-icon" class="fa-solid fa-play h-5 w-5"></i>
                     <span id="map-action-text"></span>
@@ -370,7 +364,6 @@
                 </button>
             </div>
             
-            <!-- NEW: Табы в ленте -->
             <div class="flex border-b sticky top-0 z-10 overflow-x-auto" style="background-color: var(--bg-color);">
                 <div id="feed-tab-posts" class="feed-tab active" onclick="switchFeedTab('posts')">Посты</div>
                 <div id="feed-tab-events" class="feed-tab" onclick="switchFeedTab('events')">Покатушки</div>
@@ -381,7 +374,7 @@
             <!-- Контент для табов -->
             <div id="feed-content-posts" class="feed-tab-content active mt-4 space-y-4"></div>
             <div id="feed-content-events" class="feed-tab-content mt-4 space-y-4"></div>
-            <div id="feed-content-spots" class="feed-tab-content mt-4 space-y-4"></div>
+            <div id="feed-content-spots" class="feed-tab-content mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
             <div id="feed-content-routes" class="feed-tab-content mt-4 space-y-4"></div>
         </div>
 
@@ -422,9 +415,8 @@
                 </div>
             </div>
              <!-- Табы -->
-            <div class="flex border-b mt-6 sticky top-0 z-10" style="background-color: var(--bg-color);">
+            <div class="flex border-b mt-6 sticky top-0 z-10 overflow-x-auto" style="background-color: var(--bg-color);">
                 <div id="profile-tab-posts" class="profile-tab active" onclick="switchMainProfileTab('posts')">Посты</div>
-                <!-- NEW: Таб покатушек в профиле -->
                 <div id="profile-tab-events" class="profile-tab" onclick="switchMainProfileTab('events')">Покатушки</div>
                 <div id="profile-tab-spots" class="profile-tab" onclick="switchMainProfileTab('spots')">Споты</div>
                 <div id="profile-tab-routes" class="profile-tab" onclick="switchMainProfileTab('routes')">Маршруты</div>
@@ -432,7 +424,7 @@
 
             <div id="profile-content-posts" class="profile-tab-content active mt-4 space-y-4"></div>
             <div id="profile-content-events" class="profile-tab-content mt-4 space-y-4"></div>
-            <div id="profile-content-spots" class="profile-tab-content mt-4 space-y-4"></div>
+            <div id="profile-content-spots" class="profile-tab-content mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
             <div id="profile-content-routes" class="profile-tab-content mt-4 space-y-4"></div>
         </div>
     </div>
@@ -447,14 +439,14 @@
     
     <!-- Модальное окно создания простого поста -->
     <div id="simple-post-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideSimplePostModal()">
-        <div id="simple-post-content" class="bottom-sheet-content" style="height: auto; max-height: 90vh;">
+        <div id="simple-post-content" class="bottom-sheet-content" style="height: auto;">
             <div class="grabber" onclick="hideSimplePostModal()"></div>
-            <div class="p-4 space-y-4 flex flex-col flex-grow">
+            <div class="p-4 space-y-4 flex flex-col">
                 <div class="flex justify-between items-center flex-shrink-0">
                     <h2 class="text-2xl font-bold">Новый пост</h2>
                     <button onclick="hideSimplePostModal()" class="p-2 rounded-full hover:bg-gray-200"><i class="fa-solid fa-times"></i></button>
                 </div>
-                <div class="flex-grow overflow-y-auto space-y-4">
+                <div class="flex-grow space-y-4">
                     <p style="color: var(--hint-color);">Поделитесь своими мыслями с сообществом.</p>
                     <textarea id="simple-post-details" class="form-textarea mt-1 block w-full" rows="4" placeholder="Что у вас нового?"></textarea>
                     <div id="simple-post-filename" class="text-sm text-gray-500 truncate"></div>
@@ -476,7 +468,7 @@
 
     <!-- Модальное окно создания Спота/Маршрута/Поста (захват) -->
     <div id="creation-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideCreationModal()">
-        <div class="bottom-sheet-content" style="height: 75%; max-height: calc(100vh - env(safe-area-inset-top) - 1rem);">
+        <div class="bottom-sheet-content">
             <div class="grabber" onclick="hideCreationModal()"></div>
             <div id="creation-modal-body" class="flex-grow overflow-y-auto p-4 space-y-4">
                 <h2 id="creation-modal-title" class="text-2xl font-bold"></h2>
@@ -513,9 +505,9 @@
         </div>
     </div>
 
-    <!-- NEW: Модальное окно создания Покатушки (Мероприятия) -->
+    <!-- Модальное окно создания Покатушки (Мероприятия) -->
     <div id="event-creation-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideEventCreationModal()">
-        <div class="bottom-sheet-content" style="height: 90%; max-height: calc(100vh - env(safe-area-inset-top) - 1rem);">
+        <div class="bottom-sheet-content">
             <div class="grabber" onclick="hideEventCreationModal()"></div>
             <div class="p-4 flex-shrink-0">
                  <h2 class="text-2xl font-bold">Новое мероприятие</h2>
@@ -553,7 +545,7 @@
 
     <!-- Модальное окно деталей (универсальное) -->
     <div id="detail-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideDetailModal()">
-        <div class="bottom-sheet-content" style="height: 90%; max-height: calc(100vh - env(safe-area-inset-top) - 1rem);">
+        <div class="bottom-sheet-content">
             <div class="grabber" onclick="hideDetailModal()"></div>
             <div id="detail-modal-body" class="flex-grow overflow-y-auto"></div>
         </div>
@@ -580,7 +572,7 @@
         </div>
     </div>
     
-    <!-- NEW: Модальное окно списка участников -->
+    <!-- Модальное окно списка участников -->
     <div id="participants-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideParticipantsModal()">
         <div class="bottom-sheet-content" style="height: 75%;">
             <div class="grabber" onclick="hideParticipantsModal()"></div>
@@ -606,7 +598,7 @@
     <script type="module">
         // --- КОНФИГУРАЦИЯ И КОНСТАНТЫ ---
         const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswyJZfTwkrpI';
         const BOT_USERNAME = 'TerraRunBot';
 
         // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И СОСТОЯНИЕ ---
@@ -633,50 +625,49 @@
             allUserLayers: {},
             allSpots: [],
             allRoutes: [],
-            allEvents: [], // NEW
+            allEvents: [],
             allProfilesData: [],
             currentEditContext: {},
             currentDetailContext: {},
             currentReplyTarget: { type: null, id: null, parentCommentId: null },
             photoContext: null,
             simplePostContext: {},
-            eventCreationContext: {}, // NEW
+            eventCreationContext: {},
         };
         
-        let territoriesCollection, spotCollection, routeCollection, eventCollection; // NEW: eventCollection
+        let territoriesCollection, spotCollection, routeCollection, eventCollection;
         
         // --- ЭЛЕМЕНТЫ DOM ---
-        const initialLoader = document.getElementById('initial-loader');
-        const loaderText = document.getElementById('loader-text');
-        const fallbackScreen = document.getElementById('fallback-screen');
-        const fallbackContent = document.getElementById('fallback-content');
-        const appContainer = document.getElementById('app-container');
-        const bottomNavbar = document.getElementById('bottom-navbar');
-        const modeSwitcher = document.getElementById('mode-switcher');
-        const feedCreateBtn = document.getElementById('feed-create-btn');
-        
-        // Модальные окна
-        const detailModal = document.getElementById('detail-modal');
-        const commentsModal = document.getElementById('comments-modal');
-        const simplePostModal = document.getElementById('simple-post-modal');
-        const creationModal = document.getElementById('creation-modal');
-        const qrModal = document.getElementById('qr-modal');
-        const eventCreationModal = document.getElementById('event-creation-modal'); // NEW
-        const participantsModal = document.getElementById('participants-modal'); // NEW
-
-        const leaderboardDiv = document.getElementById('leaderboard');
-        const profileName = document.getElementById('profile-name');
-        const profileAreaDisplay = document.getElementById('profile-area');
-        const profileAvatarImg = document.getElementById('profile-avatar-img');
-        const profileAvatarWrapper = document.getElementById('profile-avatar-wrapper');
-        const recenterBtn = document.getElementById('recenter-btn');
-        const requestGeoBtn = document.getElementById('request-geo-btn');
-        const mapCenterControls = document.getElementById('map-center-controls');
-        const scanQrBtn = document.getElementById('scan-qr-btn');
-        const shareProfileBtn = document.getElementById('share-profile-btn');
-        const showQrBtn = document.getElementById('show-qr-btn');
-        const mapActionContainer = document.getElementById('map-action-container');
-        const mapActionBtn = document.getElementById('map-action-btn');
+        const DOM = {
+            initialLoader: document.getElementById('initial-loader'),
+            loaderText: document.getElementById('loader-text'),
+            fallbackScreen: document.getElementById('fallback-screen'),
+            fallbackContent: document.getElementById('fallback-content'),
+            appContainer: document.getElementById('app-container'),
+            bottomNavbar: document.getElementById('bottom-navbar'),
+            modeSwitcher: document.getElementById('mode-switcher'),
+            feedCreateBtn: document.getElementById('feed-create-btn'),
+            detailModal: document.getElementById('detail-modal'),
+            commentsModal: document.getElementById('comments-modal'),
+            simplePostModal: document.getElementById('simple-post-modal'),
+            creationModal: document.getElementById('creation-modal'),
+            qrModal: document.getElementById('qr-modal'),
+            eventCreationModal: document.getElementById('event-creation-modal'),
+            participantsModal: document.getElementById('participants-modal'),
+            leaderboardDiv: document.getElementById('leaderboard'),
+            profileName: document.getElementById('profile-name'),
+            profileAreaDisplay: document.getElementById('profile-area'),
+            profileAvatarImg: document.getElementById('profile-avatar-img'),
+            profileAvatarWrapper: document.getElementById('profile-avatar-wrapper'),
+            recenterBtn: document.getElementById('recenter-btn'),
+            requestGeoBtn: document.getElementById('request-geo-btn'),
+            mapCenterControls: document.getElementById('map-center-controls'),
+            scanQrBtn: document.getElementById('scan-qr-btn'),
+            shareProfileBtn: document.getElementById('share-profile-btn'),
+            showQrBtn: document.getElementById('show-qr-btn'),
+            mapActionContainer: document.getElementById('map-action-container'),
+            mapActionBtn: document.getElementById('map-action-btn'),
+        };
 
         // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
         
@@ -726,7 +717,7 @@
         }
 
         // --- ФУНКЦИИ UI ---
-        function showView(viewId, options = {}) { // [FIX] Добавлен параметр options
+        function showView(viewId, options = {}) {
             tg.HapticFeedback.selectionChanged();
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
@@ -735,20 +726,14 @@
             
             const isMapView = viewId === 'map-view';
             
-            if (isMapView && AppState.lastKnownLocation) {
-                mapActionContainer.classList.remove('hidden');
-            } else {
-                mapActionContainer.classList.add('hidden');
-            }
-            modeSwitcher.classList.toggle('hidden', !isMapView || !AppState.lastKnownLocation);
+            DOM.mapActionContainer.classList.toggle('visible', isMapView && AppState.lastKnownLocation);
+            DOM.modeSwitcher.classList.toggle('hidden', !isMapView || !AppState.lastKnownLocation);
             
-            // [FIX] Не центрируем карту, если это не требуется
             if (isMapView && !options.preventFit) { 
                 setTimeout(() => map?.container.fitToViewport(), 100);
             }
         }
         
-        // Переключение табов в ленте
         function switchFeedTab(tabName) {
             if (AppState.currentFeedTab === tabName) return;
             tg.HapticFeedback.selectionChanged();
@@ -759,28 +744,32 @@
             document.getElementById(`feed-tab-${tabName}`).classList.add('active');
             document.getElementById(`feed-content-${tabName}`).classList.add('active');
 
-            // Обновляем видимость и назначение кнопки создания
-            const createIcon = feedCreateBtn.querySelector('i');
+            const createIcon = DOM.feedCreateBtn.querySelector('i');
             if (tabName === 'posts') {
-                feedCreateBtn.classList.remove('hidden');
-                feedCreateBtn.onclick = showSimplePostModal;
+                DOM.feedCreateBtn.classList.remove('hidden');
+                DOM.feedCreateBtn.onclick = showSimplePostModal;
                 createIcon.className = 'fa-solid fa-plus h-7 w-7';
             } else if (tabName === 'events') {
-                feedCreateBtn.classList.remove('hidden');
-                feedCreateBtn.onclick = showEventCreationModal;
+                DOM.feedCreateBtn.classList.remove('hidden');
+                DOM.feedCreateBtn.onclick = showEventCreationModal;
                 createIcon.className = 'fa-solid fa-calendar-plus h-7 w-7';
             } else { // Для 'spots' и 'routes'
-                feedCreateBtn.classList.add('hidden');
+                DOM.feedCreateBtn.classList.add('hidden');
             }
             
-            // Загружаем контент для таба
             renderCurrentFeedTab();
         }
         
-        // Загрузка контента для активного таба ленты
         function renderCurrentFeedTab() {
-            clearCountdownTimers(); // Очищаем старые таймеры перед рендером
-            switch(AppState.currentFeedTab) {
+            clearCountdownTimers();
+            const tab = AppState.currentFeedTab;
+            const container = document.getElementById(`feed-content-${tab}`);
+            if (container.children.length > 0 && !container.querySelector('.skeleton-container')) {
+                // Контент уже загружен, не перезагружаем
+                return;
+            }
+
+            switch(tab) {
                 case 'posts': renderFeedPosts(); break;
                 case 'events': renderFeedEvents(); break;
                 case 'spots': renderFeedSpots(); break;
@@ -788,12 +777,11 @@
             }
         }
 
-
         async function setMapMode(newMode) {
             if (AppState.currentMapMode === newMode || !map) return;
             
             if (AppState.isRunning) {
-                showCustomAlert("Сначала завершите текущую активность (захват или запись маршрута).");
+                tg.showAlert("Сначала завершите текущую активность (захват или запись маршрута).");
                 return;
             }
             tg.HapticFeedback.selectionChanged();
@@ -823,37 +811,37 @@
             const text = document.getElementById('map-action-text');
 
             if (!AppState.lastKnownLocation) {
-                mapActionContainer.classList.add('hidden');
+                DOM.mapActionContainer.classList.remove('visible');
                 return;
             }
             
-            mapActionContainer.classList.remove('hidden');
+            DOM.mapActionContainer.classList.add('visible');
 
             switch (AppState.currentMapMode) {
                 case 'capture':
                     if (AppState.isRunning) {
                         text.textContent = "Остановить захват";
-                        mapActionBtn.style.backgroundColor = 'var(--destructive-color)';
+                        DOM.mapActionBtn.style.backgroundColor = 'var(--destructive-color)';
                         icon.className = 'fa-solid fa-stop h-5 w-5';
                     } else {
                         text.textContent = "Начать захват";
-                        mapActionBtn.style.backgroundColor = 'var(--button-color)';
+                        DOM.mapActionBtn.style.backgroundColor = 'var(--button-color)';
                         icon.className = 'fa-solid fa-play h-5 w-5';
                     }
                     break;
                 case 'spots':
                     text.textContent = "Добавить спот здесь";
-                    mapActionBtn.style.backgroundColor = 'var(--success-color)';
+                    DOM.mapActionBtn.style.backgroundColor = 'var(--success-color)';
                     icon.className = 'fa-solid fa-location-dot h-5 w-5';
                     break;
                 case 'routes':
                     if (AppState.isRunning) {
                         text.textContent = "Завершить маршрут";
-                        mapActionBtn.style.backgroundColor = 'var(--destructive-color)';
+                        DOM.mapActionBtn.style.backgroundColor = 'var(--destructive-color)';
                         icon.className = 'fa-solid fa-stop h-5 w-5';
                     } else {
                         text.textContent = "Начать запись маршрута";
-                        mapActionBtn.style.backgroundColor = 'var(--button-color)';
+                        DOM.mapActionBtn.style.backgroundColor = 'var(--button-color)';
                         icon.className = 'fa-solid fa-route h-5 w-5';
                     }
                     break;
@@ -861,7 +849,7 @@
         }
         
         async function mapActionButtonHandler() {
-            mapActionBtn.disabled = true; 
+            DOM.mapActionBtn.disabled = true; 
             try {
                 switch (AppState.currentMapMode) {
                     case 'capture':
@@ -871,7 +859,7 @@
                         if(AppState.lastKnownLocation) {
                             handleMapClickForSpot({ get: (key) => key === 'coords' ? AppState.lastKnownLocation : null });
                         } else {
-                            showCustomAlert("Определяем ваше местоположение...");
+                            tg.showAlert("Определяем ваше местоположение...");
                         }
                         break;
                     case 'routes':
@@ -879,7 +867,7 @@
                         break;
                 }
             } finally {
-                mapActionBtn.disabled = false;
+                DOM.mapActionBtn.disabled = false;
             }
         }
         
@@ -899,15 +887,11 @@
             document.getElementById('simple-post-details').value = '';
             document.getElementById('simple-post-filename').textContent = '';
             AppState.simplePostContext = {};
-            simplePostModal.classList.add('visible');
-            document.body.classList.add('modal-open');
-            tg.BackButton.show();
+            showModal(DOM.simplePostModal);
         }
 
         function hideSimplePostModal() {
-            simplePostModal.classList.remove('visible');
-            document.body.classList.remove('modal-open');
-            tg.BackButton.hide();
+            hideModal(DOM.simplePostModal);
         }
         
         function showCreationModal(type, context = {}) {
@@ -943,15 +927,11 @@
                 photoSection.style.display = 'block';
             }
             
-            creationModal.classList.add('visible');
-            document.body.classList.add('modal-open');
-            tg.BackButton.show();
+            showModal(DOM.creationModal);
         }
 
         function hideCreationModal() {
-            creationModal.classList.remove('visible');
-            document.body.classList.remove('modal-open');
-            tg.BackButton.hide();
+            hideModal(DOM.creationModal);
             AppState.currentEditContext = {};
         }
 
@@ -965,10 +945,8 @@
         function showDetailModal(type, id) {
              AppState.currentDetailContext = { type, id, mapInstances: [] };
              tg.HapticFeedback.impactOccurred('medium');
-             tg.BackButton.show();
              
-             detailModal.classList.add('visible');
-             document.body.classList.add('modal-open');
+             showModal(DOM.detailModal);
              loadDetailContent();
         }
         
@@ -976,10 +954,25 @@
             if (AppState.currentDetailContext.mapInstances) {
                 AppState.currentDetailContext.mapInstances.forEach(mapInstance => mapInstance.destroy());
             }
-            tg.BackButton.hide();
-            detailModal.classList.remove('visible');
-            document.body.classList.remove('modal-open');
+            hideModal(DOM.detailModal);
             AppState.currentDetailContext = {};
+        }
+
+        // --- Улучшенные функции открытия/закрытия модальных окон
+        function showModal(modalElement) {
+            modalElement.classList.add('visible');
+            document.body.classList.add('modal-open');
+            tg.BackButton.show();
+        }
+
+        function hideModal(modalElement) {
+            modalElement.classList.remove('visible');
+            // Проверяем, есть ли еще открытые модальные окна, прежде чем убирать класс
+            const anyModalVisible = document.querySelector('.modal-overlay.visible');
+            if (!anyModalVisible) {
+                document.body.classList.remove('modal-open');
+                tg.BackButton.hide();
+            }
         }
 
         // --- ФУНКЦИИ ДЛЯ ВЫБОРА ФОТО ---
@@ -1048,10 +1041,10 @@
                     <div id="tab-spots" class="profile-tab" onclick="switchProfileTab('spots')">Споты (${spots.length})</div>
                     <div id="tab-routes" class="profile-tab" onclick="switchProfileTab('routes')">Маршруты (${routes.length})</div>
                 </div>
-                <div class="p-4 space-y-4">
+                <div class="p-4">
                     <div id="content-posts" class="profile-tab-content active space-y-4">${postsHTML}</div>
                     <div id="content-events" class="profile-tab-content space-y-4">${eventsHTML}</div>
-                    <div id="content-spots" class="profile-tab-content grid grid-cols-1 md:grid-cols-2 gap-4">${spotsHTML}</div>
+                    <div id="content-spots" class="profile-tab-content grid grid-cols-1 sm:grid-cols-2 gap-4">${spotsHTML}</div>
                     <div id="content-routes" class="profile-tab-content space-y-4">${routesHTML}</div>
                 </div>
             `;
@@ -1063,70 +1056,64 @@
             
             body.innerHTML = `<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
             
-            if (type === 'spot') {
-                const { data: spot, error } = await supabase.from('spots').select('*, profiles(id, name, photo_url)').eq('id', id).single();
-                if (error || !spot) {
-                    body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали спота.</p>`;
-                    return;
-                }
-                body.innerHTML = generateSpotDetailHTML(spot);
-                loadAndRenderComments('spot', id, 'detail-comments-list');
-            } else if (type === 'route') {
-                 const { data: route, error } = await supabase.from('routes').select('*, profiles(id, name, photo_url)').eq('id', id).single();
-                if (error || !route) {
-                    body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали маршрута.</p>`;
-                    return;
-                }
-                body.innerHTML = generateRouteDetailHTML(route);
-                setTimeout(() => renderMiniMapForRoute(route), 100);
-                loadAndRenderComments('route', id, 'detail-comments-list');
-            } else if (type === 'event') {
-                const { data: event, error } = await supabase.from('events').select('*, profiles(id, name, photo_url), routes(*)').eq('id', id).single();
-                 if (error || !event) {
-                    body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали мероприятия.</p>`;
-                    return;
-                }
-                body.innerHTML = await generateEventDetailHTML(event);
-                setTimeout(() => renderMiniMapForEvent(event), 100);
-                loadAndRenderComments('event', id, 'event-comments-list');
-            } else if (type === 'user') {
-                const [profileRes, postsRes, spotsRes, routesRes, eventsRes] = await Promise.all([
-                    supabase.from('profiles').select('*').eq('id', id).single(),
-                    supabase.from('posts').select('*').eq('user_id', id).order('created_at', { ascending: false }),
-                    supabase.from('spots').select('*').eq('user_id', id).order('created_at', { ascending: false }),
-                    supabase.from('routes').select('*').eq('user_id', id).order('created_at', { ascending: false }),
-                    supabase.rpc('get_user_events', { p_user_id: id })
-                ]);
+            try {
+                if (type === 'spot') {
+                    const { data: spot, error } = await supabase.from('spots').select('*, profiles(id, name, photo_url)').eq('id', id).single();
+                    if (error) throw error;
+                    body.innerHTML = generateSpotDetailHTML(spot);
+                    loadAndRenderComments('spot', id, 'detail-comments-list');
+                } else if (type === 'route') {
+                     const { data: route, error } = await supabase.from('routes').select('*, profiles(id, name, photo_url)').eq('id', id).single();
+                    if (error) throw error;
+                    body.innerHTML = generateRouteDetailHTML(route);
+                    setTimeout(() => renderMiniMapForRoute(route), 100);
+                    loadAndRenderComments('route', id, 'detail-comments-list');
+                } else if (type === 'event') {
+                    const { data: event, error } = await supabase.from('events').select('*, profiles(id, name, photo_url), routes(*)').eq('id', id).single();
+                     if (error) throw error;
+                    body.innerHTML = await generateEventDetailHTML(event);
+                    setTimeout(() => renderMiniMapForEvent(event), 100);
+                    loadAndRenderComments('event', id, 'event-comments-list');
+                } else if (type === 'user') {
+                    const [profileRes, postsRes, spotsRes, routesRes, eventsRes] = await Promise.all([
+                        supabase.from('profiles').select('*').eq('id', id).single(),
+                        supabase.from('posts').select('*').eq('user_id', id).order('created_at', { ascending: false }),
+                        supabase.from('spots').select('*').eq('user_id', id).order('created_at', { ascending: false }),
+                        supabase.from('routes').select('*').eq('user_id', id).order('created_at', { ascending: false }),
+                        supabase.rpc('get_user_events', { p_user_id: id })
+                    ]);
 
-                if (profileRes.error) {
-                    body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить профиль.</p>`;
-                    return;
-                }
-                const profile = profileRes.data;
-                const posts = postsRes.data || [];
-                const spots = spotsRes.data || [];
-                const routes = routesRes.data || [];
-                const events = eventsRes.data || [];
+                    if (profileRes.error) throw profileRes.error;
 
-                const postIds = posts.map(p => p.id);
-                const likesByPost = {};
-                const commentsByPost = {};
-                if (postIds.length > 0) {
-                    const { data: likes } = await supabase.from('likes').select('*').in('post_id', postIds);
-                    const { data: comments } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
-                    if(likes) likes.forEach(like => (likesByPost[like.post_id] = likesByPost[like.post_id] || []).push(like));
-                    if(comments) comments.forEach(comment => (commentsByPost[comment.post_id] = commentsByPost[comment.post_id] || []).push(comment));
-                }
+                    const profile = profileRes.data;
+                    const posts = postsRes.data || [];
+                    const spots = spotsRes.data || [];
+                    const routes = routesRes.data || [];
+                    const events = eventsRes.data || [];
 
-                body.innerHTML = await generateUserProfileDetailHTML(profile, posts, spots, routes, events, likesByPost, commentsByPost);
-                
-                setTimeout(() => {
-                    posts.forEach(post => {
-                        if (post.territory_captured) {
-                            renderMiniMapForPost(post, body);
-                        }
-                    });
-                }, 100);
+                    const postIds = posts.map(p => p.id);
+                    const likesByPost = {};
+                    const commentsByPost = {};
+                    if (postIds.length > 0) {
+                        const { data: likes } = await supabase.from('likes').select('*').in('post_id', postIds);
+                        const { data: comments } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
+                        if(likes) likes.forEach(like => (likesByPost[like.post_id] = likesByPost[like.post_id] || []).push(like));
+                        if(comments) comments.forEach(comment => (commentsByPost[comment.post_id] = commentsByPost[comment.post_id] || []).push(comment));
+                    }
+
+                    body.innerHTML = await generateUserProfileDetailHTML(profile, posts, spots, routes, events, likesByPost, commentsByPost);
+                    
+                    setTimeout(() => {
+                        posts.forEach(post => {
+                            if (post.territory_captured) {
+                                renderMiniMapForPost(post, body);
+                            }
+                        });
+                    }, 100);
+                }
+            } catch (error) {
+                 console.error(`Ошибка загрузки деталей для ${type} #${id}:`, error);
+                 body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали. Попробуйте еще раз.</p>`;
             }
         }
         
@@ -1142,46 +1129,43 @@
              const buttonHTML = isFeed 
                 ? `<button onclick="event.stopPropagation(); navigateToMapObject('spot', '${spot.id}')" class="mt-2 w-full text-sm text-center font-semibold p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);">Показать на карте</button>` 
                 : '';
-             return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('spot', '${spot.id}')">
-                         ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Фото спота">` : ''}
-                         <p class="font-bold">${escapeHTML(spot.name)}</p>
-                         <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(spot.description)}</p>
-                         <p class="text-xs text-gray-400 mt-2">${new Date(spot.created_at).toLocaleDateString()}</p>
-                         ${buttonHTML}
-                       </div>`;
+              return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('spot', '${spot.id}')">
+                        ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Фото спота">` : ''}
+                        <p class="font-bold">${escapeHTML(spot.name)}</p>
+                        <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(spot.description)}</p>
+                        <p class="text-xs text-gray-400 mt-2">${new Date(spot.created_at).toLocaleDateString()}</p>
+                        ${buttonHTML}
+                      </div>`;
         }
         
-        function generateMiniRouteHTML(route, isFeed = false) { // [FIX] Добавлен флаг isFeed
-             const buttonHTML = isFeed 
+        function generateMiniRouteHTML(route, isFeed = false) {
+              const buttonHTML = isFeed 
                 ? `<button onclick="event.stopPropagation(); navigateToMapObject('route', '${route.id}')" class="mt-2 w-full text-sm text-center font-semibold p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);">Показать на карте</button>` 
                 : '';
-             return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('route', '${route.id}')">
-                               <p class="font-bold flex items-center gap-2"><i class="fa-solid fa-route" style="color: var(--hint-color);"></i> ${escapeHTML(route.name)}</p>
-                               <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(route.description)}</p>
-                               <p class="text-xs text-gray-400 mt-2">${new Date(route.created_at).toLocaleDateString()}</p>
-                               ${buttonHTML}
-                             </div>`;
+              return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('route', '${route.id}')">
+                           <p class="font-bold flex items-center gap-2"><i class="fa-solid fa-route" style="color: var(--hint-color);"></i> ${escapeHTML(route.name)}</p>
+                           <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(route.description)}</p>
+                           <p class="text-xs text-gray-400 mt-2">${new Date(route.created_at).toLocaleDateString()}</p>
+                           ${buttonHTML}
+                         </div>`;
         }
 
         /**
-         * [FIX 3.0] Эта функция была переписана для более точной и плавной навигации
-         * с максимальным приближением к объекту.
+         * Улучшенная функция навигации к объекту на карте.
+         * Использует setBounds для полигонов/линий и setCenter с высоким зумом для точек.
+         * Добавляет плавную анимацию для лучшего UX.
          */
         function navigateToMapObject(type, id) {
             hideDetailModal(); 
 
-            // 1. Переключаемся на вид карты, но отключаем стандартное центрирование,
-            // чтобы избежать конфликта с нашей анимацией.
             showView('map-view', { preventFit: true });
             
-            // 2. Используем таймаут, чтобы дать DOM время обновиться перед манипуляцией картой
             setTimeout(() => {
                 if (!map) {
                     console.error("Карта не инициализирована.");
                     return;
                 }
                 
-                // Сначала убедимся, что контейнер карты имеет правильный размер
                 map.container.fitToViewport();
 
                 let targetObject;
@@ -1190,14 +1174,11 @@
                 if (type === 'spot') {
                     setMapMode('spots');
                     targetObject = AppState.allSpots.find(s => s.id === numericId);
-                    if (!targetObject) {
-                        console.error(`Спот с ID ${id} не найден.`);
-                        return;
-                    }
+                    if (!targetObject) return console.error(`Спот с ID ${id} не найден.`);
+                    
                     const geoJson = parseWKT(targetObject.location);
                     if (geoJson && geoJson.type === 'Point') {
                         const coords = [geoJson.coordinates[1], geoJson.coordinates[0]]; // lat, long
-                        // Используем setCenter с высоким уровнем приближения для плавного эффекта
                         map.setCenter(coords, 18, {
                             duration: 1500,
                             timingFunction: 'ease-in-out'
@@ -1206,37 +1187,40 @@
                 } else if (type === 'route') {
                     setMapMode('routes');
                     targetObject = AppState.allRoutes.find(r => r.id === numericId);
-                    if (!targetObject) {
-                        console.error(`Маршрут с ID ${id} не найден.`);
-                        return;
-                    }
+                    if (!targetObject) return console.error(`Маршрут с ID ${id} не найден.`);
+                    
                     const geoJson = parseWKT(targetObject.path);
                     if (geoJson && geoJson.type === 'LineString' && geoJson.coordinates.length > 0) {
                         const yandexCoords = geoJson.coordinates.map(p => [p[1], p[0]]);
                         const polyline = new ymaps.Polyline(yandexCoords);
-                         // Используем setBounds с уменьшенным отступом для максимального приближения
                         map.setBounds(polyline.geometry.getBounds(), { 
                             checkZoomRange: true, 
                             duration: 1000,
-                            zoomMargin: 15 // Уменьшенный отступ для более плотного приближения
+                            zoomMargin: 30 // Отступ для лучшего обзора
                         });
                     }
                 }
             }, 250); 
         }
 
-
+        /**
+         * Улучшенная функция парсинга.
+         * В первую очередь пытается обработать прямой GeoJSON объект, который возвращает PostGIS.
+         * Оставляет старый WKT-парсер как запасной вариант.
+         */
         function parseWKT(wkt) {
             if (!wkt) return null;
-            // ИЗМЕНЕНИЕ: Теперь мы ожидаем GeoJSON объект от Supabase
+            // Приоритет для GeoJSON объекта
             if (typeof wkt === 'object' && wkt.type && wkt.coordinates) return wkt;
-            // Оставляем старый парсер как запасной вариант
+            
+            // Запасной вариант для строкового формата
             if (typeof wkt !== 'string') return null;
             try {
                 if (wkt.trim().startsWith('{')) {
                     const parsed = JSON.parse(wkt);
                     if (parsed.type && parsed.coordinates) return parsed;
                 }
+                // ... (остальной код парсинга WKT без изменений)
                 const match = wkt.match(/(POINT|LINESTRING|POLYGON|MULTIPOLYGON)\s*\((.+)\)/i);
                 if (!match) return null;
                 const type = match[1].toUpperCase();
@@ -1287,18 +1271,21 @@
                 }
                 telegramUser = tg.initDataUnsafe.user;
                 
-                loaderText.textContent = 'Подключение к базе данных...';
+                DOM.loaderText.textContent = 'Подключение к базе данных...';
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 
-                loaderText.textContent = 'Загрузка данных...';
+                DOM.loaderText.textContent = 'Загрузка карты...';
+                await ymaps.ready();
                 initMap({ latitude: 55.751244, longitude: 37.618423 });
                 
+                DOM.loaderText.textContent = 'Загрузка профиля...';
                 await upsertUserProfile();
                 updateUI();
                 
+                DOM.loaderText.textContent = 'Загрузка данных...';
                 await Promise.all([
                     fetchAllProfilesAndDraw(),
-                    renderCurrentFeedTab(), // Загружаем контент для первого таба
+                    renderCurrentFeedTab(),
                     loadInitialMapData(),
                     renderMyProfileContent()
                 ]);
@@ -1308,9 +1295,9 @@
                 initializeGeolocation();
                 handleStartParam();
 
-                initialLoader.classList.add('hidden');
-                appContainer.classList.remove('hidden');
-                bottomNavbar.classList.remove('hidden');
+                DOM.initialLoader.classList.add('hidden');
+                DOM.appContainer.classList.remove('hidden');
+                DOM.bottomNavbar.classList.remove('hidden');
                 
                 tg.CloudStorage.getItem('currentMapMode', (error, value) => {
                     if (error) {
@@ -1340,27 +1327,27 @@
             territoriesCollection = new ymaps.GeoObjectCollection();
             spotCollection = new ymaps.GeoObjectCollection();
             routeCollection = new ymaps.GeoObjectCollection();
-            eventCollection = new ymaps.GeoObjectCollection(); // NEW
+            eventCollection = new ymaps.GeoObjectCollection();
 
             map.geoObjects.add(territoriesCollection);
             map.geoObjects.add(spotCollection);
             map.geoObjects.add(routeCollection);
-            map.geoObjects.add(eventCollection); // NEW
+            map.geoObjects.add(eventCollection);
             
             setTimeout(() => map?.container.fitToViewport(), 100);
         }
 
         function updateUI() {
             const name = escapeHTML(telegramUser.first_name);
-            profileName.textContent = name;
+            DOM.profileName.textContent = name;
             
             if (telegramUser.photo_url) {
-                profileAvatarImg.src = telegramUser.photo_url;
+                DOM.profileAvatarImg.src = telegramUser.photo_url;
             } else {
                 const initial = name.charAt(0).toUpperCase();
-                profileAvatarImg.src = `https://placehold.co/96x96/E2E8F0/4A5568?text=${initial}`;
+                DOM.profileAvatarImg.src = `https://placehold.co/96x96/E2E8F0/4A5568?text=${initial}`;
             }
-            profileAvatarWrapper.style.borderColor = AppState.userProfile.color;
+            DOM.profileAvatarWrapper.style.borderColor = AppState.userProfile.color;
             updateMapActionButton();
             refreshAllStats();
             renderMyProfileContent();
@@ -1388,7 +1375,7 @@
         // --- Логика геолокации ---
         async function initializeGeolocation() {
             if (!navigator.geolocation) {
-                showCustomAlert("Геолокация не поддерживается вашим устройством.");
+                tg.showAlert("Геолокация не поддерживается вашим устройством.");
                 return;
             }
             try {
@@ -1398,16 +1385,16 @@
                         startGeoTracking();
                     } else {
                         AppState.lastKnownLocation = null;
-                        mapActionContainer.classList.add('hidden');
-                        modeSwitcher.classList.add('hidden');
-                        mapCenterControls.classList.remove('hidden');
+                        DOM.mapActionContainer.classList.remove('visible');
+                        DOM.modeSwitcher.classList.add('hidden');
+                        DOM.mapCenterControls.classList.remove('hidden');
                     }
                 };
                 permissionStatus.onchange = handlePermissionChange;
                 handlePermissionChange();
             } catch (e) {
                 console.warn("API разрешений не поддерживается, используем старый метод.", e);
-                mapCenterControls.classList.remove('hidden');
+                DOM.mapCenterControls.classList.remove('hidden');
             }
         }
 
@@ -1416,7 +1403,7 @@
             const geoText = document.getElementById('request-geo-text');
             geoText.textContent = 'Ждем ответа...';
             geoLoader.classList.remove('hidden');
-            requestGeoBtn.disabled = true;
+            DOM.requestGeoBtn.disabled = true;
             startGeoTracking();
         }
 
@@ -1431,10 +1418,10 @@
                     AppState.lastKnownLocation = latLng;
                     
                     updateCurrentUserMarker(latLng);
-                    mapCenterControls.classList.add('hidden');
-                    recenterBtn.classList.remove('hidden');
-                    modeSwitcher.classList.remove('hidden');
-                    mapActionContainer.classList.remove('hidden');
+                    DOM.mapCenterControls.classList.add('hidden');
+                    DOM.recenterBtn.classList.remove('hidden');
+                    DOM.modeSwitcher.classList.remove('hidden');
+                    DOM.mapActionContainer.classList.add('visible');
                     
                     updateMapActionButton();
                     startWatchingLocation();
@@ -1442,12 +1429,12 @@
                 (error) => {
                     tg.HapticFeedback.notificationOccurred('error');
                     console.error("Geolocation error:", error);
-                    showCustomAlert("Не удалось получить геолокацию. Проверьте разрешения в настройках вашего устройства.");
+                    tg.showAlert("Не удалось получить геолокацию. Проверьте разрешения в настройках вашего устройства.");
                     const geoText = document.getElementById('request-geo-text');
                     const geoLoader = document.getElementById('request-geo-loader');
                     geoText.textContent = 'Дать доступ к гео';
                     geoLoader.classList.add('hidden');
-                    requestGeoBtn.disabled = false;
+                    DOM.requestGeoBtn.disabled = false;
                 },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
@@ -1479,7 +1466,7 @@
         // --- ЛОГИКА РЕЖИМОВ ---
         function startRun() {
             if (!AppState.lastKnownLocation) {
-                showCustomAlert("Сначала определите свое местоположение."); return;
+                tg.showAlert("Сначала определите свое местоположение."); return;
             }
             AppState.isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
@@ -1497,7 +1484,12 @@
         }
         async function stopRun() {
             return new Promise(resolve => {
-                showCustomConfirm("Завершить пробежку и захватить территорию?", async () => {
+                tg.showConfirm("Завершить пробежку и захватить территорию?", async (ok) => { 
+                    if (!ok) {
+                        resolve();
+                        return;
+                    }
+
                     AppState.isRunning = false;
                     tg.HapticFeedback.notificationOccurred('success');
                     tg.isClosingConfirmationEnabled = false;
@@ -1505,7 +1497,7 @@
                     if (AppState.currentRunPath.length > 3) {
                         await processRunPath();
                     } else {
-                        showCustomAlert('Слишком короткий маршрут для захвата.');
+                        tg.showAlert('Слишком короткий маршрут для захвата.');
                     }
                     if (AppState.currentPathPolyline) {
                         map.geoObjects.remove(AppState.currentPathPolyline);
@@ -1519,8 +1511,8 @@
         function handleMapClickForSpot(e) {
             const coords = e.get('coords');
             const locationWKT = `POINT(${coords[1]} ${coords[0]})`;
-            showCustomConfirm("Создать новый спот в этом месте?", () => {
-                showCreationModal('spot', { location: locationWKT });
+            tg.showConfirm("Создать новый спот в этом месте?", (ok) => {
+                if(ok) showCreationModal('spot', { location: locationWKT });
             });
         }
 
@@ -1531,43 +1523,25 @@
             const file = AppState.currentEditContext.file;
 
             if (!name || !description) {
-                showCustomAlert("Название и описание обязательны.");
+                tg.showAlert("Название и описание обязательны.");
                 return;
             }
 
             let photoUrl = null;
             if (file) {
-                const filePath = `${telegramUser.id}/spots/${Date.now()}_${file.name}`;
-                const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                if (error) {
+                try {
+                    const filePath = `${telegramUser.id}/spots/${Date.now()}_${file.name}`;
+                    const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
+                    if (error) throw error;
+                    const { data: urlData } = supabase.storage.from('photo').getPublicUrl(data.path);
+                    photoUrl = urlData.publicUrl;
+                } catch (error) {
                     console.error("Ошибка загрузки фото:", error);
-                    showCustomAlert("Ошибка загрузки фото.");
+                    tg.showAlert("Ошибка загрузки фото.");
                     return;
                 }
-                const { data: urlData } = supabase.storage.from('photo').getPublicUrl(data.path);
-                photoUrl = urlData.publicUrl;
             }
 
-            /*
-            ВАЖНО: Для работы этого метода в вашей базе данных Supabase должна быть создана SQL-функция.
-            Перейдите в SQL Editor в вашей панели Supabase и выполните следующий код:
-
-            CREATE OR REPLACE FUNCTION create_spot(
-                p_user_id bigint,
-                p_name text,
-                p_description text,
-                p_photo_url text,
-                p_location_wkt text
-            )
-            RETURNS void AS $$
-            BEGIN
-                INSERT INTO public.spots (user_id, name, description, photo_url, location)
-                VALUES (p_user_id, p_name, p_description, p_photo_url, ST_SetSRID(ST_GeomFromText(p_location_wkt), 4326));
-            END;
-            $$ LANGUAGE plpgsql;
-
-            Эта функция будет принимать данные и корректно преобразовывать текстовую геометрию (WKT) в тип geometry.
-            */
             const { error } = await supabase.rpc('create_spot', {
                 p_user_id: telegramUser.id,
                 p_name: name,
@@ -1578,9 +1552,9 @@
 
             if (error) {
                 console.error("Ошибка сохранения спота через RPC:", error);
-                showCustomAlert("Не удалось сохранить спот. Убедитесь, что SQL-функция 'create_spot' создана в базе данных.");
+                tg.showAlert("Не удалось сохранить спот. Убедитесь, что SQL-функция 'create_spot' создана в базе данных.");
             } else {
-                showCustomAlert("Спот успешно создан!");
+                tg.showAlert("Спот успешно создан!");
                 hideCreationModal();
                 loadInitialMapData();
                 renderMyProfileContent();
@@ -1613,7 +1587,7 @@
 
         function startRouteRecording() {
             if (!AppState.lastKnownLocation) {
-                showCustomAlert("Сначала определите свое местоположение."); return;
+                tg.showAlert("Сначала определите свое местоположение."); return;
             }
             AppState.isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
@@ -1638,7 +1612,7 @@
                 updateMapActionButton();
                 
                 if (AppState.currentRunPath.length < 2) {
-                    showCustomAlert("Слишком короткий маршрут.");
+                    tg.showAlert("Слишком короткий маршрут.");
                     if (AppState.currentPathPolyline) map.geoObjects.remove(AppState.currentPathPolyline);
                     AppState.currentPathPolyline = null;
                     resolve();
@@ -1663,29 +1637,10 @@
             const description = document.getElementById('creation-modal-details').value.trim();
             
             if (!name) {
-                showCustomAlert("Название обязательно.");
+                tg.showAlert("Название обязательно.");
                 return;
             }
 
-            /*
-            ВАЖНО: Для работы этого метода в вашей базе данных Supabase должна быть создана SQL-функция.
-            Перейдите в SQL Editor в вашей панели Supabase и выполните следующий код:
-
-            CREATE OR REPLACE FUNCTION create_route(
-                p_user_id bigint,
-                p_name text,
-                p_description text,
-                p_path_wkt text
-            )
-            RETURNS void AS $$
-            BEGIN
-                INSERT INTO public.routes (user_id, name, description, path)
-                VALUES (p_user_id, p_name, p_description, ST_SetSRID(ST_GeomFromText(p_path_wkt), 4326));
-            END;
-            $$ LANGUAGE plpgsql;
-
-            Эта функция будет принимать данные и корректно преобразовывать текстовую геометрию (WKT) в тип geometry.
-            */
             const { error } = await supabase.rpc('create_route', {
                 p_user_id: telegramUser.id,
                 p_name: name,
@@ -1695,9 +1650,9 @@
 
             if (error) {
                 console.error("Ошибка сохранения маршрута через RPC:", error);
-                showCustomAlert("Не удалось сохранить маршрут. Убедитесь, что SQL-функция 'create_route' создана в базе данных.");
+                tg.showAlert("Не удалось сохранить маршрут. Убедитесь, что SQL-функция 'create_route' создана в базе данных.");
             } else {
-                showCustomAlert("Маршрут сохранен!");
+                tg.showAlert("Маршрут сохранен!");
                 hideCreationModal();
                 loadInitialMapData();
                 renderMyProfileContent();
@@ -1751,31 +1706,31 @@
         
         // --- ЗАГРУЗКА ДАННЫХ ---
         async function loadInitialMapData() {
-            // Загрузка Спотов
-            const { data: spots, error: spotsError } = await supabase.from('spots').select('*');
-            if (spotsError) console.error("Ошибка загрузки спотов:", spotsError);
-            else {
-                AppState.allSpots = spots;
+            try {
+                const [spotsRes, routesRes, eventsRes] = await Promise.all([
+                    supabase.from('spots').select('*'),
+                    supabase.from('routes').select('*'),
+                    supabase.from('events').select('*')
+                ]);
+
+                if (spotsRes.error) throw spotsRes.error;
+                AppState.allSpots = spotsRes.data;
                 spotCollection.removeAll();
                 AppState.allSpots.forEach(addSpotToMap);
-            }
 
-            // Загрузка Маршрутов
-            const { data: routes, error: routesError } = await supabase.from('routes').select('*');
-            if (routesError) console.error("Ошибка загрузки маршрутов:", routesError);
-            else {
-                AppState.allRoutes = routes;
+                if (routesRes.error) throw routesRes.error;
+                AppState.allRoutes = routesRes.data;
                 routeCollection.removeAll();
                 AppState.allRoutes.forEach(addRouteToMap);
-            }
-            
-            // NEW: Загрузка Мероприятий
-            const { data: events, error: eventsError } = await supabase.from('events').select('*');
-            if(eventsError) console.error("Ошибка загрузки мероприятий:", eventsError);
-            else {
-                AppState.allEvents = events;
+                
+                if (eventsRes.error) throw eventsRes.error;
+                AppState.allEvents = eventsRes.data;
                 eventCollection.removeAll();
                 AppState.allEvents.forEach(addEventToMap);
+
+            } catch (error) {
+                console.error("Ошибка загрузки данных карты:", error);
+                tg.showAlert("Не удалось загрузить все объекты на карте.");
             }
         }
 
@@ -1784,10 +1739,13 @@
             supabase.channel('public-changes')
               .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, fetchAllProfilesAndDraw)
               .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => { renderFeedPosts(); renderMyProfileContent(); })
-              .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, payload => handleLikeChange(payload.new.post_id))
-              .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, payload => handleLikeChange(payload.old.post_id))
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, payload => handleLikeChange(payload))
               .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload) => {
-                  // Обновляем комментарии в открытых модальных окнах
+                  // Обновляем комментарии, если модальное окно открыто
+                  const relevantId = payload.new?.post_id || payload.old?.post_id;
+                  if (commentsModal.classList.contains('visible') && AppState.currentReplyTarget.id == relevantId) {
+                      showPostComments(relevantId);
+                  }
               })
               .on('postgres_changes', { event: '*', schema: 'public', table: 'spots' }, () => { loadInitialMapData(); renderMyProfileContent(); renderFeedSpots(); })
               .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, () => { loadInitialMapData(); renderMyProfileContent(); renderFeedRoutes(); })
@@ -1804,9 +1762,10 @@
               .subscribe();
         }
         
-        function handleLikeChange(postId) {
+        function handleLikeChange(payload) {
             // Эта функция может быть расширена для обновления только конкретного поста, а не всей ленты.
             renderFeedPosts();
+            renderMyProfileContent();
         }
 
         function setupStaticEventListeners() {
@@ -1830,7 +1789,7 @@
                         }
                     } catch (e) {
                         console.error("Invalid QR code data", e);
-                        showCustomAlert("Неверный QR-код.");
+                        tg.showAlert("Неверный QR-код.");
                     }
                 }
             });
@@ -1867,24 +1826,24 @@
             document.getElementById('camera-input').addEventListener('change', handleFileSelect);
             document.getElementById('gallery-input').addEventListener('change', handleFileSelect);
 
-            requestGeoBtn.addEventListener('click', handleGeoRequest);
-            recenterBtn.addEventListener('click', () => {
+            DOM.requestGeoBtn.addEventListener('click', handleGeoRequest);
+            DOM.recenterBtn.addEventListener('click', () => {
                 tg.HapticFeedback.impactOccurred('medium');
                 if (AppState.lastKnownLocation) map.panTo(AppState.lastKnownLocation, {flying: true});
             });
             
-            scanQrBtn.addEventListener('click', () => {
+            DOM.scanQrBtn.addEventListener('click', () => {
                 tg.HapticFeedback.impactOccurred('light');
                 tg.showScanQrPopup({ text: 'Наведите на QR-код другого игрока' });
             });
 
-            shareProfileBtn.addEventListener('click', () => {
+            DOM.shareProfileBtn.addEventListener('click', () => {
                 shareContent('user', telegramUser.id, telegramUser.id);
             });
             
-            showQrBtn.addEventListener('click', showQrModal);
-            mapActionBtn.addEventListener('click', mapActionButtonHandler);
-            feedCreateBtn.onclick = showSimplePostModal; // Изначально на создание поста
+            DOM.showQrBtn.addEventListener('click', showQrModal);
+            DOM.mapActionBtn.addEventListener('click', mapActionButtonHandler);
+            DOM.feedCreateBtn.onclick = showSimplePostModal; // Изначально на создание поста
             
             // Глобальный обработчик для динамических кнопок
             document.body.addEventListener('click', (event) => {
@@ -1908,13 +1867,13 @@
         }
         
         function showFallbackScreen(title, message, showRetryButton = false) {
-            fallbackContent.innerHTML = `
+            DOM.fallbackContent.innerHTML = `
                 <h1 class="text-2xl font-bold mb-4 ${showRetryButton ? 'text-red-500' : ''}">${escapeHTML(title)}</h1>
                 <p class="mb-6" style="color: var(--hint-color);">${escapeHTML(message)}</p>
                 ${showRetryButton ? `<button onclick="window.location.reload()" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Попробовать снова</button>` : ''}
             `;
-            initialLoader.classList.add('hidden');
-            fallbackScreen.classList.remove('hidden');
+            DOM.initialLoader.classList.add('hidden');
+            DOM.fallbackScreen.classList.remove('hidden');
         }
 
         function applyTheme(themeParams) {
@@ -1972,14 +1931,14 @@
             const endPoint = AppState.currentRunPath[AppState.currentRunPath.length - 1];
             const distance = turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' });
             if (distance > 50) {
-                showCustomAlert('Маршрут не замкнут. Вернитесь к точке старта (в радиус 50м) для захвата.');
+                tg.showAlert('Маршрут не замкнут. Вернитесь к точке старта (в радиус 50м) для захвата.');
                 return;
             }
             AppState.currentRunPath.push(startPoint);
             const line = turf.lineString(AppState.currentRunPath);
             const polygonized = turf.polygonize(line);
             if (polygonized.features.length === 0) {
-                showCustomAlert('Не удалось сформировать замкнутую территорию. Вероятно, маршрут пересекал сам себя.');
+                tg.showAlert('Не удалось сформировать замкнутую территорию. Вероятно, маршрут пересекал сам себя.');
                 return;
             }
             let newCapture = polygonized.features[0];
@@ -2010,7 +1969,7 @@
                 });
             } catch (error) {
                 console.error("Ошибка в updateTerritory:", error);
-                showCustomAlert("Ошибка обработки территории.");
+                tg.showAlert("Ошибка обработки территории.");
             }
         }
 
@@ -2026,14 +1985,20 @@
             const title = document.getElementById('creation-modal-name').value.trim();
             const file = AppState.currentEditContext.file;
             
-            if (!title) { showCustomAlert("Пожалуйста, введите название."); return; }
+            if (!title) { tg.showAlert("Пожалуйста, введите название."); return; }
 
             let photoUrl = null;
             if (file) {
-                const filePath = `${telegramUser.id}/${Date.now()}_${file.name}`;
-                const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                if (error) { console.error("Error uploading photo:", error); showCustomAlert("Не удалось загрузить фото."); return; }
-                photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
+                try {
+                    const filePath = `${telegramUser.id}/${Date.now()}_${file.name}`;
+                    const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
+                    if (error) throw error;
+                    photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
+                } catch (error) {
+                    console.error("Error uploading photo:", error); 
+                    tg.showAlert("Не удалось загрузить фото."); 
+                    return;
+                }
             }
 
             const postData = {
@@ -2051,9 +2016,9 @@
             const { error: postError } = await supabase.from('posts').insert(postData);
             
             if (postError) {
-                console.error("Error saving post:", postError); showCustomAlert("Не удалось сохранить пост.");
+                console.error("Error saving post:", postError); tg.showAlert("Не удалось сохранить пост.");
             } else {
-                showCustomAlert("Пост успешно опубликован!");
+                tg.showAlert("Пост успешно опубликован!");
                 hideCreationModal();
             }
         }
@@ -2063,16 +2028,20 @@
             const file = AppState.simplePostContext?.file;
 
             if (!description) {
-                showCustomAlert("Пожалуйста, введите текст поста.");
+                tg.showAlert("Пожалуйста, введите текст поста.");
                 return;
             }
 
             let photoUrl = null;
             if (file) {
-                const filePath = `${telegramUser.id}/posts/${Date.now()}_${file.name}`;
-                const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                if (error) { console.error("Error uploading photo:", error); showCustomAlert("Не удалось загрузить фото."); return; }
-                photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
+                try {
+                    const filePath = `${telegramUser.id}/posts/${Date.now()}_${file.name}`;
+                    const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
+                    if (error) throw error;
+                    photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
+                } catch(error) {
+                    console.error("Error uploading photo:", error); tg.showAlert("Не удалось загрузить фото."); return;
+                }
             }
 
             const postData = {
@@ -2088,9 +2057,9 @@
             const { error: postError } = await supabase.from('posts').insert(postData);
             
             if (postError) {
-                console.error("Error saving post:", postError); showCustomAlert("Не удалось сохранить пост.");
+                console.error("Error saving post:", postError); tg.showAlert("Не удалось сохранить пост.");
             } else {
-                showCustomAlert("Пост успешно опубликован!");
+                tg.showAlert("Пост успешно опубликован!");
                 hideSimplePostModal();
             }
         }
@@ -2126,7 +2095,7 @@
 
         function updateLeaderboard(profiles) {
             profiles.sort((a, b) => (b.area || 0) - (a.area || 0));
-            leaderboardDiv.innerHTML = profiles.map((u, index) => {
+            DOM.leaderboardDiv.innerHTML = profiles.map((u, index) => {
                 const isCurrentUser = telegramUser && u.id === telegramUser.id;
                 const name = escapeHTML(u.name);
                 const displayName = isCurrentUser ? `${name} (Вы)` : name;
@@ -2134,13 +2103,13 @@
                 const area = u.area || 0;
                 const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
                 return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showDetailModal('user', ${u.id})">
-                                      <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
-                                      <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
-                                      <div class="flex-grow">
-                                          <p class="font-bold">${displayName}</p>
-                                          <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
-                                      </div>
-                                  </div>`
+                                    <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
+                                    <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
+                                    <div class="flex-grow">
+                                        <p class="font-bold">${displayName}</p>
+                                        <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
+                                    </div>
+                                </div>`
             }).join('');
         }
 
@@ -2156,12 +2125,12 @@
             }
             if (isNaN(area)) area = 0;
             const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
-            profileAreaDisplay.textContent = formattedArea;
+            DOM.profileAreaDisplay.textContent = formattedArea;
         }
 
         async function renderFeedPosts() {
             const container = document.getElementById('feed-content-posts');
-            container.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>';
+            container.innerHTML = generateSkeletonFeed(3); // Скелетон
             
             const { data: posts, error: postsError } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
             if (postsError) { console.error("Error fetching posts:", postsError); return; }
@@ -2211,6 +2180,7 @@
                      strokeColor: post.user_color, strokeWidth: 2, strokeOpacity: 0.8
                  });
                  miniMap.setBounds(territoryObject.getBounds(), { checkZoomRange: true, zoomMargin: 10 });
+                 AppState.currentDetailContext.mapInstances.push(miniMap);
              }
         }
         
@@ -2226,7 +2196,7 @@
                             ${post.description ? `<p class="mt-2 text-sm" style="color: var(--text-color);">${escapeHTML(post.description)}</p>` : ''}
                         </div>
                         ${post.photo_url ? `<img src="${post.photo_url}" class="w-full h-64 object-cover" alt="Post photo">` : ''}
-                        ${post.territory_captured ? `<div id="mini-map-${post.id}" class="h-48 w-full mini-map"></div>` : ''}
+                        ${post.territory_captured ? `<div id="mini-map-${post.id}" class="h-48 w-full bg-gray-200"></div>` : ''}
                         <div class="p-4">
                             ${post.area_captured ? `<p class="font-semibold">Захвачено: <span class="font-bold" style="color: var(--button-color);">${formattedArea}</span></p>` : ''}
                             <div class="flex items-center justify-between mt-3">
@@ -2250,7 +2220,7 @@
 
         async function toggleLike(buttonElement, targetId, type) {
             if (!telegramUser) {
-                showCustomAlert('Пользователь не определен. Попробуйте перезагрузить приложение.');
+                tg.showAlert('Пользователь не определен. Попробуйте перезагрузить приложение.');
                 return;
             }
             tg.HapticFeedback.impactOccurred('light');
@@ -2283,7 +2253,7 @@
                 icon.classList.toggle('fa-solid');
                 icon.classList.toggle('fa-regular');
                 countSpan.textContent = currentCount;
-                showCustomAlert('Не удалось обработать лайк. Попробуйте снова.');
+                tg.showAlert('Не удалось обработать лайк. Попробуйте снова.');
             }
         }
         
@@ -2302,14 +2272,12 @@
         
         async function showPostComments(postId) {
             tg.HapticFeedback.impactOccurred('medium');
-            tg.BackButton.show();
             AppState.currentReplyTarget = { type: 'post', id: postId, parentCommentId: null };
             cancelReply();
             
             const modalBody = document.getElementById('comments-modal-body');
-            modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
-            commentsModal.classList.add('visible');
-            document.body.classList.add('modal-open');
+            modalBody.innerHTML = generateSkeletonFeed(2, true); // Скелетон для комментов
+            showModal(DOM.commentsModal);
             
             const { data: comments, error } = await fetchComments('post', postId);
             if (error) { modalBody.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
@@ -2320,7 +2288,7 @@
         async function loadAndRenderComments(type, id, containerId) {
              const container = document.querySelector(`#${containerId}`);
              if (!container) return;
-             container.innerHTML = '<p class="text-center text-gray-500">Загрузка комментариев...</p>';
+             container.innerHTML = generateSkeletonFeed(2, true);
              
              const { data: comments, error } = await fetchComments(type, id);
              if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки</p>`; return; }
@@ -2335,9 +2303,7 @@
         }
 
         function hideCommentsModal() {
-            tg.BackButton.hide();
-            commentsModal.classList.remove('visible');
-            document.body.classList.remove('modal-open');
+            hideModal(DOM.commentsModal);
         }
 
         function generateCommentHTML(comment, commentsByParent, context = 'post') {
@@ -2386,7 +2352,7 @@
                 parent_comment_id: parentCommentId, content: content 
             };
             const { error } = await supabase.from('comments').insert(commentData);
-            if (error) { showCustomAlert('Ошибка отправки'); } else { inputElement.value = ''; cancelReply(); }
+            if (error) { tg.showAlert('Ошибка отправки'); } else { inputElement.value = ''; cancelReply(); }
         }
 
         function setDetailReplyMode(id, parentCommentId, parentAuthorName) {
@@ -2426,7 +2392,7 @@
             const { error } = await supabase.from('comments').insert(commentData);
 
             if (error) { 
-                showCustomAlert('Ошибка отправки комментария.'); 
+                tg.showAlert('Ошибка отправки комментария.'); 
                 console.error("Comment post error:", error);
             } else { 
                 inputElement.value = ''; 
@@ -2445,6 +2411,12 @@
         async function renderMyProfileContent() {
             if (!telegramUser) return;
             const userId = telegramUser.id;
+
+            // Показываем скелетоны
+            document.getElementById('profile-content-posts').innerHTML = generateSkeletonFeed(1);
+            document.getElementById('profile-content-events').innerHTML = generateSkeletonFeed(1);
+            document.getElementById('profile-content-spots').innerHTML = generateSkeletonFeed(1);
+            document.getElementById('profile-content-routes').innerHTML = generateSkeletonFeed(1);
 
             const [postsRes, spotsRes, routesRes, eventsRes] = await Promise.all([
                 supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
@@ -2503,15 +2475,11 @@
                 width: 200, height: 200, colorDark : "#000000",
                 colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H
             });
-            qrModal.classList.add('visible');
-            document.body.classList.add('modal-open');
-            tg.BackButton.show();
+            showModal(DOM.qrModal);
         }
 
         function hideQrModal() {
-            qrModal.classList.remove('visible');
-            document.body.classList.remove('modal-open');
-            tg.BackButton.hide();
+            hideModal(DOM.qrModal);
         }
         
         // --- Handle Start Param ---
@@ -2532,10 +2500,10 @@
             setTimeout(() => {
                 switch (type) {
                     case 'user': showDetailModal('user', numericId); break;
-                    case 'post': showView('feed-view'); scrollToPostId = numericId; break;
+                    case 'post': showView('feed-view'); switchFeedTab('posts'); scrollToPostId = numericId; break;
                     case 'route': showDetailModal('route', numericId); break;
                     case 'spot': showDetailModal('spot', numericId); break;
-                    case 'event': showDetailModal('event', numericId); break; // NEW
+                    case 'event': showDetailModal('event', numericId); break;
                     default:
                         console.warn("Unknown start_param type:", type);
                         if (/^\d+$/.test(startParam)) {
@@ -2545,10 +2513,32 @@
             }, 500); 
         }
         
-        // --- Custom Alert/Confirm ---
-        function showCustomAlert(message) { tg.showAlert(message); }
-        function showCustomConfirm(message, callback) { tg.showConfirm(message, (ok) => { if (ok) callback(); }); }
-        
+        // --- SKELETON LOADER ---
+        function generateSkeletonFeed(count = 1, isComment = false) {
+            let skeletonHTML = '';
+            for (let i = 0; i < count; i++) {
+                skeletonHTML += `
+                    <div class="skeleton-container card-bg rounded-2xl shadow-lg overflow-hidden p-4 space-y-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="skeleton w-10 h-10 rounded-full"></div>
+                            <div class="flex-1 space-y-2">
+                                <div class="skeleton h-4 w-3/4 rounded"></div>
+                                <div class="skeleton h-3 w-1/2 rounded"></div>
+                            </div>
+                        </div>
+                        ${!isComment ? `
+                        <div class="skeleton h-5 w-full rounded"></div>
+                        <div class="skeleton h-24 w-full rounded"></div>
+                        ` : `
+                        <div class="skeleton h-4 w-full rounded mt-2"></div>
+                        <div class="skeleton h-4 w-5/6 rounded mt-1"></div>
+                        `}
+                    </div>
+                `;
+            }
+            return skeletonHTML;
+        }
+
         // =================================================================
         // --- НОВЫЙ ФУНКЦИОНАЛ: МЕРОПРИЯТИЯ (ПОКАТУШКИ) ---
         // =================================================================
@@ -2556,16 +2546,15 @@
         // --- Рендер ---
         async function renderFeedEvents() {
             const container = document.getElementById('feed-content-events');
-            container.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
+            container.innerHTML = generateSkeletonFeed(3);
             
             try {
                 const { data, error } = await supabase.from('events')
                     .select(`*, profiles(id, name, photo_url)`)
                     .order('event_time', { ascending: true });
 
-                if (error) {
-                    throw error;
-                }
+                if (error) throw error;
+                
                 if (data.length === 0) {
                     container.innerHTML = '<p class="text-center text-gray-500 py-8">Пока нет запланированных покатушек. Создайте первую!</p>';
                     return;
@@ -2583,7 +2572,7 @@
         
         async function renderFeedSpots() {
             const container = document.getElementById('feed-content-spots');
-            container.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
+            container.innerHTML = generateSkeletonFeed(4);
             const { data, error } = await supabase.from('spots').select('*').order('created_at', { ascending: false }).limit(20);
             if(error) { container.innerHTML = '<p class="text-center text-red-500 py-8">Не удалось загрузить споты.</p>'; return; }
             if(data.length === 0) { container.innerHTML = '<p class="text-center text-gray-500 py-8">Спотов пока нет.</p>'; return; }
@@ -2592,11 +2581,11 @@
         
         async function renderFeedRoutes() {
             const container = document.getElementById('feed-content-routes');
-            container.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
+            container.innerHTML = generateSkeletonFeed(4);
             const { data, error } = await supabase.from('routes').select('*').order('created_at', { ascending: false }).limit(20);
             if(error) { container.innerHTML = '<p class="text-center text-red-500 py-8">Не удалось загрузить маршруты.</p>'; return; }
             if(data.length === 0) { container.innerHTML = '<p class="text-center text-gray-500 py-8">Маршрутов пока нет.</p>'; return; }
-            container.innerHTML = data.map(r => generateMiniRouteHTML(r, true)).join(''); // [FIX] Передаем true
+            container.innerHTML = data.map(r => generateMiniRouteHTML(r, true)).join('');
         }
 
         async function generateEventCardHTML(event) {
@@ -2606,15 +2595,12 @@
             
             let likes = [], participants = [];
             try {
-                const { data: likesData } = await supabase.from('likes').select('user_id').eq('event_id', event.id);
-                likes = likesData || [];
-                const { data: participantsData } = await supabase.from('event_participants').select('user_id').eq('event_id', event.id);
+                const { data: participantsData } = await supabase.from('event_participants').select('user_id', { count: 'exact' }).eq('event_id', event.id);
                 participants = participantsData || [];
             } catch (e) {
                 console.error(`Failed to fetch activity for event ${event.id}`, e);
             }
             
-            const userHasLiked = telegramUser && likes.some(l => l.user_id === telegramUser.id);
             const userIsParticipant = telegramUser && participants.some(p => p.user_id === telegramUser.id);
 
             const participantButton = userIsParticipant 
@@ -2640,10 +2626,6 @@
                         <div class="p-4 border-t" style="border-color: var(--border-color);">
                             <div class="flex items-center justify-between mb-4">
                                 <div class="flex items-center space-x-6" style="color: var(--hint-color);">
-                                    <button class="like-btn flex items-baseline space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" data-action="like-event" data-id="${event.id}">
-                                        <i class="fa-${userHasLiked ? 'solid' : 'regular'} fa-heart h-6 w-6"></i>
-                                        <span data-likes-count>${likes.length}</span>
-                                    </button>
                                     <button class="flex items-baseline space-x-1 hover:text-blue-500 transition" data-action="show-participants" data-id="${event.id}">
                                         <i class="fa-regular fa-user h-6 w-6"></i>
                                         <span data-participants-count>${participants.length}</span>
@@ -2675,18 +2657,14 @@
             if (error) console.error("Ошибка загрузки маршрутов:", error);
             else routes.forEach(r => select.innerHTML += `<option value="${r.id}">${escapeHTML(r.name)}</option>`);
             
-            eventCreationModal.classList.add('visible');
-            document.body.classList.add('modal-open');
-            tg.BackButton.show();
+            showModal(DOM.eventCreationModal);
 
             // Инициализация карты для выбора точки
             setTimeout(initEventPickerMap, 100);
         }
         
         function hideEventCreationModal() {
-            eventCreationModal.classList.remove('visible');
-            document.body.classList.remove('modal-open');
-            tg.BackButton.hide();
+            hideModal(DOM.eventCreationModal);
             if (eventPickerMap) {
                 eventPickerMap.destroy();
                 eventPickerMap = null;
@@ -2721,7 +2699,7 @@
             const meeting_point = AppState.eventCreationContext.meetingPoint;
 
             if (!title || !description || !event_time || !meeting_point) {
-                showCustomAlert("Пожалуйста, заполните все поля и выберите точку сбора на карте.");
+                tg.showAlert("Пожалуйста, заполните все поля и выберите точку сбора на карте.");
                 return;
             }
 
@@ -2732,11 +2710,11 @@
             
             if (error) {
                 console.error("Ошибка создания мероприятия:", error);
-                showCustomAlert("Не удалось создать мероприятие.");
+                tg.showAlert("Не удалось создать мероприятие.");
             } else {
                 // Автоматически добавляем создателя в участники
                 await supabase.from('event_participants').insert({ event_id: data.id, user_id: telegramUser.id });
-                showCustomAlert("Мероприятие успешно создано!");
+                tg.showAlert("Мероприятие успешно создано!");
                 hideEventCreationModal();
                 renderCurrentFeedTab();
             }
@@ -2748,7 +2726,7 @@
             const { error } = await supabase.from('event_participants').insert({ event_id: eventId, user_id: telegramUser.id });
             if (error) {
                 console.error("Ошибка присоединения к мероприятию:", error);
-                showCustomAlert("Не удалось присоединиться.");
+                tg.showAlert("Не удалось присоединиться.");
             } else {
                 updateEventCard(eventId);
             }
@@ -2759,7 +2737,7 @@
             const { error } = await supabase.from('event_participants').delete().match({ event_id: eventId, user_id: telegramUser.id });
             if (error) {
                 console.error("Ошибка выхода из мероприятия:", error);
-                showCustomAlert("Не удалось отменить участие.");
+                tg.showAlert("Не удалось отменить участие.");
             } else {
                 updateEventCard(eventId);
             }
@@ -2767,11 +2745,10 @@
         
         async function showParticipants(eventId) {
             tg.HapticFeedback.impactOccurred('light');
+            AppState.currentDetailContext.id = eventId; // Сохраняем контекст
             const modalBody = document.getElementById('participants-modal-body');
-            modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
-            participantsModal.classList.add('visible');
-            document.body.classList.add('modal-open');
-            tg.BackButton.show();
+            modalBody.innerHTML = generateSkeletonFeed(3, true);
+            showModal(DOM.participantsModal);
 
             const { data, error } = await supabase.from('event_participants')
                 .select('profiles(*)')
@@ -2798,12 +2775,7 @@
         }
         
         function hideParticipantsModal() {
-            participantsModal.classList.remove('visible');
-            document.body.classList.remove('modal-open');
-            // Do not hide back button if detail modal is underneath
-            if (!detailModal.classList.contains('visible')) {
-                tg.BackButton.hide();
-            }
+            hideModal(DOM.participantsModal);
         }
 
         // --- Таймер ---
@@ -2846,6 +2818,21 @@
             countdownTimers.forEach(timer => clearInterval(timer.interval));
             countdownTimers = [];
         }
+
+        async function updateEventCard(eventId) {
+            const { data: event, error } = await supabase.from('events')
+                .select(`*, profiles(id, name, photo_url)`)
+                .eq('id', eventId)
+                .single();
+            if (error || !event) return;
+
+            const cardElement = document.getElementById(`event-${eventId}`);
+            if (cardElement) {
+                const newCardHTML = await generateEventCardHTML(event);
+                cardElement.outerHTML = newCardHTML;
+                startCountdown(event.id, new Date(event.event_time));
+            }
+        }
         
         // --- ПРИВЯЗКА ГЛОБАЛЬНЫХ ФУНКЦИЙ И ЗАПУСК ---
         window.showView = showView;
@@ -2878,7 +2865,7 @@
         window.showParticipants = showParticipants;
         window.hideParticipantsModal = hideParticipantsModal;
         
-        document.addEventListener('DOMContentLoaded', () => ymaps.ready(runApp));
+        document.addEventListener('DOMContentLoaded', runApp);
     </script>
 </body>
 </html>
