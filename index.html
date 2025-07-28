@@ -510,12 +510,12 @@
         </div>
     </div>
 
-    <!-- Модальное окно создания Покатушки (Мероприятия) -->
+    <!-- Модальное окно создания/редактирования Покатушки (Мероприятия) -->
     <div id="event-creation-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideEventCreationModal()">
         <div class="bottom-sheet-content" style="height: 90%; max-height: calc(100vh - env(safe-area-inset-top) - 1rem);">
             <div class="grabber" onclick="hideEventCreationModal()"></div>
             <div class="p-4 flex-shrink-0">
-                 <h2 class="text-2xl font-bold">Новое мероприятие</h2>
+                 <h2 id="event-modal-title" class="text-2xl font-bold">Новое мероприятие</h2>
             </div>
             <div id="event-creation-modal-body" class="flex-grow overflow-y-auto p-4 space-y-4">
                 <div>
@@ -544,7 +544,7 @@
             </div>
             <div class="p-4 flex-shrink-0 border-t" style="border-color: var(--border-color);">
                  <button id="save-event-btn" onclick="handleEventSave()" class="w-full text-white font-bold py-3 px-6 rounded-full transition-all flex items-center justify-center" style="background-color: var(--button-color);">
-                    <span>Создать мероприятие</span>
+                    <span>Сохранить</span>
                 </button>
             </div>
         </div>
@@ -2357,28 +2357,45 @@
         }
         
         // --- Создание/Редактирование ---
-        async function showEventCreationModal() {
+        async function showEventCreationModal(eventToEdit = null) {
             tg.HapticFeedback.impactOccurred('light');
             
-            // Сброс формы
-            document.getElementById('event-title').value = '';
-            document.getElementById('event-description').value = '';
-            document.getElementById('event-datetime').value = '';
-            AppState.eventCreationContext = {};
+            const isEditMode = eventToEdit !== null;
+            document.getElementById('event-modal-title').textContent = isEditMode ? 'Редактировать мероприятие' : 'Новое мероприятие';
+            
+            // Сброс/заполнение формы
+            document.getElementById('event-title').value = isEditMode ? eventToEdit.title : '';
+            document.getElementById('event-description').value = isEditMode ? eventToEdit.description : '';
+            
+            // Форматирование даты для input[type=datetime-local]
+            if (isEditMode) {
+                const d = new Date(eventToEdit.event_time);
+                d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                document.getElementById('event-datetime').value = d.toISOString().slice(0,16);
+            } else {
+                document.getElementById('event-datetime').value = '';
+            }
+
+            AppState.eventCreationContext = isEditMode ? { id: eventToEdit.id, meetingPoint: eventToEdit.meeting_point } : {};
 
             // Загрузка маршрутов пользователя
             const select = document.getElementById('event-route-select');
             select.innerHTML = '<option value="">Без маршрута</option>';
             const { data: routes, error } = await supabase.from('routes').select('id, name').eq('user_id', telegramUser.id);
             if (error) console.error("Ошибка загрузки маршрутов:", error);
-            else routes.forEach(r => select.innerHTML += `<option value="${r.id}">${escapeHTML(r.name)}</option>`);
+            else {
+                routes.forEach(r => select.innerHTML += `<option value="${r.id}">${escapeHTML(r.name)}</option>`);
+                if (isEditMode && eventToEdit.route_id) {
+                    select.value = eventToEdit.route_id;
+                }
+            }
             
             eventCreationModal.classList.add('visible');
             document.body.classList.add('modal-open');
             tg.BackButton.show();
 
             // Инициализация карты для выбора точки
-            setTimeout(initEventPickerMap, 100);
+            setTimeout(() => initEventPickerMap(isEditMode ? eventToEdit.meeting_point : null), 100);
         }
         
         function hideEventCreationModal() {
@@ -2391,12 +2408,28 @@
             }
         }
         
-        function initEventPickerMap() {
+        function initEventPickerMap(initialPointWKT = null) {
             if(eventPickerMap) eventPickerMap.destroy();
-            const center = AppState.lastKnownLocation || [55.75, 37.62];
+            
+            let center = AppState.lastKnownLocation || [55.75, 37.62];
+            let placemark;
+
+            if (initialPointWKT) {
+                const geoJson = parseWKT(initialPointWKT);
+                if (geoJson) {
+                    center = [geoJson.coordinates[1], geoJson.coordinates[0]];
+                }
+            }
+
             eventPickerMap = new ymaps.Map('event-map-picker', { center: center, zoom: 12, controls: [] });
             
-            let placemark;
+            if (initialPointWKT) {
+                placemark = new ymaps.Placemark(center);
+                eventPickerMap.geoObjects.add(placemark);
+                document.getElementById('event-map-hint').textContent = 'Точка выбрана!';
+                document.getElementById('event-map-hint').style.color = 'var(--success-color)';
+            }
+
             eventPickerMap.events.add('click', (e) => {
                 const coords = e.get('coords');
                 AppState.eventCreationContext.meetingPoint = `POINT(${coords[1]} ${coords[0]})`;
@@ -2417,26 +2450,40 @@
             const event_time = document.getElementById('event-datetime').value;
             const route_id = document.getElementById('event-route-select').value || null;
             const meeting_point = AppState.eventCreationContext.meetingPoint;
+            const eventId = AppState.eventCreationContext.id;
 
             if (!title || !description || !event_time || !meeting_point) {
                 showCustomAlert("Пожалуйста, заполните все поля и выберите точку сбора на карте.");
                 return;
             }
-
-            const { data, error } = await supabase.from('events').insert({
+            
+            const eventData = {
                 creator_id: telegramUser.id,
                 title, description, event_time, route_id, meeting_point
-            }).select().single();
+            };
+
+            let error;
+            if (eventId) { // Режим редактирования
+                const { error: updateError } = await supabase.from('events').update(eventData).eq('id', eventId);
+                error = updateError;
+            } else { // Режим создания
+                const { data, error: insertError } = await supabase.from('events').insert(eventData).select().single();
+                error = insertError;
+                if (!error) {
+                    // Автоматически добавляем создателя в участники только при создании
+                    await supabase.from('event_participants').insert({ event_id: data.id, user_id: telegramUser.id });
+                }
+            }
             
             if (error) {
-                console.error("Ошибка создания мероприятия:", error);
-                showCustomAlert("Не удалось создать мероприятие.");
+                console.error("Ошибка сохранения мероприятия:", error);
+                showCustomAlert("Не удалось сохранить мероприятие.");
             } else {
-                // Автоматически добавляем создателя в участники
-                await supabase.from('event_participants').insert({ event_id: data.id, user_id: telegramUser.id });
-                showCustomAlert("Мероприятие успешно создано!");
+                showCustomAlert(`Мероприятие успешно ${eventId ? 'обновлено' : 'создано'}!`);
                 hideEventCreationModal();
-                renderCurrentFeedTab();
+                if (detailModal.classList.contains('visible')) { // Обновляем детали, если они были открыты
+                    loadDetailContent();
+                }
             }
         }
         
