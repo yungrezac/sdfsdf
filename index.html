@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TerraRun | Обновление 3D</title>
+    <title>TerraRun | Обновление</title>
 
     <!-- Подключение Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-
-    <script src='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js'></script>
-    <link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet' />
+    <!-- ПОДКЛЮЧЕНИЕ YANDEX MAPS API -->
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=6559b722-5ab3-4376-b85c-ce2c99df7d46&lang=ru_RU" type="text/javascript"></script>
 
     <!-- Подключение Turf.js для гео-анализа -->
     <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></script>
@@ -21,6 +20,9 @@
     <!-- Подключение Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <!-- Подключение QR Code Generator -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
     <!-- Иконочные шрифты -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     
@@ -49,19 +51,18 @@
         body {
             padding-top: constant(safe-area-inset-top);
             padding-top: env(safe-area-inset-top);
+        }
+
+        body {
             overscroll-behavior: none;
             background-color: var(--bg-color);
             color: var(--text-color);
             transition: background-color 0.3s, color 0.3s;
             font-family: 'Inter', sans-serif;
         }
-
-        /* Улучшенная блокировка скролла при открытом модальном окне */
-        body.modal-open {
-            overflow: hidden;
-            position: fixed;
-            width: 100%;
-            height: 100%;
+        .mini-map, #detail-mini-map, #event-map-picker {
+            z-index: 10;
+            background-color: var(--bg-color);
         }
         
         #map {
@@ -75,15 +76,14 @@
         
         .view {
             display: none;
-            height: 100vh; /* Занимает всю высоту видимой области */
+            height: 100vh;
             overflow-y: auto;
-            -webkit-overflow-scrolling: touch; /* Плавный скролл на iOS */
+            -webkit-overflow-scrolling: touch;
             transition: opacity 0.3s ease-in-out;
             background-color: var(--bg-color);
             box-sizing: border-box;
         }
         
-        /* Паддинг для контента, чтобы он не заезжал под навбар */
         #feed-view, #top-view, #profile-view {
             padding-bottom: calc(80px + 1rem + env(safe-area-inset-bottom));
         }
@@ -122,7 +122,6 @@
             background-size: cover;
             background-position: center;
             transition: transform 0.2s ease-in-out, left 0.5s linear, top 0.5s linear;
-            cursor: pointer;
         }
         .avatar-marker:hover {
             transform: scale(1.1);
@@ -155,7 +154,7 @@
             pointer-events: none;
         }
         #mode-switcher {
-            background-color: rgba(var(--secondary-bg-color-rgb), 0.8);
+            background-color: rgba(255, 255, 255, 0.8);
             backdrop-filter: blur(10px);
             border-radius: 9999px;
             padding: 0.25rem;
@@ -192,11 +191,7 @@
             justify-content: center;
             pointer-events: none;
             bottom: calc(80px + 1rem + env(safe-area-inset-bottom));
-            transition: bottom 0.3s ease-in-out, transform 0.3s ease-in-out;
-            transform: translateY(200%); /* Start hidden */
-        }
-        #map-action-container.visible {
-            transform: translateY(0); /* Animate in */
+            transition: bottom 0.3s ease-in-out;
         }
         
         .modal-overlay {
@@ -214,6 +209,11 @@
             visibility: visible;
         }
 
+        /* FIX: Prevent background scroll when modal is open */
+        body.modal-open .view.active {
+            overflow-y: hidden;
+        }
+
         .bottom-sheet-modal {
             align-items: flex-end;
         }
@@ -226,7 +226,6 @@
             flex-direction: column;
             transform: translateY(100%);
             transition: transform 0.3s ease-in-out;
-            max-height: calc(100vh - env(safe-area-inset-top) - 1rem); /* Safe upper limit */
         }
         .modal-overlay.visible .bottom-sheet-content {
             transform: translateY(0);
@@ -262,7 +261,15 @@
             display: block;
         }
         
-        /* Skeleton Loader Styles */
+        #detail-comments-section, #event-comments-section, #spot-comments-section, #route-comments-section {
+            border-top: 1px solid var(--border-color);
+        }
+        #detail-comment-input-form, #event-comment-input-form {
+            padding: 0.5rem 1rem 1rem;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--secondary-bg-color);
+        }
+
         .skeleton {
             background-color: #e2e8f0;
             border-radius: 0.5rem;
@@ -301,21 +308,6 @@
             background: transparent;
             cursor: pointer;
         }
-        /* Mapbox Overrides */
-        .mapboxgl-ctrl-group button {
-            background-color: rgba(var(--secondary-bg-color-rgb), 0.8) !important;
-            backdrop-filter: blur(10px) !important;
-            -webkit-backdrop-filter: blur(10px) !important;
-            border-radius: 9999px !important;
-        }
-         .mapboxgl-ctrl-group {
-            background: transparent !important;
-            border-radius: 9999px !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
-        }
-        .mapboxgl-ctrl-geolocate, .mapboxgl-ctrl-compass {
-            color: var(--text-color) !important;
-        }
     </style>
 </head>
 <body class="font-sans antialiased overflow-hidden">
@@ -349,16 +341,19 @@
                 <div class="w-12"></div>
                 <div class="flex-grow flex justify-center">
                      <div id="mode-switcher" class="hidden">
-                         <button id="mode-spots" class="mode-btn active">Споты</button>
+                         <button id="mode-capture" class="mode-btn active">Захват</button>
+                         <button id="mode-spots" class="mode-btn">Споты</button>
                          <button id="mode-routes" class="mode-btn">Маршруты</button>
                      </div>
                 </div>
                 <div id="map-controls-right" class="flex flex-col items-end gap-2">
-                    <!-- Mapbox controls will be added here via JS -->
+                    <button id="recenter-btn" class="hidden bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg pointer-events-all">
+                        <i class="fa-solid fa-location-crosshairs h-6 w-6 text-gray-700"></i>
+                    </button>
                 </div>
             </div>
             
-            <div id="map-action-container">
+            <div id="map-action-container" class="hidden">
                 <button id="map-action-btn" class="text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 flex items-center gap-2 pointer-events-auto">
                     <i id="map-action-icon" class="fa-solid fa-play h-5 w-5"></i>
                     <span id="map-action-text"></span>
@@ -375,6 +370,7 @@
                 </button>
             </div>
             
+            <!-- NEW: Табы в ленте -->
             <div class="flex border-b sticky top-0 z-10 overflow-x-auto" style="background-color: var(--bg-color);">
                 <div id="feed-tab-posts" class="feed-tab active" onclick="switchFeedTab('posts')">Посты</div>
                 <div id="feed-tab-events" class="feed-tab" onclick="switchFeedTab('events')">Покатушки</div>
@@ -385,14 +381,17 @@
             <!-- Контент для табов -->
             <div id="feed-content-posts" class="feed-tab-content active mt-4 space-y-4"></div>
             <div id="feed-content-events" class="feed-tab-content mt-4 space-y-4"></div>
-            <div id="feed-content-spots" class="feed-tab-content mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+            <div id="feed-content-spots" class="feed-tab-content mt-4 space-y-4"></div>
             <div id="feed-content-routes" class="feed-tab-content mt-4 space-y-4"></div>
         </div>
 
-        <!-- Вид 3: Пользователи -->
+        <!-- Вид 3: Топ пользователей -->
         <div id="top-view" class="view p-4 fade-in">
             <div class="flex justify-between items-center mb-6 px-2">
-                <h1 class="text-3xl font-bold">Пользователи</h1>
+                <h1 class="text-3xl font-bold">Топ Бегунов</h1>
+                <button id="scan-qr-btn" class="p-2 rounded-full hover:bg-gray-200" style="background-color: var(--secondary-bg-color);">
+                    <i class="fa-solid fa-qrcode h-7 w-7" style="color: var(--hint-color);"></i>
+                </button>
             </div>
             <div id="leaderboard" class="space-y-3"></div>
         </div>
@@ -406,6 +405,8 @@
                 </div>
                 <div class="text-center">
                     <h2 id="profile-name" class="text-2xl font-bold">Загрузка...</h2>
+                    <p class="text-sm mt-2" style="color: var(--hint-color);">Общая площадь</p>
+                    <p id="profile-area" class="text-3xl font-bold" style="color: var(--button-color);">0 м²</p>
                 </div>
                 <div class="w-full pt-4 mt-4 border-t" style="border-color: var(--border-color);">
                     <div class="flex justify-center gap-8 w-full">
@@ -413,12 +414,17 @@
                             <div class="p-3 rounded-full" style="background-color: rgba(var(--button-color-rgb), 0.15);"><i class="fa-solid fa-arrow-up-from-bracket h-6 w-6" style="color: var(--button-color);"></i></div>
                             <span class="text-xs font-medium" style="color: var(--hint-color);">Поделиться</span>
                         </button>
+                        <button id="show-qr-btn" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
+                            <div class="p-3 rounded-full" style="background-color: rgba(var(--button-color-rgb), 0.15);"><i class="fa-solid fa-qrcode h-6 w-6" style="color: var(--button-color);"></i></div>
+                            <span class="text-xs font-medium" style="color: var(--hint-color);">Мой QR</span>
+                        </button>
                     </div>
                 </div>
             </div>
              <!-- Табы -->
-            <div class="flex border-b mt-6 sticky top-0 z-10 overflow-x-auto" style="background-color: var(--bg-color);">
+            <div class="flex border-b mt-6 sticky top-0 z-10" style="background-color: var(--bg-color);">
                 <div id="profile-tab-posts" class="profile-tab active" onclick="switchMainProfileTab('posts')">Посты</div>
+                <!-- NEW: Таб покатушек в профиле -->
                 <div id="profile-tab-events" class="profile-tab" onclick="switchMainProfileTab('events')">Покатушки</div>
                 <div id="profile-tab-spots" class="profile-tab" onclick="switchMainProfileTab('spots')">Споты</div>
                 <div id="profile-tab-routes" class="profile-tab" onclick="switchMainProfileTab('routes')">Маршруты</div>
@@ -426,7 +432,7 @@
 
             <div id="profile-content-posts" class="profile-tab-content active mt-4 space-y-4"></div>
             <div id="profile-content-events" class="profile-tab-content mt-4 space-y-4"></div>
-            <div id="profile-content-spots" class="profile-tab-content mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+            <div id="profile-content-spots" class="profile-tab-content mt-4 space-y-4"></div>
             <div id="profile-content-routes" class="profile-tab-content mt-4 space-y-4"></div>
         </div>
     </div>
@@ -435,20 +441,20 @@
     <nav id="bottom-navbar" class="hidden fixed bottom-0 left-0 right-0 flex justify-evenly items-center z-20">
         <button class="nav-btn active flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('map-view')"><i class="fa-solid fa-map-location-dot h-7 w-7"></i><span>Карта</span></button>
         <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('feed-view')"><i class="fa-solid fa-newspaper h-7 w-7"></i><span>Лента</span></button>
-        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('top-view')"><i class="fa-solid fa-users h-7 w-7"></i><span>Люди</span></button>
+        <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('top-view')"><i class="fa-solid fa-ranking-star h-7 w-7"></i><span>Топ</span></button>
         <button class="nav-btn flex flex-col items-center space-y-1 transition-transform transform hover:scale-110" onclick="showView('profile-view')"><i class="fa-solid fa-user h-7 w-7"></i><span>Профиль</span></button>
     </nav>
     
     <!-- Модальное окно создания простого поста -->
     <div id="simple-post-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideSimplePostModal()">
-        <div id="simple-post-content" class="bottom-sheet-content" style="height: auto;">
+        <div id="simple-post-content" class="bottom-sheet-content" style="height: auto; max-height: 90vh;">
             <div class="grabber" onclick="hideSimplePostModal()"></div>
-            <div class="p-4 space-y-4 flex flex-col">
+            <div class="p-4 space-y-4 flex flex-col flex-grow">
                 <div class="flex justify-between items-center flex-shrink-0">
                     <h2 class="text-2xl font-bold">Новый пост</h2>
                     <button onclick="hideSimplePostModal()" class="p-2 rounded-full hover:bg-gray-200"><i class="fa-solid fa-times"></i></button>
                 </div>
-                <div class="flex-grow space-y-4">
+                <div class="flex-grow overflow-y-auto space-y-4">
                     <p style="color: var(--hint-color);">Поделитесь своими мыслями с сообществом.</p>
                     <textarea id="simple-post-details" class="form-textarea mt-1 block w-full" rows="4" placeholder="Что у вас нового?"></textarea>
                     <div id="simple-post-filename" class="text-sm text-gray-500 truncate"></div>
@@ -468,9 +474,9 @@
         </div>
     </div>
 
-    <!-- Модальное окно создания Спота/Маршрута -->
+    <!-- Модальное окно создания Спота/Маршрута/Поста (захват) -->
     <div id="creation-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideCreationModal()">
-        <div class="bottom-sheet-content">
+        <div class="bottom-sheet-content" style="height: 75%; max-height: calc(100vh - env(safe-area-inset-top) - 1rem);">
             <div class="grabber" onclick="hideCreationModal()"></div>
             <div id="creation-modal-body" class="flex-grow overflow-y-auto p-4 space-y-4">
                 <h2 id="creation-modal-title" class="text-2xl font-bold"></h2>
@@ -507,9 +513,9 @@
         </div>
     </div>
 
-    <!-- Модальное окно создания Покатушки (Мероприятия) -->
+    <!-- NEW: Модальное окно создания Покатушки (Мероприятия) -->
     <div id="event-creation-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideEventCreationModal()">
-        <div class="bottom-sheet-content">
+        <div class="bottom-sheet-content" style="height: 90%; max-height: calc(100vh - env(safe-area-inset-top) - 1rem);">
             <div class="grabber" onclick="hideEventCreationModal()"></div>
             <div class="p-4 flex-shrink-0">
                  <h2 class="text-2xl font-bold">Новое мероприятие</h2>
@@ -547,7 +553,7 @@
 
     <!-- Модальное окно деталей (универсальное) -->
     <div id="detail-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideDetailModal()">
-        <div class="bottom-sheet-content">
+        <div class="bottom-sheet-content" style="height: 90%; max-height: calc(100vh - env(safe-area-inset-top) - 1rem);">
             <div class="grabber" onclick="hideDetailModal()"></div>
             <div id="detail-modal-body" class="flex-grow overflow-y-auto"></div>
         </div>
@@ -574,12 +580,22 @@
         </div>
     </div>
     
-    <!-- Модальное окно списка участников -->
+    <!-- NEW: Модальное окно списка участников -->
     <div id="participants-modal" class="modal-overlay bottom-sheet-modal" onclick="if(event.target === this) hideParticipantsModal()">
         <div class="bottom-sheet-content" style="height: 75%;">
             <div class="grabber" onclick="hideParticipantsModal()"></div>
             <h2 id="participants-modal-title" class="text-xl font-bold px-4 pb-2 flex-shrink-0">Участники</h2>
             <div id="participants-modal-body" class="flex-grow overflow-y-auto p-4 space-y-3"></div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для QR-кода -->
+    <div id="qr-modal" class="modal-overlay justify-center items-center p-4" onclick="if(event.target === this) hideQrModal()">
+        <div class="card-bg rounded-2xl shadow-2xl p-6 w-full max-w-xs fade-in space-y-4 flex flex-col items-center">
+            <h2 class="text-2xl font-bold">Мой QR-код</h2>
+            <div id="qrcode" class="p-2 bg-white rounded-lg"></div>
+            <p class="text-center text-sm" style="color: var(--hint-color);">Покажите этот код другу, чтобы он отсканировал его в приложении.</p>
+            <button onclick="hideQrModal()" class="w-full mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full transition-all">Закрыть</button>
         </div>
     </div>
 
@@ -590,8 +606,7 @@
     <script type="module">
         // --- КОНФИГУРАЦИЯ И КОНСТАНТЫ ---
         const SUPABASE_URL = 'https://jsnahjtoqwuwbjdmisuj.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswyJZfTwkrpI';
-        const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoieXVuZ3JlemFjIiwiYSI6ImNtOW10ZzJ6bDBjNHUyanI3ejc5eXo1d2MifQ._tryk9cXjfReUGLGnNkm6Q'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbmFoanRvcXd1d2JqZG1pc3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzOTQxMDQsImV4cCI6MjA2ODk3MDEwNH0.M3TWsNJppj1f-Cmj6nGCAUswy1HZgBLW8yJZfTwkrpI';
         const BOT_USERNAME = 'TerraRunBot';
 
         // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И СОСТОЯНИЕ ---
@@ -605,54 +620,63 @@
         let countdownTimers = []; // Массив для хранения интервалов таймеров
 
         const AppState = {
-            currentMapMode: 'spots', // 'spots', 'routes'
+            currentMapMode: 'capture', // 'capture', 'spots', 'routes'
             currentFeedTab: 'posts', // 'posts', 'events', 'spots', 'routes'
             isRunning: false,
-            lastKnownLocation: null, // [lng, lat]
+            lastKnownLocation: null,
             userProfile: {
-                id: null, name: '', color: '#3b82f6', photo_url: null
+                id: null, name: '', color: '#3b82f6', territory: null, photo_url: null, area: 0,
             },
-            currentRunPath: [], // [[lng, lat], [lng, lat], ...]
+            currentRunPath: [],
+            currentPathPolyline: null,
             currentUserMarker: null,
+            allUserLayers: {},
             allSpots: [],
             allRoutes: [],
-            allEvents: [],
+            allEvents: [], // NEW
             allProfilesData: [],
             currentEditContext: {},
             currentDetailContext: {},
             currentReplyTarget: { type: null, id: null, parentCommentId: null },
             photoContext: null,
             simplePostContext: {},
-            eventCreationContext: {},
-            isMapLoaded: false,
+            eventCreationContext: {}, // NEW
         };
         
+        let territoriesCollection, spotCollection, routeCollection, eventCollection; // NEW: eventCollection
+        
         // --- ЭЛЕМЕНТЫ DOM ---
-        const DOM = {
-            initialLoader: document.getElementById('initial-loader'),
-            loaderText: document.getElementById('loader-text'),
-            fallbackScreen: document.getElementById('fallback-screen'),
-            fallbackContent: document.getElementById('fallback-content'),
-            appContainer: document.getElementById('app-container'),
-            bottomNavbar: document.getElementById('bottom-navbar'),
-            modeSwitcher: document.getElementById('mode-switcher'),
-            feedCreateBtn: document.getElementById('feed-create-btn'),
-            detailModal: document.getElementById('detail-modal'),
-            commentsModal: document.getElementById('comments-modal'),
-            simplePostModal: document.getElementById('simple-post-modal'),
-            creationModal: document.getElementById('creation-modal'),
-            eventCreationModal: document.getElementById('event-creation-modal'),
-            participantsModal: document.getElementById('participants-modal'),
-            leaderboardDiv: document.getElementById('leaderboard'),
-            profileName: document.getElementById('profile-name'),
-            profileAvatarImg: document.getElementById('profile-avatar-img'),
-            profileAvatarWrapper: document.getElementById('profile-avatar-wrapper'),
-            requestGeoBtn: document.getElementById('request-geo-btn'),
-            mapCenterControls: document.getElementById('map-center-controls'),
-            shareProfileBtn: document.getElementById('share-profile-btn'),
-            mapActionContainer: document.getElementById('map-action-container'),
-            mapActionBtn: document.getElementById('map-action-btn'),
-        };
+        const initialLoader = document.getElementById('initial-loader');
+        const loaderText = document.getElementById('loader-text');
+        const fallbackScreen = document.getElementById('fallback-screen');
+        const fallbackContent = document.getElementById('fallback-content');
+        const appContainer = document.getElementById('app-container');
+        const bottomNavbar = document.getElementById('bottom-navbar');
+        const modeSwitcher = document.getElementById('mode-switcher');
+        const feedCreateBtn = document.getElementById('feed-create-btn');
+        
+        // Модальные окна
+        const detailModal = document.getElementById('detail-modal');
+        const commentsModal = document.getElementById('comments-modal');
+        const simplePostModal = document.getElementById('simple-post-modal');
+        const creationModal = document.getElementById('creation-modal');
+        const qrModal = document.getElementById('qr-modal');
+        const eventCreationModal = document.getElementById('event-creation-modal'); // NEW
+        const participantsModal = document.getElementById('participants-modal'); // NEW
+
+        const leaderboardDiv = document.getElementById('leaderboard');
+        const profileName = document.getElementById('profile-name');
+        const profileAreaDisplay = document.getElementById('profile-area');
+        const profileAvatarImg = document.getElementById('profile-avatar-img');
+        const profileAvatarWrapper = document.getElementById('profile-avatar-wrapper');
+        const recenterBtn = document.getElementById('recenter-btn');
+        const requestGeoBtn = document.getElementById('request-geo-btn');
+        const mapCenterControls = document.getElementById('map-center-controls');
+        const scanQrBtn = document.getElementById('scan-qr-btn');
+        const shareProfileBtn = document.getElementById('share-profile-btn');
+        const showQrBtn = document.getElementById('show-qr-btn');
+        const mapActionContainer = document.getElementById('map-action-container');
+        const mapActionBtn = document.getElementById('map-action-btn');
 
         // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
         
@@ -702,7 +726,7 @@
         }
 
         // --- ФУНКЦИИ UI ---
-        function showView(viewId, options = {}) {
+        function showView(viewId, options = {}) { // [FIX] Добавлен параметр options
             tg.HapticFeedback.selectionChanged();
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
@@ -711,14 +735,20 @@
             
             const isMapView = viewId === 'map-view';
             
-            DOM.mapActionContainer.classList.toggle('visible', isMapView && AppState.lastKnownLocation);
-            DOM.modeSwitcher.classList.toggle('hidden', !isMapView || !AppState.lastKnownLocation);
+            if (isMapView && AppState.lastKnownLocation) {
+                mapActionContainer.classList.remove('hidden');
+            } else {
+                mapActionContainer.classList.add('hidden');
+            }
+            modeSwitcher.classList.toggle('hidden', !isMapView || !AppState.lastKnownLocation);
             
-            if (isMapView && map) { 
-                setTimeout(() => map.resize(), 100);
+            // [FIX] Не центрируем карту, если это не требуется
+            if (isMapView && !options.preventFit) { 
+                setTimeout(() => map?.container.fitToViewport(), 100);
             }
         }
         
+        // Переключение табов в ленте
         function switchFeedTab(tabName) {
             if (AppState.currentFeedTab === tabName) return;
             tg.HapticFeedback.selectionChanged();
@@ -729,32 +759,28 @@
             document.getElementById(`feed-tab-${tabName}`).classList.add('active');
             document.getElementById(`feed-content-${tabName}`).classList.add('active');
 
-            const createIcon = DOM.feedCreateBtn.querySelector('i');
+            // Обновляем видимость и назначение кнопки создания
+            const createIcon = feedCreateBtn.querySelector('i');
             if (tabName === 'posts') {
-                DOM.feedCreateBtn.classList.remove('hidden');
-                DOM.feedCreateBtn.onclick = showSimplePostModal;
+                feedCreateBtn.classList.remove('hidden');
+                feedCreateBtn.onclick = showSimplePostModal;
                 createIcon.className = 'fa-solid fa-plus h-7 w-7';
             } else if (tabName === 'events') {
-                DOM.feedCreateBtn.classList.remove('hidden');
-                DOM.feedCreateBtn.onclick = showEventCreationModal;
+                feedCreateBtn.classList.remove('hidden');
+                feedCreateBtn.onclick = showEventCreationModal;
                 createIcon.className = 'fa-solid fa-calendar-plus h-7 w-7';
             } else { // Для 'spots' и 'routes'
-                DOM.feedCreateBtn.classList.add('hidden');
+                feedCreateBtn.classList.add('hidden');
             }
             
+            // Загружаем контент для таба
             renderCurrentFeedTab();
         }
         
+        // Загрузка контента для активного таба ленты
         function renderCurrentFeedTab() {
-            clearCountdownTimers();
-            const tab = AppState.currentFeedTab;
-            const container = document.getElementById(`feed-content-${tab}`);
-            if (container.children.length > 0 && !container.querySelector('.skeleton-container')) {
-                // Контент уже загружен, не перезагружаем
-                return;
-            }
-
-            switch(tab) {
+            clearCountdownTimers(); // Очищаем старые таймеры перед рендером
+            switch(AppState.currentFeedTab) {
                 case 'posts': renderFeedPosts(); break;
                 case 'events': renderFeedEvents(); break;
                 case 'spots': renderFeedSpots(); break;
@@ -762,11 +788,12 @@
             }
         }
 
+
         async function setMapMode(newMode) {
             if (AppState.currentMapMode === newMode || !map) return;
             
             if (AppState.isRunning) {
-                tg.showAlert("Сначала завершите запись маршрута.");
+                showCustomAlert("Сначала завершите текущую активность (захват или запись маршрута).");
                 return;
             }
             tg.HapticFeedback.selectionChanged();
@@ -778,13 +805,14 @@
                 btn.classList.toggle('active', btn.id === `mode-${newMode}`);
             });
 
-            // Toggle layer visibility
-            if (map.getLayer('spots-layer')) {
-                map.setLayoutProperty('spots-layer', 'visibility', newMode === 'spots' ? 'visible' : 'none');
-                map.setLayoutProperty('spots-labels', 'visibility', newMode === 'spots' ? 'visible' : 'none');
-            }
-            if (map.getLayer('routes-layer')) {
-                map.setLayoutProperty('routes-layer', 'visibility', newMode === 'routes' ? 'visible' : 'none');
+            map.events.remove('click', handleMapClickForSpot);
+
+            territoriesCollection.options.set('visible', newMode === 'capture');
+            spotCollection.options.set('visible', newMode === 'spots');
+            routeCollection.options.set('visible', newMode === 'routes');
+            
+            if (newMode === 'spots') {
+                map.events.add('click', handleMapClickForSpot);
             }
 
             updateMapActionButton();
@@ -795,26 +823,37 @@
             const text = document.getElementById('map-action-text');
 
             if (!AppState.lastKnownLocation) {
-                DOM.mapActionContainer.classList.remove('visible');
+                mapActionContainer.classList.add('hidden');
                 return;
             }
             
-            DOM.mapActionContainer.classList.add('visible');
+            mapActionContainer.classList.remove('hidden');
 
             switch (AppState.currentMapMode) {
+                case 'capture':
+                    if (AppState.isRunning) {
+                        text.textContent = "Остановить захват";
+                        mapActionBtn.style.backgroundColor = 'var(--destructive-color)';
+                        icon.className = 'fa-solid fa-stop h-5 w-5';
+                    } else {
+                        text.textContent = "Начать захват";
+                        mapActionBtn.style.backgroundColor = 'var(--button-color)';
+                        icon.className = 'fa-solid fa-play h-5 w-5';
+                    }
+                    break;
                 case 'spots':
                     text.textContent = "Добавить спот здесь";
-                    DOM.mapActionBtn.style.backgroundColor = 'var(--success-color)';
+                    mapActionBtn.style.backgroundColor = 'var(--success-color)';
                     icon.className = 'fa-solid fa-location-dot h-5 w-5';
                     break;
                 case 'routes':
                     if (AppState.isRunning) {
                         text.textContent = "Завершить маршрут";
-                        DOM.mapActionBtn.style.backgroundColor = 'var(--destructive-color)';
+                        mapActionBtn.style.backgroundColor = 'var(--destructive-color)';
                         icon.className = 'fa-solid fa-stop h-5 w-5';
                     } else {
                         text.textContent = "Начать запись маршрута";
-                        DOM.mapActionBtn.style.backgroundColor = 'var(--button-color)';
+                        mapActionBtn.style.backgroundColor = 'var(--button-color)';
                         icon.className = 'fa-solid fa-route h-5 w-5';
                     }
                     break;
@@ -822,14 +861,17 @@
         }
         
         async function mapActionButtonHandler() {
-            DOM.mapActionBtn.disabled = true; 
+            mapActionBtn.disabled = true; 
             try {
                 switch (AppState.currentMapMode) {
+                    case 'capture':
+                        AppState.isRunning ? await stopRun() : startRun();
+                        break;
                     case 'spots':
                         if(AppState.lastKnownLocation) {
-                            handleMapClickForSpot(AppState.lastKnownLocation);
+                            handleMapClickForSpot({ get: (key) => key === 'coords' ? AppState.lastKnownLocation : null });
                         } else {
-                            tg.showAlert("Определяем ваше местоположение...");
+                            showCustomAlert("Определяем ваше местоположение...");
                         }
                         break;
                     case 'routes':
@@ -837,7 +879,7 @@
                         break;
                 }
             } finally {
-                DOM.mapActionBtn.disabled = false;
+                mapActionBtn.disabled = false;
             }
         }
         
@@ -857,11 +899,15 @@
             document.getElementById('simple-post-details').value = '';
             document.getElementById('simple-post-filename').textContent = '';
             AppState.simplePostContext = {};
-            showModal(DOM.simplePostModal);
+            simplePostModal.classList.add('visible');
+            document.body.classList.add('modal-open');
+            tg.BackButton.show();
         }
 
         function hideSimplePostModal() {
-            hideModal(DOM.simplePostModal);
+            simplePostModal.classList.remove('visible');
+            document.body.classList.remove('modal-open');
+            tg.BackButton.hide();
         }
         
         function showCreationModal(type, context = {}) {
@@ -891,13 +937,21 @@
                 title.textContent = 'Сохранить новый маршрут';
                 description.textContent = 'Дайте название и описание вашему маршруту.';
                 detailsSection.style.display = 'block';
+            } else if (type === 'post') {
+                title.textContent = 'Новое достижение!';
+                description.textContent = `Вы захватили ${context.area_captured_formatted}. Дайте название вашей новой территории.`;
+                photoSection.style.display = 'block';
             }
             
-            showModal(DOM.creationModal);
+            creationModal.classList.add('visible');
+            document.body.classList.add('modal-open');
+            tg.BackButton.show();
         }
 
         function hideCreationModal() {
-            hideModal(DOM.creationModal);
+            creationModal.classList.remove('visible');
+            document.body.classList.remove('modal-open');
+            tg.BackButton.hide();
             AppState.currentEditContext = {};
         }
 
@@ -905,39 +959,27 @@
             const { type } = AppState.currentEditContext;
             if (type === 'spot') saveSpot();
             else if (type === 'route') saveRoute();
+            else if (type === 'post') handlePostSubmission();
         }
         
         function showDetailModal(type, id) {
              AppState.currentDetailContext = { type, id, mapInstances: [] };
              tg.HapticFeedback.impactOccurred('medium');
+             tg.BackButton.show();
              
-             showModal(DOM.detailModal);
+             detailModal.classList.add('visible');
+             document.body.classList.add('modal-open');
              loadDetailContent();
         }
         
         function hideDetailModal() {
             if (AppState.currentDetailContext.mapInstances) {
-                AppState.currentDetailContext.mapInstances.forEach(mapInstance => mapInstance.remove());
+                AppState.currentDetailContext.mapInstances.forEach(mapInstance => mapInstance.destroy());
             }
-            hideModal(DOM.detailModal);
+            tg.BackButton.hide();
+            detailModal.classList.remove('visible');
+            document.body.classList.remove('modal-open');
             AppState.currentDetailContext = {};
-        }
-
-        // --- Улучшенные функции открытия/закрытия модальных окон
-        function showModal(modalElement) {
-            modalElement.classList.add('visible');
-            document.body.classList.add('modal-open');
-            tg.BackButton.show();
-        }
-
-        function hideModal(modalElement) {
-            modalElement.classList.remove('visible');
-            // Проверяем, есть ли еще открытые модальные окна, прежде чем убирать класс
-            const anyModalVisible = document.querySelector('.modal-overlay.visible');
-            if (!anyModalVisible) {
-                document.body.classList.remove('modal-open');
-                tg.BackButton.hide();
-            }
         }
 
         // --- ФУНКЦИИ ДЛЯ ВЫБОРА ФОТО ---
@@ -960,6 +1002,8 @@
         async function generateUserProfileDetailHTML(profile, posts, spots, routes, events, likesByPost, commentsByPost) {
             const profileName = escapeHTML(profile.name);
             const avatar = profile.photo_url || `https://placehold.co/96x96/E2E8F0/4A5568?text=${profileName.charAt(0)}`;
+            const area = profile.area || 0;
+            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
 
             const postsHTML = posts.length > 0
                 ? posts.map(p => generatePostHTML(p, likesByPost[p.id] || [], commentsByPost[p.id] || [])).join('')
@@ -985,6 +1029,8 @@
                         </div>
                         <div class="text-center">
                             <h2 class="text-2xl font-bold">${profileName}</h2>
+                            <p class="text-sm mt-2" style="color: var(--hint-color);">Общая площадь</p>
+                            <p class="text-3xl font-bold" style="color: var(--button-color);">${formattedArea}</p>
                         </div>
                         <div class="w-full pt-4 mt-4 border-t" style="border-color: var(--border-color);">
                             <div class="flex justify-center gap-8 w-full">
@@ -1002,10 +1048,10 @@
                     <div id="tab-spots" class="profile-tab" onclick="switchProfileTab('spots')">Споты (${spots.length})</div>
                     <div id="tab-routes" class="profile-tab" onclick="switchProfileTab('routes')">Маршруты (${routes.length})</div>
                 </div>
-                <div class="p-4">
+                <div class="p-4 space-y-4">
                     <div id="content-posts" class="profile-tab-content active space-y-4">${postsHTML}</div>
                     <div id="content-events" class="profile-tab-content space-y-4">${eventsHTML}</div>
-                    <div id="content-spots" class="profile-tab-content grid grid-cols-1 sm:grid-cols-2 gap-4">${spotsHTML}</div>
+                    <div id="content-spots" class="profile-tab-content grid grid-cols-1 md:grid-cols-2 gap-4">${spotsHTML}</div>
                     <div id="content-routes" class="profile-tab-content space-y-4">${routesHTML}</div>
                 </div>
             `;
@@ -1017,64 +1063,70 @@
             
             body.innerHTML = `<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
             
-            try {
-                if (type === 'spot') {
-                    const { data: spot, error } = await supabase.from('spots').select('*, profiles(id, name, photo_url)').eq('id', id).single();
-                    if (error) throw error;
-                    body.innerHTML = generateSpotDetailHTML(spot);
-                    loadAndRenderComments('spot', id, 'detail-comments-list');
-                } else if (type === 'route') {
-                     const { data: route, error } = await supabase.from('routes').select('*, profiles(id, name, photo_url)').eq('id', id).single();
-                    if (error) throw error;
-                    body.innerHTML = generateRouteDetailHTML(route);
-                    setTimeout(() => renderMiniMapForRoute(route), 100);
-                    loadAndRenderComments('route', id, 'detail-comments-list');
-                } else if (type === 'event') {
-                    const { data: event, error } = await supabase.from('events').select('*, profiles(id, name, photo_url), routes(*)').eq('id', id).single();
-                     if (error) throw error;
-                    body.innerHTML = await generateEventDetailHTML(event);
-                    setTimeout(() => renderMiniMapForEvent(event), 100);
-                    loadAndRenderComments('event', id, 'event-comments-list');
-                } else if (type === 'user') {
-                    const [profileRes, postsRes, spotsRes, routesRes, eventsRes] = await Promise.all([
-                        supabase.from('profiles').select('*').eq('id', id).single(),
-                        supabase.from('posts').select('*').eq('user_id', id).order('created_at', { ascending: false }),
-                        supabase.from('spots').select('*').eq('user_id', id).order('created_at', { ascending: false }),
-                        supabase.from('routes').select('*').eq('user_id', id).order('created_at', { ascending: false }),
-                        supabase.rpc('get_user_events', { p_user_id: id })
-                    ]);
-
-                    if (profileRes.error) throw profileRes.error;
-
-                    const profile = profileRes.data;
-                    const posts = postsRes.data || [];
-                    const spots = spotsRes.data || [];
-                    const routes = routesRes.data || [];
-                    const events = eventsRes.data || [];
-
-                    const postIds = posts.map(p => p.id);
-                    const likesByPost = {};
-                    const commentsByPost = {};
-                    if (postIds.length > 0) {
-                        const { data: likes } = await supabase.from('likes').select('*').in('post_id', postIds);
-                        const { data: comments } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
-                        if(likes) likes.forEach(like => (likesByPost[like.post_id] = likesByPost[like.post_id] || []).push(like));
-                        if(comments) comments.forEach(comment => (commentsByPost[comment.post_id] = commentsByPost[comment.post_id] || []).push(comment));
-                    }
-
-                    body.innerHTML = await generateUserProfileDetailHTML(profile, posts, spots, routes, events, likesByPost, commentsByPost);
-                    
-                    setTimeout(() => {
-                        posts.forEach(post => {
-                            if (post.territory_captured) {
-                                renderMiniMapForPost(post, body);
-                            }
-                        });
-                    }, 100);
+            if (type === 'spot') {
+                const { data: spot, error } = await supabase.from('spots').select('*, profiles(id, name, photo_url)').eq('id', id).single();
+                if (error || !spot) {
+                    body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали спота.</p>`;
+                    return;
                 }
-            } catch (error) {
-                 console.error(`Ошибка загрузки деталей для ${type} #${id}:`, error);
-                 body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали. Попробуйте еще раз.</p>`;
+                body.innerHTML = generateSpotDetailHTML(spot);
+                loadAndRenderComments('spot', id, 'detail-comments-list');
+            } else if (type === 'route') {
+                 const { data: route, error } = await supabase.from('routes').select('*, profiles(id, name, photo_url)').eq('id', id).single();
+                if (error || !route) {
+                    body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали маршрута.</p>`;
+                    return;
+                }
+                body.innerHTML = generateRouteDetailHTML(route);
+                setTimeout(() => renderMiniMapForRoute(route), 100);
+                loadAndRenderComments('route', id, 'detail-comments-list');
+            } else if (type === 'event') {
+                const { data: event, error } = await supabase.from('events').select('*, profiles(id, name, photo_url), routes(*)').eq('id', id).single();
+                 if (error || !event) {
+                    body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить детали мероприятия.</p>`;
+                    return;
+                }
+                body.innerHTML = await generateEventDetailHTML(event);
+                setTimeout(() => renderMiniMapForEvent(event), 100);
+                loadAndRenderComments('event', id, 'event-comments-list');
+            } else if (type === 'user') {
+                const [profileRes, postsRes, spotsRes, routesRes, eventsRes] = await Promise.all([
+                    supabase.from('profiles').select('*').eq('id', id).single(),
+                    supabase.from('posts').select('*').eq('user_id', id).order('created_at', { ascending: false }),
+                    supabase.from('spots').select('*').eq('user_id', id).order('created_at', { ascending: false }),
+                    supabase.from('routes').select('*').eq('user_id', id).order('created_at', { ascending: false }),
+                    supabase.rpc('get_user_events', { p_user_id: id })
+                ]);
+
+                if (profileRes.error) {
+                    body.innerHTML = `<p class="text-red-500 text-center p-4">Не удалось загрузить профиль.</p>`;
+                    return;
+                }
+                const profile = profileRes.data;
+                const posts = postsRes.data || [];
+                const spots = spotsRes.data || [];
+                const routes = routesRes.data || [];
+                const events = eventsRes.data || [];
+
+                const postIds = posts.map(p => p.id);
+                const likesByPost = {};
+                const commentsByPost = {};
+                if (postIds.length > 0) {
+                    const { data: likes } = await supabase.from('likes').select('*').in('post_id', postIds);
+                    const { data: comments } = await supabase.from('comments').select('id, post_id').in('post_id', postIds);
+                    if(likes) likes.forEach(like => (likesByPost[like.post_id] = likesByPost[like.post_id] || []).push(like));
+                    if(comments) comments.forEach(comment => (commentsByPost[comment.post_id] = commentsByPost[comment.post_id] || []).push(comment));
+                }
+
+                body.innerHTML = await generateUserProfileDetailHTML(profile, posts, spots, routes, events, likesByPost, commentsByPost);
+                
+                setTimeout(() => {
+                    posts.forEach(post => {
+                        if (post.territory_captured) {
+                            renderMiniMapForPost(post, body);
+                        }
+                    });
+                }, 100);
             }
         }
         
@@ -1090,20 +1142,20 @@
              const buttonHTML = isFeed 
                 ? `<button onclick="event.stopPropagation(); navigateToMapObject('spot', '${spot.id}')" class="mt-2 w-full text-sm text-center font-semibold p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);">Показать на карте</button>` 
                 : '';
-               return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('spot', '${spot.id}')">
-                        ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Фото спота">` : ''}
-                        <p class="font-bold">${escapeHTML(spot.name)}</p>
-                        <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(spot.description)}</p>
-                        <p class="text-xs text-gray-400 mt-2">${new Date(spot.created_at).toLocaleDateString()}</p>
-                        ${buttonHTML}
-                      </div>`;
+             return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('spot', '${spot.id}')">
+                         ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Фото спота">` : ''}
+                         <p class="font-bold">${escapeHTML(spot.name)}</p>
+                         <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(spot.description)}</p>
+                         <p class="text-xs text-gray-400 mt-2">${new Date(spot.created_at).toLocaleDateString()}</p>
+                         ${buttonHTML}
+                       </div>`;
         }
         
-        function generateMiniRouteHTML(route, isFeed = false) {
-               const buttonHTML = isFeed 
+        function generateMiniRouteHTML(route, isFeed = false) { // [FIX] Добавлен флаг isFeed
+             const buttonHTML = isFeed 
                 ? `<button onclick="event.stopPropagation(); navigateToMapObject('route', '${route.id}')" class="mt-2 w-full text-sm text-center font-semibold p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);">Показать на карте</button>` 
                 : '';
-               return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('route', '${route.id}')">
+             return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('route', '${route.id}')">
                                <p class="font-bold flex items-center gap-2"><i class="fa-solid fa-route" style="color: var(--hint-color);"></i> ${escapeHTML(route.name)}</p>
                                <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(route.description)}</p>
                                <p class="text-xs text-gray-400 mt-2">${new Date(route.created_at).toLocaleDateString()}</p>
@@ -1111,18 +1163,26 @@
                              </div>`;
         }
 
+        /**
+         * [FIX 3.0] Эта функция была переписана для более точной и плавной навигации
+         * с максимальным приближением к объекту.
+         */
         function navigateToMapObject(type, id) {
             hideDetailModal(); 
 
+            // 1. Переключаемся на вид карты, но отключаем стандартное центрирование,
+            // чтобы избежать конфликта с нашей анимацией.
             showView('map-view', { preventFit: true });
             
+            // 2. Используем таймаут, чтобы дать DOM время обновиться перед манипуляцией картой
             setTimeout(() => {
                 if (!map) {
                     console.error("Карта не инициализирована.");
                     return;
                 }
                 
-                map.resize();
+                // Сначала убедимся, что контейнер карты имеет правильный размер
+                map.container.fitToViewport();
 
                 let targetObject;
                 const numericId = parseInt(id, 10);
@@ -1130,60 +1190,53 @@
                 if (type === 'spot') {
                     setMapMode('spots');
                     targetObject = AppState.allSpots.find(s => s.id === numericId);
-                    if (!targetObject) return console.error(`Спот с ID ${id} не найден.`);
-                    
+                    if (!targetObject) {
+                        console.error(`Спот с ID ${id} не найден.`);
+                        return;
+                    }
                     const geoJson = parseWKT(targetObject.location);
                     if (geoJson && geoJson.type === 'Point') {
-                        map.flyTo({
-                            center: geoJson.coordinates,
-                            zoom: 16,
-                            pitch: 60,
+                        const coords = [geoJson.coordinates[1], geoJson.coordinates[0]]; // lat, long
+                        // Используем setCenter с высоким уровнем приближения для плавного эффекта
+                        map.setCenter(coords, 18, {
                             duration: 1500,
-                            essential: true
+                            timingFunction: 'ease-in-out'
                         });
                     }
                 } else if (type === 'route') {
                     setMapMode('routes');
                     targetObject = AppState.allRoutes.find(r => r.id === numericId);
-                    if (!targetObject) return console.error(`Маршрут с ID ${id} не найден.`);
-                    
+                    if (!targetObject) {
+                        console.error(`Маршрут с ID ${id} не найден.`);
+                        return;
+                    }
                     const geoJson = parseWKT(targetObject.path);
                     if (geoJson && geoJson.type === 'LineString' && geoJson.coordinates.length > 0) {
-                        const bounds = new mapboxgl.LngLatBounds(
-                            geoJson.coordinates[0],
-                            geoJson.coordinates[0]
-                        );
-                        for (const coord of geoJson.coordinates) {
-                            bounds.extend(coord);
-                        }
-                        map.fitBounds(bounds, {
-                            padding: 60,
+                        const yandexCoords = geoJson.coordinates.map(p => [p[1], p[0]]);
+                        const polyline = new ymaps.Polyline(yandexCoords);
+                         // Используем setBounds с уменьшенным отступом для максимального приближения
+                        map.setBounds(polyline.geometry.getBounds(), { 
+                            checkZoomRange: true, 
                             duration: 1000,
-                            essential: true
+                            zoomMargin: 15 // Уменьшенный отступ для более плотного приближения
                         });
                     }
                 }
             }, 250); 
         }
 
-        /**
-         * Улучшенная функция парсинга.
-         * В первую очередь пытается обработать прямой GeoJSON объект, который возвращает PostGIS.
-         * Оставляет старый WKT-парсер как запасной вариант.
-         */
+
         function parseWKT(wkt) {
             if (!wkt) return null;
-            // Приоритет для GeoJSON объекта
+            // ИЗМЕНЕНИЕ: Теперь мы ожидаем GeoJSON объект от Supabase
             if (typeof wkt === 'object' && wkt.type && wkt.coordinates) return wkt;
-            
-            // Запасной вариант для строкового формата
+            // Оставляем старый парсер как запасной вариант
             if (typeof wkt !== 'string') return null;
             try {
                 if (wkt.trim().startsWith('{')) {
                     const parsed = JSON.parse(wkt);
                     if (parsed.type && parsed.coordinates) return parsed;
                 }
-                // ... (остальной код парсинга WKT без изменений)
                 const match = wkt.match(/(POINT|LINESTRING|POLYGON|MULTIPOLYGON)\s*\((.+)\)/i);
                 if (!match) return null;
                 const type = match[1].toUpperCase();
@@ -1234,26 +1287,18 @@
                 }
                 telegramUser = tg.initDataUnsafe.user;
                 
-                if (MAPBOX_ACCESS_TOKEN === 'YOUR_MAPBOX_ACCESS_TOKEN') {
-                    showFallbackScreen('Ошибка конфигурации', 'Отсутствует ключ доступа для Mapbox. Пожалуйста, укажите его в коде.', false);
-                    return;
-                }
-                mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
-
-                DOM.loaderText.textContent = 'Подключение к базе данных...';
+                loaderText.textContent = 'Подключение к базе данных...';
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 
-                DOM.loaderText.textContent = 'Загрузка карты...';
-                initMap({ longitude: 37.618423, latitude: 55.751244 });
+                loaderText.textContent = 'Загрузка данных...';
+                initMap({ latitude: 55.751244, longitude: 37.618423 });
                 
-                DOM.loaderText.textContent = 'Загрузка профиля...';
                 await upsertUserProfile();
                 updateUI();
                 
-                DOM.loaderText.textContent = 'Загрузка данных...';
                 await Promise.all([
                     fetchAllProfilesAndDraw(),
-                    renderCurrentFeedTab(),
+                    renderCurrentFeedTab(), // Загружаем контент для первого таба
                     loadInitialMapData(),
                     renderMyProfileContent()
                 ]);
@@ -1263,17 +1308,17 @@
                 initializeGeolocation();
                 handleStartParam();
 
-                DOM.initialLoader.classList.add('hidden');
-                DOM.appContainer.classList.remove('hidden');
-                DOM.bottomNavbar.classList.remove('hidden');
+                initialLoader.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                bottomNavbar.classList.remove('hidden');
                 
                 tg.CloudStorage.getItem('currentMapMode', (error, value) => {
                     if (error) {
                         console.error("CloudStorage error:", error);
-                        setMapMode('spots');
+                        setMapMode('capture');
                         return;
                     }
-                    setMapMode(value || 'spots');
+                    setMapMode(value || 'capture');
                 });
 
             } catch (error) {
@@ -1285,184 +1330,65 @@
 
         function initMap(coords) {
             if (map) return;
-            map = new mapboxgl.Map({
-                container: 'map',
-                style: 'mapbox://styles/mapbox/standard', // Стиль с поддержкой 3D
-                center: [coords.longitude, coords.latitude],
+            const latLng = [coords.latitude, coords.longitude];
+            map = new ymaps.Map('map', { 
+                center: latLng, 
                 zoom: 5,
-                pitch: 45, // Угол наклона для 3D
-                bearing: -17.6,
-                antialias: true
+                controls: []
             });
-
-            map.on('load', () => {
-                AppState.isMapLoaded = true;
-                // Добавляем слой с 3D зданиями
-                map.addLayer({
-                    'id': '3d-buildings',
-                    'source': 'composite',
-                    'source-layer': 'building',
-                    'filter': ['==', 'extrude', 'true'],
-                    'type': 'fill-extrusion',
-                    'minzoom': 15,
-                    'paint': {
-                        'fill-extrusion-color': '#aaa',
-                        'fill-extrusion-height': [
-                            "interpolate", ["linear"], ["zoom"],
-                            15, 0,
-                            15.05, ["get", "height"]
-                        ],
-                        'fill-extrusion-base': [
-                            "interpolate", ["linear"], ["zoom"],
-                            15, 0,
-                            15.05, ["get", "min_height"]
-                        ],
-                        'fill-extrusion-opacity': .6
-                    }
-                });
-                
-                // Инициализируем источники данных для объектов
-                map.addSource('spots', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-                map.addSource('routes', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-                map.addSource('events', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-                map.addSource('current-run', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-
-                // Добавляем слои для отображения
-                map.addLayer({
-                    id: 'routes-layer',
-                    type: 'line',
-                    source: 'routes',
-                    layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' },
-                    paint: { 'line-color': '#ff7800', 'line-width': 4, 'line-opacity': 0.8 }
-                });
-                map.addLayer({
-                    id: 'spots-layer',
-                    type: 'circle',
-                    source: 'spots',
-                    layout: { 'visibility': 'visible' },
-                    paint: {
-                        'circle-color': '#9333ea',
-                        'circle-radius': 8,
-                        'circle-stroke-width': 2,
-                        'circle-stroke-color': '#ffffff'
-                    }
-                });
-                 map.addLayer({
-                    id: 'spots-labels',
-                    type: 'symbol',
-                    source: 'spots',
-                    layout: {
-                        'text-field': ['get', 'name'],
-                        'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
-                        'text-radial-offset': 0.8,
-                        'text-justify': 'auto',
-                        'text-size': 12,
-                        'visibility': 'visible'
-                    },
-                    paint: {
-                        "text-color": "#222",
-                        "text-halo-color": "#fff",
-                        "text-halo-width": 1,
-                        "text-halo-blur": 1
-                    }
-                });
-                map.addLayer({
-                    id: 'events-layer',
-                    type: 'circle',
-                    source: 'events',
-                    paint: {
-                        'circle-color': '#16a34a',
-                        'circle-radius': 10,
-                        'circle-stroke-width': 2,
-                        'circle-stroke-color': '#ffffff'
-                    }
-                });
-                map.addLayer({
-                    id: 'current-run-layer',
-                    type: 'line',
-                    source: 'current-run',
-                    layout: { 'line-join': 'round', 'line-cap': 'round' },
-                    paint: { 'line-color': 'var(--button-color)', 'line-width': 5, 'line-opacity': 0.9 }
-                });
-
-                // Загружаем данные после создания слоев
-                loadInitialMapData();
-            });
-
-            // Добавляем контролы навигации
-            const geolocate = new mapboxgl.GeolocateControl({
-                positionOptions: { enableHighAccuracy: true },
-                trackUserLocation: true,
-                showUserHeading: true
-            });
-            map.addControl(geolocate, 'top-right');
-            map.addControl(new mapboxgl.NavigationControl(), 'top-right');
             
-            // Обработчики кликов по слоям
-            map.on('click', 'spots-layer', (e) => {
-                const spotId = e.features[0].properties.id;
-                showDetailModal('spot', spotId);
-            });
-             map.on('click', 'routes-layer', (e) => {
-                // This is tricky for lines. We can show info but it might not be the intended route.
-                // A better approach would be to query rendered features.
-                // For now, let's just log it.
-                console.log("Clicked a route", e.features[0].properties);
-                const routeId = e.features[0].properties.id;
-                showDetailModal('route', routeId);
-            });
-            map.on('click', 'events-layer', (e) => {
-                const eventId = e.features[0].properties.id;
-                showDetailModal('event', eventId);
-            });
+            territoriesCollection = new ymaps.GeoObjectCollection();
+            spotCollection = new ymaps.GeoObjectCollection();
+            routeCollection = new ymaps.GeoObjectCollection();
+            eventCollection = new ymaps.GeoObjectCollection(); // NEW
 
-            // Change cursor on hover
-            map.on('mouseenter', ['spots-layer', 'routes-layer', 'events-layer'], () => {
-                map.getCanvas().style.cursor = 'pointer';
-            });
-            map.on('mouseleave', ['spots-layer', 'routes-layer', 'events-layer'], () => {
-                map.getCanvas().style.cursor = '';
-            });
+            map.geoObjects.add(territoriesCollection);
+            map.geoObjects.add(spotCollection);
+            map.geoObjects.add(routeCollection);
+            map.geoObjects.add(eventCollection); // NEW
+            
+            setTimeout(() => map?.container.fitToViewport(), 100);
         }
 
         function updateUI() {
             const name = escapeHTML(telegramUser.first_name);
-            DOM.profileName.textContent = name;
+            profileName.textContent = name;
             
             if (telegramUser.photo_url) {
-                DOM.profileAvatarImg.src = telegramUser.photo_url;
+                profileAvatarImg.src = telegramUser.photo_url;
             } else {
                 const initial = name.charAt(0).toUpperCase();
-                DOM.profileAvatarImg.src = `https://placehold.co/96x96/E2E8F0/4A5568?text=${initial}`;
+                profileAvatarImg.src = `https://placehold.co/96x96/E2E8F0/4A5568?text=${initial}`;
             }
-            DOM.profileAvatarWrapper.style.borderColor = AppState.userProfile.color;
+            profileAvatarWrapper.style.borderColor = AppState.userProfile.color;
             updateMapActionButton();
+            refreshAllStats();
             renderMyProfileContent();
         }
         
-        function updateCurrentUserMarker(coords) { // coords is [lng, lat]
+        function updateCurrentUserMarker(latLng) {
             if (!map) return;
+            const userAvatarUrl = telegramUser.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${telegramUser.first_name.charAt(0)}`;
+            
+            const iconLayout = ymaps.templateLayoutFactory.createClass(
+                `<div class="avatar-marker current-user-marker" style="background-image: url(${userAvatarUrl}); width: 40px; height: 40px; border-color: ${AppState.userProfile.color};"></div>`
+            );
             
             if (AppState.currentUserMarker) {
-                AppState.currentUserMarker.setLngLat(coords);
+                AppState.currentUserMarker.geometry.setCoordinates(latLng);
             } else {
-                const el = document.createElement('div');
-                el.className = 'avatar-marker current-user-marker';
-                el.style.backgroundImage = `url(${telegramUser.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${telegramUser.first_name.charAt(0)}`})`;
-                el.style.width = '40px';
-                el.style.height = '40px';
-                el.style.borderColor = AppState.userProfile.color;
-
-                AppState.currentUserMarker = new mapboxgl.Marker(el)
-                    .setLngLat(coords)
-                    .addTo(map);
+                AppState.currentUserMarker = new ymaps.Placemark(latLng, {}, {
+                    iconLayout: iconLayout,
+                    iconShape: { type: 'Rectangle', coordinates: [[-20, -20], [20, 20]] }
+                });
+                map.geoObjects.add(AppState.currentUserMarker);
             }
         }
         
         // --- Логика геолокации ---
         async function initializeGeolocation() {
             if (!navigator.geolocation) {
-                tg.showAlert("Геолокация не поддерживается вашим устройством.");
+                showCustomAlert("Геолокация не поддерживается вашим устройством.");
                 return;
             }
             try {
@@ -1472,16 +1398,16 @@
                         startGeoTracking();
                     } else {
                         AppState.lastKnownLocation = null;
-                        DOM.mapActionContainer.classList.remove('visible');
-                        DOM.modeSwitcher.classList.add('hidden');
-                        DOM.mapCenterControls.classList.remove('hidden');
+                        mapActionContainer.classList.add('hidden');
+                        modeSwitcher.classList.add('hidden');
+                        mapCenterControls.classList.remove('hidden');
                     }
                 };
                 permissionStatus.onchange = handlePermissionChange;
                 handlePermissionChange();
             } catch (e) {
                 console.warn("API разрешений не поддерживается, используем старый метод.", e);
-                DOM.mapCenterControls.classList.remove('hidden');
+                mapCenterControls.classList.remove('hidden');
             }
         }
 
@@ -1490,7 +1416,7 @@
             const geoText = document.getElementById('request-geo-text');
             geoText.textContent = 'Ждем ответа...';
             geoLoader.classList.remove('hidden');
-            DOM.requestGeoBtn.disabled = true;
+            requestGeoBtn.disabled = true;
             startGeoTracking();
         }
 
@@ -1498,16 +1424,17 @@
              navigator.geolocation.getCurrentPosition(
                 (position) => {
                     tg.HapticFeedback.notificationOccurred('success');
-                    const coords = [position.coords.longitude, position.coords.latitude];
-                    if (!AppState.lastKnownLocation && map) {
-                        map.flyTo({ center: coords, zoom: 15, pitch: 45 });
+                    const latLng = [position.coords.latitude, position.coords.longitude];
+                    if (!AppState.lastKnownLocation) {
+                        map.panTo(latLng, {flying: true, duration: 1500}).then(() => map.setZoom(16));
                     }
-                    AppState.lastKnownLocation = coords;
+                    AppState.lastKnownLocation = latLng;
                     
-                    updateCurrentUserMarker(coords);
-                    DOM.mapCenterControls.classList.add('hidden');
-                    DOM.modeSwitcher.classList.remove('hidden');
-                    DOM.mapActionContainer.classList.add('visible');
+                    updateCurrentUserMarker(latLng);
+                    mapCenterControls.classList.add('hidden');
+                    recenterBtn.classList.remove('hidden');
+                    modeSwitcher.classList.remove('hidden');
+                    mapActionContainer.classList.remove('hidden');
                     
                     updateMapActionButton();
                     startWatchingLocation();
@@ -1515,12 +1442,12 @@
                 (error) => {
                     tg.HapticFeedback.notificationOccurred('error');
                     console.error("Geolocation error:", error);
-                    tg.showAlert("Не удалось получить геолокацию. Проверьте разрешения в настройках вашего устройства.");
+                    showCustomAlert("Не удалось получить геолокацию. Проверьте разрешения в настройках вашего устройства.");
                     const geoText = document.getElementById('request-geo-text');
                     const geoLoader = document.getElementById('request-geo-loader');
                     geoText.textContent = 'Дать доступ к гео';
                     geoLoader.classList.add('hidden');
-                    DOM.requestGeoBtn.disabled = false;
+                    requestGeoBtn.disabled = false;
                 },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
@@ -1532,25 +1459,14 @@
             }
             locationWatchId = navigator.geolocation.watchPosition(
                 (position) => {
-                    const coords = [position.coords.longitude, position.coords.latitude];
-                    AppState.lastKnownLocation = coords;
-                    updateCurrentUserMarker(coords);
+                    const latLng = [position.coords.latitude, position.coords.longitude];
+                    AppState.lastKnownLocation = latLng;
+                    updateCurrentUserMarker(latLng);
 
-                    if (AppState.isRunning) {
-                        AppState.currentRunPath.push(coords);
-                        const runSource = map.getSource('current-run');
-                        if (runSource) {
-                            runSource.setData({
-                                type: 'FeatureCollection',
-                                features: [{
-                                    type: 'Feature',
-                                    geometry: {
-                                        type: 'LineString',
-                                        coordinates: AppState.currentRunPath
-                                    }
-                                }]
-                            });
-                        }
+                    if (AppState.isRunning && AppState.currentPathPolyline) {
+                        const newPoint = [latLng[1], latLng[0]]; // lng, lat для Turf.js
+                        AppState.currentRunPath.push(newPoint);
+                        AppState.currentPathPolyline.geometry.append(latLng);
                     }
                 },
                 (error) => {
@@ -1561,11 +1477,50 @@
         }
 
         // --- ЛОГИКА РЕЖИМОВ ---
+        function startRun() {
+            if (!AppState.lastKnownLocation) {
+                showCustomAlert("Сначала определите свое местоположение."); return;
+            }
+            AppState.isRunning = true;
+            tg.HapticFeedback.impactOccurred('heavy');
+            tg.isClosingConfirmationEnabled = true;
+            updateMapActionButton();
+            
+            AppState.currentRunPath = [ [AppState.lastKnownLocation[1], AppState.lastKnownLocation[0]] ];
+            if (AppState.currentPathPolyline) map.geoObjects.remove(AppState.currentPathPolyline);
+            AppState.currentPathPolyline = new ymaps.Polyline([AppState.lastKnownLocation], {}, { 
+                strokeColor: 'var(--destructive-color)', 
+                strokeWidth: 5, 
+                strokeOpacity: 0.9 
+            });
+            map.geoObjects.add(AppState.currentPathPolyline);
+        }
+        async function stopRun() {
+            return new Promise(resolve => {
+                showCustomConfirm("Завершить пробежку и захватить территорию?", async () => {
+                    AppState.isRunning = false;
+                    tg.HapticFeedback.notificationOccurred('success');
+                    tg.isClosingConfirmationEnabled = false;
+                    updateMapActionButton();
+                    if (AppState.currentRunPath.length > 3) {
+                        await processRunPath();
+                    } else {
+                        showCustomAlert('Слишком короткий маршрут для захвата.');
+                    }
+                    if (AppState.currentPathPolyline) {
+                        map.geoObjects.remove(AppState.currentPathPolyline);
+                        AppState.currentPathPolyline = null;
+                    }
+                    resolve();
+                });
+            });
+        }
         
-        function handleMapClickForSpot(coords) { // coords is [lng, lat]
-            const locationWKT = `POINT(${coords[0]} ${coords[1]})`;
-            tg.showConfirm("Создать новый спот в этом месте?", (ok) => {
-                if(ok) showCreationModal('spot', { location: locationWKT });
+        function handleMapClickForSpot(e) {
+            const coords = e.get('coords');
+            const locationWKT = `POINT(${coords[1]} ${coords[0]})`;
+            showCustomConfirm("Создать новый спот в этом месте?", () => {
+                showCreationModal('spot', { location: locationWKT });
             });
         }
 
@@ -1576,25 +1531,43 @@
             const file = AppState.currentEditContext.file;
 
             if (!name || !description) {
-                tg.showAlert("Название и описание обязательны.");
+                showCustomAlert("Название и описание обязательны.");
                 return;
             }
 
             let photoUrl = null;
             if (file) {
-                try {
-                    const filePath = `${telegramUser.id}/spots/${Date.now()}_${file.name}`;
-                    const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                    if (error) throw error;
-                    const { data: urlData } = supabase.storage.from('photo').getPublicUrl(data.path);
-                    photoUrl = urlData.publicUrl;
-                } catch (error) {
+                const filePath = `${telegramUser.id}/spots/${Date.now()}_${file.name}`;
+                const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
+                if (error) {
                     console.error("Ошибка загрузки фото:", error);
-                    tg.showAlert("Ошибка загрузки фото.");
+                    showCustomAlert("Ошибка загрузки фото.");
                     return;
                 }
+                const { data: urlData } = supabase.storage.from('photo').getPublicUrl(data.path);
+                photoUrl = urlData.publicUrl;
             }
 
+            /*
+            ВАЖНО: Для работы этого метода в вашей базе данных Supabase должна быть создана SQL-функция.
+            Перейдите в SQL Editor в вашей панели Supabase и выполните следующий код:
+
+            CREATE OR REPLACE FUNCTION create_spot(
+                p_user_id bigint,
+                p_name text,
+                p_description text,
+                p_photo_url text,
+                p_location_wkt text
+            )
+            RETURNS void AS $$
+            BEGIN
+                INSERT INTO public.spots (user_id, name, description, photo_url, location)
+                VALUES (p_user_id, p_name, p_description, p_photo_url, ST_SetSRID(ST_GeomFromText(p_location_wkt), 4326));
+            END;
+            $$ LANGUAGE plpgsql;
+
+            Эта функция будет принимать данные и корректно преобразовывать текстовую геометрию (WKT) в тип geometry.
+            */
             const { error } = await supabase.rpc('create_spot', {
                 p_user_id: telegramUser.id,
                 p_name: name,
@@ -1605,9 +1578,9 @@
 
             if (error) {
                 console.error("Ошибка сохранения спота через RPC:", error);
-                tg.showAlert("Не удалось сохранить спот. Убедитесь, что SQL-функция 'create_spot' создана в базе данных.");
+                showCustomAlert("Не удалось сохранить спот. Убедитесь, что SQL-функция 'create_spot' создана в базе данных.");
             } else {
-                tg.showAlert("Спот успешно создан!");
+                showCustomAlert("Спот успешно создан!");
                 hideCreationModal();
                 loadInitialMapData();
                 renderMyProfileContent();
@@ -1615,32 +1588,59 @@
             }
         }
         
+        function addSpotToMap(spot) {
+            try {
+                const geoJsonPoint = parseWKT(spot.location);
+
+                if (!geoJsonPoint || geoJsonPoint.type !== 'Point') {
+                    console.warn(`Не удалось обработать геолокацию спота ${spot.id}:`, spot.location);
+                    return;
+                }
+                
+                const coords = [geoJsonPoint.coordinates[1], geoJsonPoint.coordinates[0]]; // lat, long
+                const spotPlacemark = new ymaps.Placemark(coords, {
+                    hintContent: escapeHTML(spot.name)
+                }, {
+                    preset: 'islands#violetDotIcon'
+                });
+                spotPlacemark.events.add('click', () => showDetailModal('spot', spot.id));
+                
+                spotCollection.add(spotPlacemark);
+            } catch (e) {
+                console.error(`Ошибка при добавлении спота ${spot.id} на карту.`, e, spot);
+            }
+        }
+
         function startRouteRecording() {
             if (!AppState.lastKnownLocation) {
-                tg.showAlert("Сначала определите свое местоположение."); return;
+                showCustomAlert("Сначала определите свое местоположение."); return;
             }
             AppState.isRunning = true;
             tg.HapticFeedback.impactOccurred('heavy');
             tg.isClosingConfirmationEnabled = true;
             updateMapActionButton();
             
-            AppState.currentRunPath = [ AppState.lastKnownLocation ];
-            const runSource = map.getSource('current-run');
-            if (runSource) {
-                runSource.setData({ type: 'FeatureCollection', features: [] });
-            }
+            AppState.currentRunPath = [ [AppState.lastKnownLocation[1], AppState.lastKnownLocation[0]] ];
+            if (AppState.currentPathPolyline) map.geoObjects.remove(AppState.currentPathPolyline);
+            AppState.currentPathPolyline = new ymaps.Polyline([AppState.lastKnownLocation], {}, { 
+                strokeColor: 'var(--button-color)', 
+                strokeWidth: 5, 
+                strokeOpacity: 0.9 
+            });
+            map.geoObjects.add(AppState.currentPathPolyline);
         }
 
         async function stopRouteRecording() {
-            return new Promise(resolve => {
+             return new Promise(resolve => {
                 AppState.isRunning = false;
                 tg.HapticFeedback.notificationOccurred('success');
                 tg.isClosingConfirmationEnabled = false;
                 updateMapActionButton();
                 
                 if (AppState.currentRunPath.length < 2) {
-                    tg.showAlert("Слишком короткий маршрут.");
-                    AppState.currentRunPath = [];
+                    showCustomAlert("Слишком короткий маршрут.");
+                    if (AppState.currentPathPolyline) map.geoObjects.remove(AppState.currentPathPolyline);
+                    AppState.currentPathPolyline = null;
                     resolve();
                     return;
                 }
@@ -1649,12 +1649,10 @@
                 const pathWKT = `LINESTRING(${pathCoordinates})`;
                 showCreationModal('route', { path: pathWKT });
 
-                // Clear the temporary run path from the map
-                const runSource = map.getSource('current-run');
-                if (runSource) {
-                    runSource.setData({ type: 'FeatureCollection', features: [] });
+                if (AppState.currentPathPolyline) {
+                    map.geoObjects.remove(AppState.currentPathPolyline);
+                    AppState.currentPathPolyline = null;
                 }
-                AppState.currentRunPath = [];
                 resolve();
             });
         }
@@ -1665,10 +1663,29 @@
             const description = document.getElementById('creation-modal-details').value.trim();
             
             if (!name) {
-                tg.showAlert("Название обязательно.");
+                showCustomAlert("Название обязательно.");
                 return;
             }
 
+            /*
+            ВАЖНО: Для работы этого метода в вашей базе данных Supabase должна быть создана SQL-функция.
+            Перейдите в SQL Editor в вашей панели Supabase и выполните следующий код:
+
+            CREATE OR REPLACE FUNCTION create_route(
+                p_user_id bigint,
+                p_name text,
+                p_description text,
+                p_path_wkt text
+            )
+            RETURNS void AS $$
+            BEGIN
+                INSERT INTO public.routes (user_id, name, description, path)
+                VALUES (p_user_id, p_name, p_description, ST_SetSRID(ST_GeomFromText(p_path_wkt), 4326));
+            END;
+            $$ LANGUAGE plpgsql;
+
+            Эта функция будет принимать данные и корректно преобразовывать текстовую геометрию (WKT) в тип geometry.
+            */
             const { error } = await supabase.rpc('create_route', {
                 p_user_id: telegramUser.id,
                 p_name: name,
@@ -1678,9 +1695,9 @@
 
             if (error) {
                 console.error("Ошибка сохранения маршрута через RPC:", error);
-                tg.showAlert("Не удалось сохранить маршрут. Убедитесь, что SQL-функция 'create_route' создана в базе данных.");
+                showCustomAlert("Не удалось сохранить маршрут. Убедитесь, что SQL-функция 'create_route' создана в базе данных.");
             } else {
-                tg.showAlert("Маршрут сохранен!");
+                showCustomAlert("Маршрут сохранен!");
                 hideCreationModal();
                 loadInitialMapData();
                 renderMyProfileContent();
@@ -1688,53 +1705,77 @@
             }
         }
         
+        function addRouteToMap(route) {
+            try {
+                const geoJsonLine = parseWKT(route.path);
+
+                if (!geoJsonLine || geoJsonLine.type !== 'LineString' || !Array.isArray(geoJsonLine.coordinates) || geoJsonLine.coordinates.length < 2) {
+                    console.warn(`Не удалось обработать путь для маршрута ${route.id}:`, route.path);
+                    return;
+                }
+
+                const yandexCoords = geoJsonLine.coordinates.map(c => [c[1], c[0]]); // lat, long
+                const routePolyline = new ymaps.Polyline(yandexCoords, {}, {
+                    strokeColor: '#ff7800', 
+                    strokeWidth: 3
+                });
+                routePolyline.events.add('click', () => showDetailModal('route', route.id));
+                routeCollection.add(routePolyline);
+            } catch (e) {
+                console.error(`Ошибка при добавлении маршрута ${route.id} на карту.`, e, route);
+            }
+        }
+
+        function addEventToMap(event) {
+            try {
+                const geoJsonPoint = parseWKT(event.meeting_point);
+
+                if (!geoJsonPoint || geoJsonPoint.type !== 'Point') {
+                    console.warn(`Не удалось обработать геолокацию мероприятия ${event.id}:`, event.meeting_point);
+                    return;
+                }
+                
+                const coords = [geoJsonPoint.coordinates[1], geoJsonPoint.coordinates[0]]; // lat, long
+                const eventPlacemark = new ymaps.Placemark(coords, {
+                    hintContent: escapeHTML(event.title)
+                }, {
+                    preset: 'islands#greenDotIcon' // A distinct icon for events
+                });
+                eventPlacemark.events.add('click', () => showDetailModal('event', event.id));
+                
+                eventCollection.add(eventPlacemark);
+            } catch (e) {
+                console.error(`Ошибка при добавлении мероприятия ${event.id} на карту.`, e, event);
+            }
+        }
+        
         // --- ЗАГРУЗКА ДАННЫХ ---
         async function loadInitialMapData() {
-            if (!AppState.isMapLoaded) {
-                // Карта еще не загрузилась, попробуем позже
-                setTimeout(loadInitialMapData, 200);
-                return;
+            // Загрузка Спотов
+            const { data: spots, error: spotsError } = await supabase.from('spots').select('*');
+            if (spotsError) console.error("Ошибка загрузки спотов:", spotsError);
+            else {
+                AppState.allSpots = spots;
+                spotCollection.removeAll();
+                AppState.allSpots.forEach(addSpotToMap);
             }
-            try {
-                const [spotsRes, routesRes, eventsRes] = await Promise.all([
-                    supabase.from('spots').select('*'),
-                    supabase.from('routes').select('*'),
-                    supabase.from('events').select('*')
-                ]);
 
-                // Spots
-                if (spotsRes.error) throw spotsRes.error;
-                AppState.allSpots = spotsRes.data;
-                const spotFeatures = AppState.allSpots.map(spot => {
-                    const geoJson = parseWKT(spot.location);
-                    if (!geoJson) return null;
-                    return { type: 'Feature', geometry: geoJson, properties: { id: spot.id, name: spot.name } };
-                }).filter(Boolean);
-                map.getSource('spots')?.setData({ type: 'FeatureCollection', features: spotFeatures });
-
-                // Routes
-                if (routesRes.error) throw routesRes.error;
-                AppState.allRoutes = routesRes.data;
-                const routeFeatures = AppState.allRoutes.map(route => {
-                    const geoJson = parseWKT(route.path);
-                    if (!geoJson) return null;
-                    return { type: 'Feature', geometry: geoJson, properties: { id: route.id, name: route.name } };
-                }).filter(Boolean);
-                map.getSource('routes')?.setData({ type: 'FeatureCollection', features: routeFeatures });
-                
-                // Events
-                if (eventsRes.error) throw eventsRes.error;
-                AppState.allEvents = eventsRes.data;
-                const eventFeatures = AppState.allEvents.map(event => {
-                    const geoJson = parseWKT(event.meeting_point);
-                    if (!geoJson) return null;
-                    return { type: 'Feature', geometry: geoJson, properties: { id: event.id, name: event.title } };
-                }).filter(Boolean);
-                map.getSource('events')?.setData({ type: 'FeatureCollection', features: eventFeatures });
-
-            } catch (error) {
-                console.error("Ошибка загрузки данных карты:", error);
-                tg.showAlert("Не удалось загрузить все объекты на карте.");
+            // Загрузка Маршрутов
+            const { data: routes, error: routesError } = await supabase.from('routes').select('*');
+            if (routesError) console.error("Ошибка загрузки маршрутов:", routesError);
+            else {
+                AppState.allRoutes = routes;
+                routeCollection.removeAll();
+                AppState.allRoutes.forEach(addRouteToMap);
+            }
+            
+            // NEW: Загрузка Мероприятий
+            const { data: events, error: eventsError } = await supabase.from('events').select('*');
+            if(eventsError) console.error("Ошибка загрузки мероприятий:", eventsError);
+            else {
+                AppState.allEvents = events;
+                eventCollection.removeAll();
+                AppState.allEvents.forEach(addEventToMap);
             }
         }
 
@@ -1743,13 +1784,10 @@
             supabase.channel('public-changes')
               .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, fetchAllProfilesAndDraw)
               .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => { renderFeedPosts(); renderMyProfileContent(); })
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, payload => handleLikeChange(payload))
+              .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, payload => handleLikeChange(payload.new.post_id))
+              .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, payload => handleLikeChange(payload.old.post_id))
               .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload) => {
-                  // Обновляем комментарии, если модальное окно открыто
-                  const relevantId = payload.new?.post_id || payload.old?.post_id;
-                  if (commentsModal.classList.contains('visible') && AppState.currentReplyTarget.id == relevantId) {
-                      showPostComments(relevantId);
-                  }
+                  // Обновляем комментарии в открытых модальных окнах
               })
               .on('postgres_changes', { event: '*', schema: 'public', table: 'spots' }, () => { loadInitialMapData(); renderMyProfileContent(); renderFeedSpots(); })
               .on('postgres_changes', { event: '*', schema: 'public', table: 'routes' }, () => { loadInitialMapData(); renderMyProfileContent(); renderFeedRoutes(); })
@@ -1766,10 +1804,9 @@
               .subscribe();
         }
         
-        function handleLikeChange(payload) {
+        function handleLikeChange(postId) {
             // Эта функция может быть расширена для обновления только конкретного поста, а не всей ленты.
             renderFeedPosts();
-            renderMyProfileContent();
         }
 
         function setupStaticEventListeners() {
@@ -1781,6 +1818,21 @@
                 else if (detailModal.classList.contains('visible')) hideDetailModal();
                 else if (creationModal.classList.contains('visible')) hideCreationModal();
                 else if (simplePostModal.classList.contains('visible')) hideSimplePostModal();
+                else if (qrModal.classList.contains('visible')) hideQrModal();
+            });
+            tg.onEvent('qrTextReceived', (data) => {
+                if (data.data) {
+                    try {
+                        const url = new URL(data.data);
+                        const startPayload = url.searchParams.get('startapp');
+                        if (startPayload) {
+                            handleStartParam({ start_param: startPayload });
+                        }
+                    } catch (e) {
+                        console.error("Invalid QR code data", e);
+                        showCustomAlert("Неверный QR-код.");
+                    }
+                }
             });
             tg.SettingsButton.onClick(() => {
                 tg.HapticFeedback.impactOccurred('light');
@@ -1789,6 +1841,7 @@
         }
 
         function setupDynamicEventListeners() {
+            document.getElementById('mode-capture').addEventListener('click', () => setMapMode('capture'));
             document.getElementById('mode-spots').addEventListener('click', () => setMapMode('spots'));
             document.getElementById('mode-routes').addEventListener('click', () => setMapMode('routes'));
             
@@ -1814,14 +1867,24 @@
             document.getElementById('camera-input').addEventListener('change', handleFileSelect);
             document.getElementById('gallery-input').addEventListener('change', handleFileSelect);
 
-            DOM.requestGeoBtn.addEventListener('click', handleGeoRequest);
+            requestGeoBtn.addEventListener('click', handleGeoRequest);
+            recenterBtn.addEventListener('click', () => {
+                tg.HapticFeedback.impactOccurred('medium');
+                if (AppState.lastKnownLocation) map.panTo(AppState.lastKnownLocation, {flying: true});
+            });
             
-            DOM.shareProfileBtn.addEventListener('click', () => {
+            scanQrBtn.addEventListener('click', () => {
+                tg.HapticFeedback.impactOccurred('light');
+                tg.showScanQrPopup({ text: 'Наведите на QR-код другого игрока' });
+            });
+
+            shareProfileBtn.addEventListener('click', () => {
                 shareContent('user', telegramUser.id, telegramUser.id);
             });
             
-            DOM.mapActionBtn.addEventListener('click', mapActionButtonHandler);
-            DOM.feedCreateBtn.onclick = showSimplePostModal; // Изначально на создание поста
+            showQrBtn.addEventListener('click', showQrModal);
+            mapActionBtn.addEventListener('click', mapActionButtonHandler);
+            feedCreateBtn.onclick = showSimplePostModal; // Изначально на создание поста
             
             // Глобальный обработчик для динамических кнопок
             document.body.addEventListener('click', (event) => {
@@ -1845,13 +1908,13 @@
         }
         
         function showFallbackScreen(title, message, showRetryButton = false) {
-            DOM.fallbackContent.innerHTML = `
+            fallbackContent.innerHTML = `
                 <h1 class="text-2xl font-bold mb-4 ${showRetryButton ? 'text-red-500' : ''}">${escapeHTML(title)}</h1>
                 <p class="mb-6" style="color: var(--hint-color);">${escapeHTML(message)}</p>
                 ${showRetryButton ? `<button onclick="window.location.reload()" class="font-bold py-3 px-6 rounded-full" style="background-color: var(--button-color); color: var(--button-text-color);">Попробовать снова</button>` : ''}
             `;
-            DOM.initialLoader.classList.add('hidden');
-            DOM.fallbackScreen.classList.remove('hidden');
+            initialLoader.classList.add('hidden');
+            fallbackScreen.classList.remove('hidden');
         }
 
         function applyTheme(themeParams) {
@@ -1877,7 +1940,7 @@
         async function upsertUserProfile() {
             if (!telegramUser) throw new Error("Пользователь Telegram не определен для upsertUserProfile.");
 
-            const { data, error } = await supabase.from('profiles').select('id, color').eq('id', telegramUser.id).single();
+            const { data, error } = await supabase.from('profiles').select('*').eq('id', telegramUser.id).single();
             
             if (error && error.code !== 'PGRST116') {
                 console.error("Ошибка получения профиля:", error); 
@@ -1886,13 +1949,16 @@
             
             if (data) {
                 AppState.userProfile.color = data.color;
+                AppState.userProfile.territory = parseWKT(data.territory);
             } else {
                 AppState.userProfile.color = generateColorFromId(telegramUser.id);
                 const { error: insertError } = await supabase.from('profiles').insert({ 
                     id: telegramUser.id, 
                     name: telegramUser.first_name, 
                     color: AppState.userProfile.color, 
+                    area: 0, 
                     photo_url: telegramUser.photo_url || null, 
+                    territory: null 
                 });
                 if (insertError) { 
                     console.error("Ошибка создания профиля:", insertError); 
@@ -1901,25 +1967,112 @@
             }
         }
         
+        async function processRunPath() {
+            const startPoint = AppState.currentRunPath[0];
+            const endPoint = AppState.currentRunPath[AppState.currentRunPath.length - 1];
+            const distance = turf.distance(turf.point(startPoint), turf.point(endPoint), { units: 'meters' });
+            if (distance > 50) {
+                showCustomAlert('Маршрут не замкнут. Вернитесь к точке старта (в радиус 50м) для захвата.');
+                return;
+            }
+            AppState.currentRunPath.push(startPoint);
+            const line = turf.lineString(AppState.currentRunPath);
+            const polygonized = turf.polygonize(line);
+            if (polygonized.features.length === 0) {
+                showCustomAlert('Не удалось сформировать замкнутую территорию. Вероятно, маршрут пересекал сам себя.');
+                return;
+            }
+            let newCapture = polygonized.features[0];
+            if (polygonized.features.length > 1) {
+                try {
+                    newCapture = turf.union(...polygonized.features);
+                } catch (e) {
+                    console.error("Turf union error:", e);
+                }
+            }
+            await updateTerritory(newCapture);
+        }
+
+        async function updateTerritory(newCapture) {
+            try {
+                let combinedTerritory = AppState.userProfile.territory ? turf.union(AppState.userProfile.territory, newCapture) : newCapture;
+                AppState.userProfile.territory = turf.cleanCoords(combinedTerritory);
+                
+                await saveUserData();
+                refreshAllStats();
+                tg.HapticFeedback.notificationOccurred('success');
+                const area = turf.area(newCapture);
+                const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
+                showCreationModal('post', { 
+                    captureData: newCapture,
+                    area_captured: area,
+                    area_captured_formatted: formattedArea
+                });
+            } catch (error) {
+                console.error("Ошибка в updateTerritory:", error);
+                showCustomAlert("Ошибка обработки территории.");
+            }
+        }
+
+        async function saveUserData() {
+            let area = AppState.userProfile.territory ? turf.area(AppState.userProfile.territory) : 0;
+            const userData = { id: telegramUser.id, name: telegramUser.first_name, photo_url: telegramUser.photo_url || null, color: AppState.userProfile.color, territory: AppState.userProfile.territory, area: area, updated_at: new Date().toISOString() };
+            const { error } = await supabase.from('profiles').upsert(userData);
+            if (error) console.error('Error saving user data:', error);
+        }
+
+        async function handlePostSubmission() {
+            const { captureData, area_captured } = AppState.currentEditContext;
+            const title = document.getElementById('creation-modal-name').value.trim();
+            const file = AppState.currentEditContext.file;
+            
+            if (!title) { showCustomAlert("Пожалуйста, введите название."); return; }
+
+            let photoUrl = null;
+            if (file) {
+                const filePath = `${telegramUser.id}/${Date.now()}_${file.name}`;
+                const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
+                if (error) { console.error("Error uploading photo:", error); showCustomAlert("Не удалось загрузить фото."); return; }
+                photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
+            }
+
+            const postData = {
+                user_id: telegramUser.id,
+                title: title,
+                description: null,
+                photo_url: photoUrl,
+                territory_captured: captureData,
+                area_captured: area_captured,
+                user_name: telegramUser.first_name,
+                user_avatar_url: telegramUser.photo_url,
+                user_color: AppState.userProfile.color
+            };
+
+            const { error: postError } = await supabase.from('posts').insert(postData);
+            
+            if (postError) {
+                console.error("Error saving post:", postError); showCustomAlert("Не удалось сохранить пост.");
+            } else {
+                showCustomAlert("Пост успешно опубликован!");
+                hideCreationModal();
+            }
+        }
+        
         async function handleSimplePostSave() {
             const description = document.getElementById('simple-post-details').value.trim();
             const file = AppState.simplePostContext?.file;
 
             if (!description) {
-                tg.showAlert("Пожалуйста, введите текст поста.");
+                showCustomAlert("Пожалуйста, введите текст поста.");
                 return;
             }
 
             let photoUrl = null;
             if (file) {
-                try {
-                    const filePath = `${telegramUser.id}/posts/${Date.now()}_${file.name}`;
-                    const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
-                    if (error) throw error;
-                    photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
-                } catch(error) {
-                    console.error("Error uploading photo:", error); tg.showAlert("Не удалось загрузить фото."); return;
-                }
+                const filePath = `${telegramUser.id}/posts/${Date.now()}_${file.name}`;
+                const { data, error } = await supabase.storage.from('photo').upload(filePath, file);
+                if (error) { console.error("Error uploading photo:", error); showCustomAlert("Не удалось загрузить фото."); return; }
+                photoUrl = supabase.storage.from('photo').getPublicUrl(data.path).data.publicUrl;
             }
 
             const postData = {
@@ -1935,9 +2088,9 @@
             const { error: postError } = await supabase.from('posts').insert(postData);
             
             if (postError) {
-                console.error("Error saving post:", postError); tg.showAlert("Не удалось сохранить пост.");
+                console.error("Error saving post:", postError); showCustomAlert("Не удалось сохранить пост.");
             } else {
-                tg.showAlert("Пост успешно опубликован!");
+                showCustomAlert("Пост успешно опубликован!");
                 hideSimplePostModal();
             }
         }
@@ -1947,27 +2100,68 @@
             if (error) { console.error("Error fetching profiles:", error); return; }
             AppState.allProfilesData = profiles;
             
-            renderUserList(profiles);
+            territoriesCollection.removeAll();
+            AppState.allUserLayers = {};
+
+            profiles.forEach(profile => {
+                if (telegramUser && profile.id === telegramUser.id) {
+                    AppState.userProfile.territory = parseWKT(profile.territory);
+                    AppState.userProfile.color = profile.color;
+                    refreshAllStats();
+                }
+                const territoryGeoJson = parseWKT(profile.territory);
+                if (territoryGeoJson) {
+                    const territoryObject = ymaps.geoQuery(territoryGeoJson).addTo(territoriesCollection);
+                    territoryObject.setOptions({
+                        fillColor: profile.color,
+                        fillOpacity: 0.4,
+                        strokeColor: profile.color,
+                        strokeWidth: 2,
+                        strokeOpacity: 0.8
+                    });
+                }
+            });
+            updateLeaderboard(profiles);
         }
 
-        function renderUserList(profiles) {
-            DOM.leaderboardDiv.innerHTML = profiles.map((u) => {
+        function updateLeaderboard(profiles) {
+            profiles.sort((a, b) => (b.area || 0) - (a.area || 0));
+            leaderboardDiv.innerHTML = profiles.map((u, index) => {
                 const isCurrentUser = telegramUser && u.id === telegramUser.id;
                 const name = escapeHTML(u.name);
                 const displayName = isCurrentUser ? `${name} (Вы)` : name;
                 const avatar = u.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${name.charAt(0)}`;
+                const area = u.area || 0;
+                const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
                 return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showDetailModal('user', ${u.id})">
-                                        <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
-                                        <div class="flex-grow">
-                                            <p class="font-bold">${displayName}</p>
-                                        </div>
-                                    </div>`
+                                      <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
+                                      <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
+                                      <div class="flex-grow">
+                                          <p class="font-bold">${displayName}</p>
+                                          <p class="text-sm" style="color: var(--hint-color);">${formattedArea}</p>
+                                      </div>
+                                  </div>`
             }).join('');
+        }
+
+        function refreshAllStats() {
+            let area = 0;
+            if (AppState.userProfile.territory) {
+                try {
+                    area = turf.area(AppState.userProfile.territory);
+                } catch(e) {
+                    console.warn("Could not calculate area for user territory", e);
+                    area = 0;
+                }
+            }
+            if (isNaN(area)) area = 0;
+            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
+            profileAreaDisplay.textContent = formattedArea;
         }
 
         async function renderFeedPosts() {
             const container = document.getElementById('feed-content-posts');
-            container.innerHTML = generateSkeletonFeed(3); // Скелетон
+            container.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>';
             
             const { data: posts, error: postsError } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
             if (postsError) { console.error("Error fetching posts:", postsError); return; }
@@ -1984,6 +2178,12 @@
             const commentsByPost = (comments || []).reduce((acc, comment) => { (acc[comment.post_id] = acc[comment.post_id] || []).push(comment); return acc; }, {});
             
             container.innerHTML = posts.map(post => generatePostHTML(post, likesByPost[post.id] || [], commentsByPost[post.id] || [])).join('');
+            
+            posts.forEach(post => {
+                if (post.territory_captured) {
+                    renderMiniMapForPost(post, container);
+                }
+            });
 
             if (scrollToPostId) {
                 const postElement = document.getElementById(`post-${scrollToPostId}`);
@@ -2001,27 +2201,34 @@
             }
         }
         
+        function renderMiniMapForPost(post, container) {
+             const mapContainer = container.querySelector(`#mini-map-${post.id}`);
+             if (mapContainer) {
+                 const miniMap = new ymaps.Map(mapContainer, { center: [55.75, 37.62], zoom: 9, controls: [] });
+                 const territoryObject = ymaps.geoQuery(post.territory_captured).addTo(miniMap);
+                 territoryObject.setOptions({
+                     fillColor: post.user_color, fillOpacity: 0.5,
+                     strokeColor: post.user_color, strokeWidth: 2, strokeOpacity: 0.8
+                 });
+                 miniMap.setBounds(territoryObject.getBounds(), { checkZoomRange: true, zoomMargin: 10 });
+             }
+        }
+        
         function generatePostHTML(post, likes, comments) {
             const avatar = post.user_avatar_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${post.user_name.charAt(0)}`;
+            const area = post.area_captured || 0;
+            const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
             const userHasLiked = telegramUser && likes.some(like => like.user_id === telegramUser.id);
-            const isOwner = telegramUser && post.user_id === telegramUser.id;
-
             return `<div class="card-bg rounded-2xl shadow-lg overflow-hidden" id="post-${post.id}">
                         <div class="p-4">
-                            <div class="flex justify-between items-start">
-                                <div class="flex items-center space-x-3 cursor-pointer" onclick="showDetailModal('user', ${post.user_id})">
-                                    <img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar">
-                                    <div>
-                                        <p class="font-bold">${escapeHTML(post.user_name)}</p>
-                                        <p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p>
-                                    </div>
-                                </div>
-                                ${isOwner ? `<button onclick="confirmDelete('post', ${post.id})" class="p-2 rounded-full hover:bg-gray-200 text-gray-500 hover:text-red-500"><i class="fa-solid fa-trash-can"></i></button>` : ''}
-                            </div>
-                            <p class="mt-4">${escapeHTML(post.description)}</p>
+                            <div class="flex items-center space-x-3 cursor-pointer" onclick="showDetailModal('user', ${post.user_id})"><img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar"><div><p class="font-bold">${escapeHTML(post.user_name)}</p><p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p></div></div>
+                            <p class="mt-4 font-semibold">${escapeHTML(post.title)}</p>
+                            ${post.description ? `<p class="mt-2 text-sm" style="color: var(--text-color);">${escapeHTML(post.description)}</p>` : ''}
                         </div>
                         ${post.photo_url ? `<img src="${post.photo_url}" class="w-full h-64 object-cover" alt="Post photo">` : ''}
+                        ${post.territory_captured ? `<div id="mini-map-${post.id}" class="h-48 w-full mini-map"></div>` : ''}
                         <div class="p-4">
+                            ${post.area_captured ? `<p class="font-semibold">Захвачено: <span class="font-bold" style="color: var(--button-color);">${formattedArea}</span></p>` : ''}
                             <div class="flex items-center justify-between mt-3">
                                 <div class="flex items-center space-x-6" style="color: var(--hint-color);">
                                     <button class="like-btn flex items-baseline space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" data-action="like-post" data-id="${post.id}">
@@ -2043,7 +2250,7 @@
 
         async function toggleLike(buttonElement, targetId, type) {
             if (!telegramUser) {
-                tg.showAlert('Пользователь не определен. Попробуйте перезагрузить приложение.');
+                showCustomAlert('Пользователь не определен. Попробуйте перезагрузить приложение.');
                 return;
             }
             tg.HapticFeedback.impactOccurred('light');
@@ -2076,7 +2283,7 @@
                 icon.classList.toggle('fa-solid');
                 icon.classList.toggle('fa-regular');
                 countSpan.textContent = currentCount;
-                tg.showAlert('Не удалось обработать лайк. Попробуйте снова.');
+                showCustomAlert('Не удалось обработать лайк. Попробуйте снова.');
             }
         }
         
@@ -2095,12 +2302,14 @@
         
         async function showPostComments(postId) {
             tg.HapticFeedback.impactOccurred('medium');
+            tg.BackButton.show();
             AppState.currentReplyTarget = { type: 'post', id: postId, parentCommentId: null };
             cancelReply();
             
             const modalBody = document.getElementById('comments-modal-body');
-            modalBody.innerHTML = generateSkeletonFeed(2, true); // Скелетон для комментов
-            showModal(DOM.commentsModal);
+            modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
+            commentsModal.classList.add('visible');
+            document.body.classList.add('modal-open');
             
             const { data: comments, error } = await fetchComments('post', postId);
             if (error) { modalBody.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки комментариев</p>`; return; }
@@ -2111,7 +2320,7 @@
         async function loadAndRenderComments(type, id, containerId) {
              const container = document.querySelector(`#${containerId}`);
              if (!container) return;
-             container.innerHTML = generateSkeletonFeed(2, true);
+             container.innerHTML = '<p class="text-center text-gray-500">Загрузка комментариев...</p>';
              
              const { data: comments, error } = await fetchComments(type, id);
              if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки</p>`; return; }
@@ -2126,7 +2335,9 @@
         }
 
         function hideCommentsModal() {
-            hideModal(DOM.commentsModal);
+            tg.BackButton.hide();
+            commentsModal.classList.remove('visible');
+            document.body.classList.remove('modal-open');
         }
 
         function generateCommentHTML(comment, commentsByParent, context = 'post') {
@@ -2175,7 +2386,7 @@
                 parent_comment_id: parentCommentId, content: content 
             };
             const { error } = await supabase.from('comments').insert(commentData);
-            if (error) { tg.showAlert('Ошибка отправки'); } else { inputElement.value = ''; cancelReply(); }
+            if (error) { showCustomAlert('Ошибка отправки'); } else { inputElement.value = ''; cancelReply(); }
         }
 
         function setDetailReplyMode(id, parentCommentId, parentAuthorName) {
@@ -2215,7 +2426,7 @@
             const { error } = await supabase.from('comments').insert(commentData);
 
             if (error) { 
-                tg.showAlert('Ошибка отправки комментария.'); 
+                showCustomAlert('Ошибка отправки комментария.'); 
                 console.error("Comment post error:", error);
             } else { 
                 inputElement.value = ''; 
@@ -2234,12 +2445,6 @@
         async function renderMyProfileContent() {
             if (!telegramUser) return;
             const userId = telegramUser.id;
-
-            // Показываем скелетоны
-            document.getElementById('profile-content-posts').innerHTML = generateSkeletonFeed(1);
-            document.getElementById('profile-content-events').innerHTML = generateSkeletonFeed(1);
-            document.getElementById('profile-content-spots').innerHTML = generateSkeletonFeed(1);
-            document.getElementById('profile-content-routes').innerHTML = generateSkeletonFeed(1);
 
             const [postsRes, spotsRes, routesRes, eventsRes] = await Promise.all([
                 supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
@@ -2262,6 +2467,7 @@
             const postsContainer = document.getElementById('profile-content-posts');
             postsContainer.innerHTML = posts.length > 0 ? posts.map(p => generatePostHTML(p, likesByPost[p.id] || [], commentsByPost[p.id] || [])).join('') : '<p class="text-center text-gray-500 py-4">У вас нет постов.</p>';
             document.getElementById('profile-tab-posts').textContent = `Посты (${posts.length})`;
+            posts.forEach(p => renderMiniMapForPost(p, postsContainer));
             
             // Споты
             const spots = spotsRes.data || [];
@@ -2287,6 +2493,27 @@
             document.getElementById('profile-tab-events').textContent = `Покатушки (${events.length})`;
         }
         
+        // --- QR Code Modal ---
+        function showQrModal() {
+            tg.HapticFeedback.impactOccurred('light');
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: `https://t.me/${BOT_USERNAME}?startapp=user_${telegramUser.id}`,
+                width: 200, height: 200, colorDark : "#000000",
+                colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H
+            });
+            qrModal.classList.add('visible');
+            document.body.classList.add('modal-open');
+            tg.BackButton.show();
+        }
+
+        function hideQrModal() {
+            qrModal.classList.remove('visible');
+            document.body.classList.remove('modal-open');
+            tg.BackButton.hide();
+        }
+        
         // --- Handle Start Param ---
         function handleStartParam() {
             const startParam = tg.initDataUnsafe.start_param;
@@ -2305,10 +2532,10 @@
             setTimeout(() => {
                 switch (type) {
                     case 'user': showDetailModal('user', numericId); break;
-                    case 'post': showView('feed-view'); switchFeedTab('posts'); scrollToPostId = numericId; break;
+                    case 'post': showView('feed-view'); scrollToPostId = numericId; break;
                     case 'route': showDetailModal('route', numericId); break;
                     case 'spot': showDetailModal('spot', numericId); break;
-                    case 'event': showDetailModal('event', numericId); break;
+                    case 'event': showDetailModal('event', numericId); break; // NEW
                     default:
                         console.warn("Unknown start_param type:", type);
                         if (/^\d+$/.test(startParam)) {
@@ -2318,32 +2545,10 @@
             }, 500); 
         }
         
-        // --- SKELETON LOADER ---
-        function generateSkeletonFeed(count = 1, isComment = false) {
-            let skeletonHTML = '';
-            for (let i = 0; i < count; i++) {
-                skeletonHTML += `
-                    <div class="skeleton-container card-bg rounded-2xl shadow-lg overflow-hidden p-4 space-y-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="skeleton w-10 h-10 rounded-full"></div>
-                            <div class="flex-1 space-y-2">
-                                <div class="skeleton h-4 w-3/4 rounded"></div>
-                                <div class="skeleton h-3 w-1/2 rounded"></div>
-                            </div>
-                        </div>
-                        ${!isComment ? `
-                        <div class="skeleton h-5 w-full rounded"></div>
-                        <div class="skeleton h-24 w-full rounded"></div>
-                        ` : `
-                        <div class="skeleton h-4 w-full rounded mt-2"></div>
-                        <div class="skeleton h-4 w-5/6 rounded mt-1"></div>
-                        `}
-                    </div>
-                `;
-            }
-            return skeletonHTML;
-        }
-
+        // --- Custom Alert/Confirm ---
+        function showCustomAlert(message) { tg.showAlert(message); }
+        function showCustomConfirm(message, callback) { tg.showConfirm(message, (ok) => { if (ok) callback(); }); }
+        
         // =================================================================
         // --- НОВЫЙ ФУНКЦИОНАЛ: МЕРОПРИЯТИЯ (ПОКАТУШКИ) ---
         // =================================================================
@@ -2351,15 +2556,16 @@
         // --- Рендер ---
         async function renderFeedEvents() {
             const container = document.getElementById('feed-content-events');
-            container.innerHTML = generateSkeletonFeed(3);
+            container.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
             
             try {
                 const { data, error } = await supabase.from('events')
                     .select(`*, profiles(id, name, photo_url)`)
                     .order('event_time', { ascending: true });
 
-                if (error) throw error;
-                
+                if (error) {
+                    throw error;
+                }
                 if (data.length === 0) {
                     container.innerHTML = '<p class="text-center text-gray-500 py-8">Пока нет запланированных покатушек. Создайте первую!</p>';
                     return;
@@ -2377,7 +2583,7 @@
         
         async function renderFeedSpots() {
             const container = document.getElementById('feed-content-spots');
-            container.innerHTML = generateSkeletonFeed(4);
+            container.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
             const { data, error } = await supabase.from('spots').select('*').order('created_at', { ascending: false }).limit(20);
             if(error) { container.innerHTML = '<p class="text-center text-red-500 py-8">Не удалось загрузить споты.</p>'; return; }
             if(data.length === 0) { container.innerHTML = '<p class="text-center text-gray-500 py-8">Спотов пока нет.</p>'; return; }
@@ -2386,11 +2592,11 @@
         
         async function renderFeedRoutes() {
             const container = document.getElementById('feed-content-routes');
-            container.innerHTML = generateSkeletonFeed(4);
+            container.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
             const { data, error } = await supabase.from('routes').select('*').order('created_at', { ascending: false }).limit(20);
             if(error) { container.innerHTML = '<p class="text-center text-red-500 py-8">Не удалось загрузить маршруты.</p>'; return; }
             if(data.length === 0) { container.innerHTML = '<p class="text-center text-gray-500 py-8">Маршрутов пока нет.</p>'; return; }
-            container.innerHTML = data.map(r => generateMiniRouteHTML(r, true)).join('');
+            container.innerHTML = data.map(r => generateMiniRouteHTML(r, true)).join(''); // [FIX] Передаем true
         }
 
         async function generateEventCardHTML(event) {
@@ -2398,14 +2604,17 @@
             const avatar = author.photo_url || `https://placehold.co/40x40/E5E7EB/4B5563?text=${author.name.charAt(0)}`;
             const eventTime = new Date(event.event_time);
             
-            let participants = [];
+            let likes = [], participants = [];
             try {
-                const { data: participantsData } = await supabase.from('event_participants').select('user_id', { count: 'exact' }).eq('event_id', event.id);
+                const { data: likesData } = await supabase.from('likes').select('user_id').eq('event_id', event.id);
+                likes = likesData || [];
+                const { data: participantsData } = await supabase.from('event_participants').select('user_id').eq('event_id', event.id);
                 participants = participantsData || [];
             } catch (e) {
                 console.error(`Failed to fetch activity for event ${event.id}`, e);
             }
             
+            const userHasLiked = telegramUser && likes.some(l => l.user_id === telegramUser.id);
             const userIsParticipant = telegramUser && participants.some(p => p.user_id === telegramUser.id);
 
             const participantButton = userIsParticipant 
@@ -2431,6 +2640,10 @@
                         <div class="p-4 border-t" style="border-color: var(--border-color);">
                             <div class="flex items-center justify-between mb-4">
                                 <div class="flex items-center space-x-6" style="color: var(--hint-color);">
+                                    <button class="like-btn flex items-baseline space-x-1 hover:text-red-500 transition ${userHasLiked ? 'liked' : ''}" data-action="like-event" data-id="${event.id}">
+                                        <i class="fa-${userHasLiked ? 'solid' : 'regular'} fa-heart h-6 w-6"></i>
+                                        <span data-likes-count>${likes.length}</span>
+                                    </button>
                                     <button class="flex items-baseline space-x-1 hover:text-blue-500 transition" data-action="show-participants" data-id="${event.id}">
                                         <i class="fa-regular fa-user h-6 w-6"></i>
                                         <span data-participants-count>${participants.length}</span>
@@ -2462,38 +2675,38 @@
             if (error) console.error("Ошибка загрузки маршрутов:", error);
             else routes.forEach(r => select.innerHTML += `<option value="${r.id}">${escapeHTML(r.name)}</option>`);
             
-            showModal(DOM.eventCreationModal);
+            eventCreationModal.classList.add('visible');
+            document.body.classList.add('modal-open');
+            tg.BackButton.show();
 
             // Инициализация карты для выбора точки
             setTimeout(initEventPickerMap, 100);
         }
         
         function hideEventCreationModal() {
-            hideModal(DOM.eventCreationModal);
+            eventCreationModal.classList.remove('visible');
+            document.body.classList.remove('modal-open');
+            tg.BackButton.hide();
             if (eventPickerMap) {
-                eventPickerMap.remove();
+                eventPickerMap.destroy();
                 eventPickerMap = null;
             }
         }
         
         function initEventPickerMap() {
-            if(eventPickerMap) eventPickerMap.remove();
-            const center = AppState.lastKnownLocation || [37.62, 55.75]; // lng, lat
-            eventPickerMap = new mapboxgl.Map({
-                container: 'event-map-picker',
-                style: 'mapbox://styles/mapbox/streets-v12',
-                center: center,
-                zoom: 12
-            });
+            if(eventPickerMap) eventPickerMap.destroy();
+            const center = AppState.lastKnownLocation || [55.75, 37.62];
+            eventPickerMap = new ymaps.Map('event-map-picker', { center: center, zoom: 12, controls: [] });
             
-            let marker;
-            eventPickerMap.on('click', (e) => {
-                const coords = e.lngLat;
-                AppState.eventCreationContext.meetingPoint = `POINT(${coords.lng} ${coords.lat})`;
-                if (marker) {
-                    marker.setLngLat(coords);
+            let placemark;
+            eventPickerMap.events.add('click', (e) => {
+                const coords = e.get('coords');
+                AppState.eventCreationContext.meetingPoint = `POINT(${coords[1]} ${coords[0]})`;
+                if (placemark) {
+                    placemark.geometry.setCoordinates(coords);
                 } else {
-                    marker = new mapboxgl.Marker().setLngLat(coords).addTo(eventPickerMap);
+                    placemark = new ymaps.Placemark(coords);
+                    eventPickerMap.geoObjects.add(placemark);
                 }
                 document.getElementById('event-map-hint').textContent = 'Точка выбрана!';
                 document.getElementById('event-map-hint').style.color = 'var(--success-color)';
@@ -2508,7 +2721,7 @@
             const meeting_point = AppState.eventCreationContext.meetingPoint;
 
             if (!title || !description || !event_time || !meeting_point) {
-                tg.showAlert("Пожалуйста, заполните все поля и выберите точку сбора на карте.");
+                showCustomAlert("Пожалуйста, заполните все поля и выберите точку сбора на карте.");
                 return;
             }
 
@@ -2519,11 +2732,11 @@
             
             if (error) {
                 console.error("Ошибка создания мероприятия:", error);
-                tg.showAlert("Не удалось создать мероприятие.");
+                showCustomAlert("Не удалось создать мероприятие.");
             } else {
                 // Автоматически добавляем создателя в участники
                 await supabase.from('event_participants').insert({ event_id: data.id, user_id: telegramUser.id });
-                tg.showAlert("Мероприятие успешно создано!");
+                showCustomAlert("Мероприятие успешно создано!");
                 hideEventCreationModal();
                 renderCurrentFeedTab();
             }
@@ -2535,7 +2748,7 @@
             const { error } = await supabase.from('event_participants').insert({ event_id: eventId, user_id: telegramUser.id });
             if (error) {
                 console.error("Ошибка присоединения к мероприятию:", error);
-                tg.showAlert("Не удалось присоединиться.");
+                showCustomAlert("Не удалось присоединиться.");
             } else {
                 updateEventCard(eventId);
             }
@@ -2546,7 +2759,7 @@
             const { error } = await supabase.from('event_participants').delete().match({ event_id: eventId, user_id: telegramUser.id });
             if (error) {
                 console.error("Ошибка выхода из мероприятия:", error);
-                tg.showAlert("Не удалось отменить участие.");
+                showCustomAlert("Не удалось отменить участие.");
             } else {
                 updateEventCard(eventId);
             }
@@ -2554,10 +2767,11 @@
         
         async function showParticipants(eventId) {
             tg.HapticFeedback.impactOccurred('light');
-            AppState.currentDetailContext.id = eventId; // Сохраняем контекст
             const modalBody = document.getElementById('participants-modal-body');
-            modalBody.innerHTML = generateSkeletonFeed(3, true);
-            showModal(DOM.participantsModal);
+            modalBody.innerHTML = '<div class="text-center p-8"><svg class="animate-spin mx-auto h-8 w-8 text-gray-500" ...></svg></div>';
+            participantsModal.classList.add('visible');
+            document.body.classList.add('modal-open');
+            tg.BackButton.show();
 
             const { data, error } = await supabase.from('event_participants')
                 .select('profiles(*)')
@@ -2584,7 +2798,12 @@
         }
         
         function hideParticipantsModal() {
-            hideModal(DOM.participantsModal);
+            participantsModal.classList.remove('visible');
+            document.body.classList.remove('modal-open');
+            // Do not hide back button if detail modal is underneath
+            if (!detailModal.classList.contains('visible')) {
+                tg.BackButton.hide();
+            }
         }
 
         // --- Таймер ---
@@ -2627,21 +2846,6 @@
             countdownTimers.forEach(timer => clearInterval(timer.interval));
             countdownTimers = [];
         }
-
-        async function updateEventCard(eventId) {
-            const { data: event, error } = await supabase.from('events')
-                .select(`*, profiles(id, name, photo_url)`)
-                .eq('id', eventId)
-                .single();
-            if (error || !event) return;
-
-            const cardElement = document.getElementById(`event-${eventId}`);
-            if (cardElement) {
-                const newCardHTML = await generateEventCardHTML(event);
-                cardElement.outerHTML = newCardHTML;
-                startCountdown(event.id, new Date(event.event_time));
-            }
-        }
         
         // --- ПРИВЯЗКА ГЛОБАЛЬНЫХ ФУНКЦИЙ И ЗАПУСК ---
         window.showView = showView;
@@ -2663,6 +2867,7 @@
         window.postDetailComment = postDetailComment;
         window.setDetailReplyMode = setDetailReplyMode;
         window.cancelDetailReply = cancelDetailReply;
+        window.hideQrModal = hideQrModal;
         window.shareContent = shareContent;
         // NEW
         window.showEventCreationModal = showEventCreationModal;
@@ -2673,7 +2878,7 @@
         window.showParticipants = showParticipants;
         window.hideParticipantsModal = hideParticipantsModal;
         
-        document.addEventListener('DOMContentLoaded', runApp);
+        document.addEventListener('DOMContentLoaded', () => ymaps.ready(runApp));
     </script>
 </body>
 </html>
