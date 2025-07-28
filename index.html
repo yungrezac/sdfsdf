@@ -302,6 +302,14 @@
             background: transparent;
             cursor: pointer;
         }
+        /* Стиль для спиннера внутри кнопки */
+        .btn-spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="font-sans antialiased overflow-hidden">
@@ -347,7 +355,7 @@
             </div>
             
             <div id="map-action-container" class="hidden">
-                <button id="map-action-btn" class="text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 flex items-center gap-2 pointer-events-auto">
+                <button id="map-action-btn" class="text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 flex items-center justify-center gap-2 pointer-events-auto w-64">
                     <i id="map-action-icon" class="fa-solid fa-play h-5 w-5"></i>
                     <span id="map-action-text"></span>
                 </button>
@@ -396,6 +404,8 @@
                 <div class="text-center">
                     <h2 id="profile-name" class="text-2xl font-bold">Загрузка...</h2>
                 </div>
+                 <!-- Статистика -->
+                <div id="profile-stats" class="w-full flex justify-around pt-4 text-center"></div>
                 <div class="w-full pt-4 mt-4 border-t" style="border-color: var(--border-color);">
                     <div class="flex justify-center gap-8 w-full">
                         <button id="share-profile-btn" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
@@ -451,7 +461,9 @@
                             <i class="fa-solid fa-camera h-7 w-7" style="color: var(--hint-color);"></i>
                         </button>
                     </div>
-                    <button onclick="handleSimplePostSave()" class="text-white font-bold py-2 px-6 rounded-full transition-all" style="background-color: var(--button-color);">Опубликовать</button>
+                    <button id="simple-post-save-btn" onclick="handleSimplePostSave()" class="text-white font-bold py-2 px-6 rounded-full transition-all flex items-center justify-center w-32" style="background-color: var(--button-color);">
+                        <span>Опубликовать</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -490,7 +502,9 @@
                 </div>
                 <div class="flex justify-end space-x-3 pt-4">
                     <button onclick="hideCreationModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full transition-all">Отмена</button>
-                    <button id="save-creation-btn" class="text-white font-bold py-2 px-4 rounded-full transition-all" style="background-color: var(--button-color);">Сохранить</button>
+                    <button id="save-creation-btn" class="text-white font-bold py-2 px-4 rounded-full transition-all flex items-center justify-center w-28" style="background-color: var(--button-color);">
+                        <span>Сохранить</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -529,7 +543,9 @@
                 </div>
             </div>
             <div class="p-4 flex-shrink-0 border-t" style="border-color: var(--border-color);">
-                 <button onclick="handleEventSave()" class="w-full text-white font-bold py-3 px-6 rounded-full transition-all" style="background-color: var(--button-color);">Создать мероприятие</button>
+                 <button id="save-event-btn" onclick="handleEventSave()" class="w-full text-white font-bold py-3 px-6 rounded-full transition-all flex items-center justify-center" style="background-color: var(--button-color);">
+                    <span>Создать мероприятие</span>
+                </button>
             </div>
         </div>
     </div>
@@ -966,6 +982,21 @@
                 ? routes.map(r => generateMiniRouteHTML(r, false)).join('')
                 : '<p class="text-center text-gray-500 py-4">У этого пользователя нет маршрутов.</p>';
 
+            const statsHTML = `
+                <div>
+                    <p class="text-sm text-gray-500">Посты</p>
+                    <p class="text-lg font-bold">${posts.length}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Споты</p>
+                    <p class="text-lg font-bold">${spots.length}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Маршруты</p>
+                    <p class="text-lg font-bold">${routes.length}</p>
+                </div>
+            `;
+
             return `
                 <div class="p-4">
                     <div class="card-bg rounded-2xl shadow-lg p-6 flex flex-col items-center space-y-4">
@@ -975,6 +1006,7 @@
                         <div class="text-center">
                             <h2 class="text-2xl font-bold">${profileName}</h2>
                         </div>
+                        <div class="w-full flex justify-around pt-4 text-center">${statsHTML}</div>
                         <div class="w-full pt-4 mt-4 border-t" style="border-color: var(--border-color);">
                             <div class="flex justify-center gap-8 w-full">
                                 <button onclick="shareContent('user', ${profile.id}, ${profile.id})" class="flex flex-col items-center space-y-1 transition-opacity hover:opacity-70">
@@ -1720,8 +1752,8 @@
                     case 'comment-post': showPostComments(id); break;
                     case 'like-event': toggleLike(button, id, 'event'); break;
                     case 'comment-event': showDetailModal('event', id); break; // Открываем детали для комментирования
-                    case 'join-event': joinEvent(id); break;
-                    case 'leave-event': leaveEvent(id); break;
+                    case 'join-event': joinEvent(button, id); break;
+                    case 'leave-event': leaveEvent(button, id); break;
                     case 'show-participants': showParticipants(id); break;
                 }
             });
@@ -2117,14 +2149,35 @@
             const userId = telegramUser.id;
 
             const [postsRes, spotsRes, routesRes, eventsRes] = await Promise.all([
-                supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-                supabase.from('spots').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-                supabase.from('routes').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+                supabase.from('posts').select('*', { count: 'exact' }).eq('user_id', userId).order('created_at', { ascending: false }),
+                supabase.from('spots').select('*', { count: 'exact' }).eq('user_id', userId).order('created_at', { ascending: false }),
+                supabase.from('routes').select('*', { count: 'exact' }).eq('user_id', userId).order('created_at', { ascending: false }),
                 supabase.rpc('get_user_events', { p_user_id: userId })
             ]);
+            
+            const posts = postsRes.data || [];
+            const spots = spotsRes.data || [];
+            const routes = routesRes.data || [];
+            const events = eventsRes.data || [];
+
+            // Обновление статистики в шапке профиля
+            const statsContainer = document.getElementById('profile-stats');
+            statsContainer.innerHTML = `
+                <div>
+                    <p class="text-sm text-gray-500">Посты</p>
+                    <p class="text-lg font-bold">${posts.length}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Споты</p>
+                    <p class="text-lg font-bold">${spots.length}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Маршруты</p>
+                    <p class="text-lg font-bold">${routes.length}</p>
+                </div>
+            `;
 
             // Посты
-            const posts = postsRes.data || [];
             const postIds = posts.map(p => p.id);
             const likesByPost = {};
             const commentsByPost = {};
@@ -2139,19 +2192,16 @@
             document.getElementById('profile-tab-posts').textContent = `Посты (${posts.length})`;
             
             // Споты
-            const spots = spotsRes.data || [];
             const spotsContainer = document.getElementById('profile-content-spots');
             spotsContainer.innerHTML = spots.length > 0 ? spots.map(s => generateMiniSpotHTML(s, false)).join('') : '<p class="text-center text-gray-500 py-4">У вас нет спотов.</p>';
             document.getElementById('profile-tab-spots').textContent = `Споты (${spots.length})`;
 
             // Маршруты
-            const routes = routesRes.data || [];
             const routesContainer = document.getElementById('profile-content-routes');
             routesContainer.innerHTML = routes.length > 0 ? routes.map(r => generateMiniRouteHTML(r, false)).join('') : '<p class="text-center text-gray-500 py-4">У вас нет маршрутов.</p>';
             document.getElementById('profile-tab-routes').textContent = `Маршруты (${routes.length})`;
             
             // Мероприятия
-            const events = eventsRes.data || [];
             const eventsContainer = document.getElementById('profile-content-events');
             if (events.length > 0) {
                 const eventHTML = await Promise.all(events.map(e => generateEventCardHTML(e)));
@@ -2391,7 +2441,7 @@
         }
         
         // --- Участие ---
-        async function joinEvent(eventId) {
+        async function joinEvent(button, eventId) {
             tg.HapticFeedback.impactOccurred('light');
             const { error } = await supabase.from('event_participants').insert({ event_id: eventId, user_id: telegramUser.id });
             if (error) {
@@ -2402,7 +2452,7 @@
             }
         }
         
-        async function leaveEvent(eventId) {
+        async function leaveEvent(button, eventId) {
             tg.HapticFeedback.impactOccurred('light');
             const { error } = await supabase.from('event_participants').delete().match({ event_id: eventId, user_id: telegramUser.id });
             if (error) {
