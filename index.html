@@ -2189,9 +2189,20 @@
             const area = post.area_captured || 0;
             const formattedArea = area > 10000 ? `${(area / 1000000).toFixed(2)} км²` : `${Math.round(area)} м²`;
             const userHasLiked = telegramUser && likes.some(like => like.user_id === telegramUser.id);
+            const isOwner = telegramUser && post.user_id === telegramUser.id;
+
             return `<div class="card-bg rounded-2xl shadow-lg overflow-hidden" id="post-${post.id}">
                         <div class="p-4">
-                            <div class="flex items-center space-x-3 cursor-pointer" onclick="showDetailModal('user', ${post.user_id})"><img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar"><div><p class="font-bold">${escapeHTML(post.user_name)}</p><p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p></div></div>
+                            <div class="flex justify-between items-start">
+                                <div class="flex items-center space-x-3 cursor-pointer" onclick="showDetailModal('user', ${post.user_id})">
+                                    <img src="${avatar}" class="w-10 h-10 rounded-full" alt="avatar">
+                                    <div>
+                                        <p class="font-bold">${escapeHTML(post.user_name)}</p>
+                                        <p class="text-xs" style="color: var(--hint-color);">${new Date(post.created_at).toLocaleString('ru-RU')}</p>
+                                    </div>
+                                </div>
+                                ${isOwner ? `<button onclick="confirmDelete('post', ${post.id})" class="p-2 rounded-full hover:bg-gray-200 text-gray-500 hover:text-red-500"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+                            </div>
                             <p class="mt-4 font-semibold">${escapeHTML(post.title)}</p>
                             ${post.description ? `<p class="mt-2 text-sm" style="color: var(--text-color);">${escapeHTML(post.description)}</p>` : ''}
                         </div>
