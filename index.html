@@ -604,7 +604,6 @@
         let eventPickerMap; // Карта для выбора точки сбора
         let supabase;
         let telegramUser = null;
-        let locationWatchId = null;
         let scrollToPostId = null; 
         let countdownTimers = []; // Массив для хранения интервалов таймеров
 
@@ -1109,25 +1108,25 @@
              const buttonHTML = isFeed 
                 ? `<button onclick="event.stopPropagation(); navigateToMapObject('spot', '${spot.id}')" class="mt-2 w-full text-sm text-center font-semibold p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);">Показать на карте</button>` 
                 : '';
-              return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('spot', '${spot.id}')">
+               return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('spot', '${spot.id}')">
                         ${spot.photo_url ? `<img src="${spot.photo_url}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Фото спота">` : ''}
                         <p class="font-bold">${escapeHTML(spot.name)}</p>
                         <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(spot.description)}</p>
                         <p class="text-xs text-gray-400 mt-2">${new Date(spot.created_at).toLocaleDateString()}</p>
                         ${buttonHTML}
-                      </div>`;
+                       </div>`;
         }
         
         function generateMiniRouteHTML(route, isFeed = false) {
              const buttonHTML = isFeed 
                 ? `<button onclick="event.stopPropagation(); navigateToMapObject('route', '${route.id}')" class="mt-2 w-full text-sm text-center font-semibold p-2 rounded-lg" style="background-color: var(--bg-color); color: var(--button-color);">Показать на карте</button>` 
                 : '';
-              return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('route', '${route.id}')">
-                                <p class="font-bold flex items-center gap-2"><i class="fa-solid fa-route" style="color: var(--hint-color);"></i> ${escapeHTML(route.name)}</p>
-                                <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(route.description)}</p>
-                                <p class="text-xs text-gray-400 mt-2">${new Date(route.created_at).toLocaleDateString()}</p>
-                                ${buttonHTML}
-                              </div>`;
+               return `<div class="card-bg rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onclick="showDetailModal('route', '${route.id}')">
+                               <p class="font-bold flex items-center gap-2"><i class="fa-solid fa-route" style="color: var(--hint-color);"></i> ${escapeHTML(route.name)}</p>
+                               <p class="text-sm text-gray-600 truncate mt-1">${escapeHTML(route.description)}</p>
+                               <p class="text-xs text-gray-400 mt-2">${new Date(route.created_at).toLocaleDateString()}</p>
+                               ${buttonHTML}
+                             </div>`;
         }
 
         function navigateToMapObject(type, id) {
@@ -1260,12 +1259,14 @@
 
                 listenToRealtimeChanges();
                 setupDynamicEventListeners();
-                initializeGeolocation();
                 handleStartParam();
 
                 initialLoader.classList.add('hidden');
                 appContainer.classList.remove('hidden');
                 bottomNavbar.classList.remove('hidden');
+                
+                // Показываем кнопку запроса гео, так как мы не знаем статус разрешения заранее
+                mapCenterControls.classList.remove('hidden');
                 
                 tg.CloudStorage.getItem('currentMapMode', (error, value) => {
                     if (error) {
@@ -1337,38 +1338,18 @@
             }
         }
         
-        // --- Логика геолокации ---
-        async function initializeGeolocation() {
-            if (!navigator.geolocation) {
-                showCustomAlert("Геолокация не поддерживается вашим устройством.");
-                return;
-            }
-            // Инициализация LocationManager
-            tg.LocationManager.init(() => {
-                handlePermissionChange();
-            });
-        }
-
-        function handlePermissionChange() {
-            if (tg.LocationManager.isAccessGranted) {
-                startGeoTracking();
-            } else {
-                AppState.lastKnownLocation = null;
-                mapActionContainer.classList.add('hidden');
-                modeSwitcher.classList.add('hidden');
-                mapCenterControls.classList.remove('hidden');
-            }
-        }
-
+        // --- Логика геолокации (ОБНОВЛЕНО) ---
         function handleGeoRequest() {
             const geoLoader = document.getElementById('request-geo-loader');
             const geoText = document.getElementById('request-geo-text');
             geoText.textContent = 'Ждем ответа...';
             geoLoader.classList.remove('hidden');
             requestGeoBtn.disabled = true;
-            tg.LocationManager.getLocation((locationData) => {
-                if (locationData) {
-                    const latLng = [locationData.latitude, locationData.longitude];
+
+            // Используем новый метод Telegram Web App
+            tg.requestGeoLocation((access_granted, location) => {
+                if (access_granted && location) {
+                    const latLng = [location.latitude, location.longitude];
                     handleGeoSuccess(latLng);
                 } else {
                     handleGeoError();
@@ -1379,6 +1360,7 @@
         function handleGeoSuccess(latLng) {
             tg.HapticFeedback.notificationOccurred('success');
             if (!AppState.lastKnownLocation) {
+                // При первом получении гео, центрируем карту
                 map.panTo(latLng, {flying: true, duration: 1500}).then(() => map.setZoom(16));
             }
             AppState.lastKnownLocation = latLng;
@@ -1387,63 +1369,26 @@
             mapCenterControls.classList.add('hidden');
             recenterBtn.classList.remove('hidden');
             modeSwitcher.classList.remove('hidden');
-            mapActionContainer.classList.remove('hidden');
+
+            // Показываем кнопку действия, только если активен вид карты
+            if (document.getElementById('map-view').classList.contains('active')) {
+                mapActionContainer.classList.remove('hidden');
+            }
             
             updateMapActionButton();
-            startWatchingLocation();
+            // Отслеживание в реальном времени больше не используется.
+            // Маркер пользователя и запись маршрута не будут обновляться автоматически.
         }
 
         function handleGeoError() {
             tg.HapticFeedback.notificationOccurred('error');
-            showCustomAlert("Не удалось получить геолокацию. Проверьте разрешения в настройках вашего устройства или откройте настройки бота для доступа к локации.");
+            showCustomAlert("Не удалось получить геолокацию. Пожалуйста, убедитесь, что вы предоставили разрешение в диалоговом окне Telegram.");
+            
             const geoText = document.getElementById('request-geo-text');
             const geoLoader = document.getElementById('request-geo-loader');
             geoText.textContent = 'Дать доступ к гео';
             geoLoader.classList.add('hidden');
             requestGeoBtn.disabled = false;
-            // Добавить кнопку для открытия настроек
-            if (!tg.LocationManager.isAccessGranted) {
-                tg.showConfirm("Разрешить доступ к геолокации в настройках?", (confirmed) => {
-                    if (confirmed) {
-                        tg.LocationManager.openSettings();
-                    }
-                });
-            }
-        }
-
-        function startGeoTracking() {
-             navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    handleGeoSuccess([position.coords.latitude, position.coords.longitude]);
-                },
-                (error) => {
-                    handleGeoError();
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
-        }
-        
-        function startWatchingLocation() {
-            if (locationWatchId) {
-                navigator.geolocation.clearWatch(locationWatchId);
-            }
-            locationWatchId = navigator.geolocation.watchPosition(
-                (position) => {
-                    const latLng = [position.coords.latitude, position.coords.longitude];
-                    AppState.lastKnownLocation = latLng;
-                    updateCurrentUserMarker(latLng);
-
-                    if (AppState.isRunning && AppState.currentRoutePolyline) {
-                        const newPoint = [latLng[1], latLng[0]]; // lng, lat
-                        AppState.currentRoutePath.push(newPoint);
-                        AppState.currentRoutePolyline.geometry.append(latLng);
-                    }
-                },
-                (error) => {
-                    console.warn("Ошибка отслеживания геолокации:", error.message);
-                },
-                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-            );
         }
 
         // --- ЛОГИКА РЕЖИМОВ ---
@@ -1893,12 +1838,12 @@
                 const displayName = isCurrentUser ? `${name} (Вы)` : name;
                 const avatar = u.photo_url || `https://placehold.co/50x50/E5E7EB/4B5563?text=${name.charAt(0)}`;
                 return `<div class="card-bg rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 transition" onclick="showDetailModal('user', ${u.id})">
-                                    <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
-                                    <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
-                                    <div class="flex-grow">
-                                        <p class="font-bold">${displayName}</p>
-                                    </div>
-                                </div>`
+                                     <span class="text-xl font-bold w-8" style="color: var(--hint-color);">${index + 1}</span>
+                                     <img src="${avatar}" class="w-12 h-12 rounded-full" alt="avatar">
+                                     <div class="flex-grow">
+                                         <p class="font-bold">${displayName}</p>
+                                     </div>
+                                 </div>`
             }).join('');
         }
 
@@ -2038,14 +1983,14 @@
         }
 
         async function loadAndRenderComments(type, id, containerId) {
-              const container = document.querySelector(`#${containerId}`);
-              if (!container) return;
-              container.innerHTML = '<p class="text-center text-gray-500">Загрузка комментариев...</p>';
-              
-              const { data: comments, error } = await fetchComments(type, id);
-              if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки</p>`; return; }
+             const container = document.querySelector(`#${containerId}`);
+             if (!container) return;
+             container.innerHTML = '<p class="text-center text-gray-500">Загрузка комментариев...</p>';
+             
+             const { data: comments, error } = await fetchComments(type, id);
+             if (error) { container.innerHTML = `<p class="text-center p-4 text-red-500">Ошибка загрузки</p>`; return; }
 
-              renderCommentTree(comments, container, 'detail');
+             renderCommentTree(comments, container, 'detail');
         }
 
         function renderCommentTree(comments, container, context = 'post') {
