@@ -331,7 +331,7 @@
         <div id="map-view" class="view active">
             <div id="map"></div>
             
-            <div id="map-center-controls" class="fixed inset-0 z-20 flex justify-center items-center pointer-events-none hidden">
+            <div id="map-center-controls" class="fixed inset-0 z-20 flex justify-center items-center pointer-events-none">
                 <button id="request-geo-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-lg flex items-center gap-2 pointer-events-auto">
                     <i class="fa-solid fa-location-arrow h-5 w-5"></i>
                     <span id="request-geo-text">Дать доступ к гео</span>
@@ -349,7 +349,7 @@
                 </div>
                 <div id="map-controls-right" class="flex flex-col items-end gap-2">
                     <button id="recenter-btn" class="hidden bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg pointer-events-all">
-                        <i class="fa-solid fa-location-crosshairs h-6 w-6 text-gray-700"></i>
+                        <i id="recenter-icon" class="fa-solid fa-location-crosshairs h-6 w-6 text-gray-700"></i>
                     </button>
                 </div>
             </div>
@@ -610,13 +610,13 @@
         const AppState = {
             currentMapMode: 'spots', // 'spots', 'routes'
             currentFeedTab: 'posts', // 'posts', 'events', 'spots', 'routes'
-            isRunning: false, // Теперь используется только для записи маршрутов
+            isRunning: false, // Используется для записи маршрутов
             lastKnownLocation: null,
             userProfile: {
                 id: null, name: '', color: '#3b82f6', photo_url: null,
             },
-            currentRoutePath: [], // Переименовано для ясности
-            currentRoutePolyline: null, // Переименовано для ясности
+            currentRoutePath: [], 
+            currentRoutePolyline: null, 
             currentUserMarker: null,
             allSpots: [],
             allRoutes: [],
@@ -655,6 +655,7 @@
         const profileAvatarImg = document.getElementById('profile-avatar-img');
         const profileAvatarWrapper = document.getElementById('profile-avatar-wrapper');
         const recenterBtn = document.getElementById('recenter-btn');
+        const recenterIcon = document.getElementById('recenter-icon');
         const requestGeoBtn = document.getElementById('request-geo-btn');
         const mapCenterControls = document.getElementById('map-center-controls');
         const shareProfileBtn = document.getElementById('share-profile-btn');
@@ -838,11 +839,15 @@
                         if(AppState.lastKnownLocation) {
                             handleMapClickForSpot({ get: (key) => key === 'coords' ? AppState.lastKnownLocation : null });
                         } else {
-                            showCustomAlert("Определяем ваше местоположение...");
+                            showCustomAlert("Сначала определите ваше местоположение...");
                         }
                         break;
                     case 'routes':
-                        AppState.isRunning ? await stopRouteRecording() : startRouteRecording();
+                        if (AppState.isRunning) {
+                            await stopRouteRecording();
+                        } else {
+                            startRouteRecording();
+                        }
                         break;
                 }
             } finally {
@@ -1231,7 +1236,7 @@
             try {
                 tg.ready();
                 tg.expand();
-                tg.enableClosingConfirmation();
+                
                 applyTheme(tg.themeParams);
                 setupStaticEventListeners();
 
@@ -1259,15 +1264,13 @@
 
                 listenToRealtimeChanges();
                 setupDynamicEventListeners();
+                initializeGeolocation();
                 handleStartParam();
 
                 initialLoader.classList.add('hidden');
                 appContainer.classList.remove('hidden');
                 bottomNavbar.classList.remove('hidden');
-                
-                // Показываем кнопку запроса гео, так как мы не знаем статус разрешения заранее
-                mapCenterControls.classList.remove('hidden');
-                
+                                
                 tg.CloudStorage.getItem('currentMapMode', (error, value) => {
                     if (error) {
                         console.error("CloudStorage error:", error);
@@ -1338,7 +1341,12 @@
             }
         }
         
-        // --- Логика геолокации (ОБНОВЛЕНО) ---
+        // --- Логика геолокации (ТОЛЬКО ЧЕРЕЗ TELEGRAM) ---
+        function initializeGeolocation() {
+            // Просто показываем кнопку, так как мы не знаем заранее, дал ли пользователь разрешение
+            mapCenterControls.classList.remove('hidden');
+        }
+
         function handleGeoRequest() {
             const geoLoader = document.getElementById('request-geo-loader');
             const geoText = document.getElementById('request-geo-text');
@@ -1346,7 +1354,6 @@
             geoLoader.classList.remove('hidden');
             requestGeoBtn.disabled = true;
 
-            // Используем новый метод Telegram Web App
             tg.requestGeoLocation((access_granted, location) => {
                 if (access_granted && location) {
                     const latLng = [location.latitude, location.longitude];
@@ -1360,7 +1367,6 @@
         function handleGeoSuccess(latLng) {
             tg.HapticFeedback.notificationOccurred('success');
             if (!AppState.lastKnownLocation) {
-                // При первом получении гео, центрируем карту
                 map.panTo(latLng, {flying: true, duration: 1500}).then(() => map.setZoom(16));
             }
             AppState.lastKnownLocation = latLng;
@@ -1369,26 +1375,90 @@
             mapCenterControls.classList.add('hidden');
             recenterBtn.classList.remove('hidden');
             modeSwitcher.classList.remove('hidden');
-
-            // Показываем кнопку действия, только если активен вид карты
+            
             if (document.getElementById('map-view').classList.contains('active')) {
                 mapActionContainer.classList.remove('hidden');
             }
             
             updateMapActionButton();
-            // Отслеживание в реальном времени больше не используется.
-            // Маркер пользователя и запись маршрута не будут обновляться автоматически.
         }
 
         function handleGeoError() {
             tg.HapticFeedback.notificationOccurred('error');
-            showCustomAlert("Не удалось получить геолокацию. Пожалуйста, убедитесь, что вы предоставили разрешение в диалоговом окне Telegram.");
+            showCustomAlert("Не удалось получить геолокацию. Убедитесь, что вы разрешили доступ к геопозиции для этого бота в меню вложений (значок скрепки).");
             
             const geoText = document.getElementById('request-geo-text');
             const geoLoader = document.getElementById('request-geo-loader');
             geoText.textContent = 'Дать доступ к гео';
             geoLoader.classList.add('hidden');
             requestGeoBtn.disabled = false;
+        }
+
+        // --- Логика записи маршрута (адаптировано под ограничения) ---
+        function startRouteRecording() {
+            if (!AppState.lastKnownLocation) {
+                showCustomAlert("Сначала определите свое местоположение."); 
+                return;
+            }
+            AppState.isRunning = true;
+            tg.HapticFeedback.impactOccurred('heavy');
+            tg.enableClosingConfirmation();
+            updateMapActionButton();
+            
+            recenterIcon.className = 'fa-solid fa-plus h-6 w-6 text-gray-700';
+            
+            AppState.currentRoutePath = [ [AppState.lastKnownLocation[1], AppState.lastKnownLocation[0]] ];
+            if (AppState.currentRoutePolyline) map.geoObjects.remove(AppState.currentRoutePolyline);
+            
+            AppState.currentRoutePolyline = new ymaps.Polyline([AppState.lastKnownLocation], {}, { 
+                strokeColor: 'var(--button-color)', 
+                strokeWidth: 5, 
+                strokeOpacity: 0.9 
+            });
+            map.geoObjects.add(AppState.currentRoutePolyline);
+            showCustomAlert("Запись начата. Нажимайте кнопку (+) чтобы добавлять точки маршрута.");
+        }
+
+        async function stopRouteRecording() {
+            AppState.isRunning = false;
+            tg.HapticFeedback.notificationOccurred('success');
+            tg.disableClosingConfirmation();
+            updateMapActionButton();
+            recenterIcon.className = 'fa-solid fa-location-crosshairs h-6 w-6 text-gray-700';
+            
+            if (AppState.currentRoutePath.length < 2) {
+                showCustomAlert("Слишком короткий маршрут. Нужно как минимум 2 точки.");
+                if (AppState.currentRoutePolyline) map.geoObjects.remove(AppState.currentRoutePolyline);
+                AppState.currentRoutePolyline = null;
+                return;
+            }
+            
+            const pathCoordinates = AppState.currentRoutePath.map(p => `${p[0]} ${p[1]}`).join(', ');
+            const pathWKT = `LINESTRING(${pathCoordinates})`;
+            showCreationModal('route', { path: pathWKT });
+
+            if (AppState.currentRoutePolyline) {
+                map.geoObjects.remove(AppState.currentRoutePolyline);
+                AppState.currentRoutePolyline = null;
+            }
+        }
+
+        function addRouteWaypoint() {
+            tg.HapticFeedback.impactOccurred('light');
+            tg.requestGeoLocation((access_granted, location) => {
+                if (access_granted && location) {
+                    const latLng = [location.latitude, location.longitude];
+                    AppState.lastKnownLocation = latLng;
+                    updateCurrentUserMarker(latLng);
+                    
+                    const newPoint = [latLng[1], latLng[0]]; // lng, lat
+                    AppState.currentRoutePath.push(newPoint);
+                    AppState.currentRoutePolyline.geometry.append(latLng);
+                    map.panTo(latLng, {flying: true});
+                } else {
+                    showCustomAlert("Не удалось добавить точку: геолокация недоступна.");
+                }
+            });
         }
 
         // --- ЛОГИКА РЕЖИМОВ ---
@@ -1465,52 +1535,6 @@
             } catch (e) {
                 console.error(`Ошибка при добавлении спота ${spot.id} на карту.`, e, spot);
             }
-        }
-
-        function startRouteRecording() {
-            if (!AppState.lastKnownLocation) {
-                showCustomAlert("Сначала определите свое местоположение."); return;
-            }
-            AppState.isRunning = true;
-            tg.HapticFeedback.impactOccurred('heavy');
-            tg.isClosingConfirmationEnabled = true;
-            updateMapActionButton();
-            
-            AppState.currentRoutePath = [ [AppState.lastKnownLocation[1], AppState.lastKnownLocation[0]] ];
-            if (AppState.currentRoutePolyline) map.geoObjects.remove(AppState.currentRoutePolyline);
-            AppState.currentRoutePolyline = new ymaps.Polyline([AppState.lastKnownLocation], {}, { 
-                strokeColor: 'var(--button-color)', 
-                strokeWidth: 5, 
-                strokeOpacity: 0.9 
-            });
-            map.geoObjects.add(AppState.currentRoutePolyline);
-        }
-
-        async function stopRouteRecording() {
-             return new Promise(resolve => {
-                AppState.isRunning = false;
-                tg.HapticFeedback.notificationOccurred('success');
-                tg.isClosingConfirmationEnabled = false;
-                updateMapActionButton();
-                
-                if (AppState.currentRoutePath.length < 2) {
-                    showCustomAlert("Слишком короткий маршрут.");
-                    if (AppState.currentRoutePolyline) map.geoObjects.remove(AppState.currentRoutePolyline);
-                    AppState.currentRoutePolyline = null;
-                    resolve();
-                    return;
-                }
-                
-                const pathCoordinates = AppState.currentRoutePath.map(p => `${p[0]} ${p[1]}`).join(', ');
-                const pathWKT = `LINESTRING(${pathCoordinates})`;
-                showCreationModal('route', { path: pathWKT });
-
-                if (AppState.currentRoutePolyline) {
-                    map.geoObjects.remove(AppState.currentRoutePolyline);
-                    AppState.currentRoutePolyline = null;
-                }
-                resolve();
-            });
         }
 
         async function saveRoute() {
@@ -1689,9 +1713,14 @@
             document.getElementById('gallery-input').addEventListener('change', handleFileSelect);
 
             requestGeoBtn.addEventListener('click', handleGeoRequest);
+            
             recenterBtn.addEventListener('click', () => {
-                tg.HapticFeedback.impactOccurred('medium');
-                if (AppState.lastKnownLocation) map.panTo(AppState.lastKnownLocation, {flying: true});
+                if (AppState.isRunning) {
+                    addRouteWaypoint();
+                } else {
+                    tg.HapticFeedback.impactOccurred('medium');
+                    if (AppState.lastKnownLocation) map.panTo(AppState.lastKnownLocation, {flying: true});
+                }
             });
             
             shareProfileBtn.addEventListener('click', () => {
