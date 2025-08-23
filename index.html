@@ -1343,22 +1343,19 @@
                 showCustomAlert("Геолокация не поддерживается вашим устройством.");
                 return;
             }
-            try {
-                const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
-                const handlePermissionChange = () => {
-                    if (permissionStatus.state === 'granted') {
-                        startGeoTracking();
-                    } else {
-                        AppState.lastKnownLocation = null;
-                        mapActionContainer.classList.add('hidden');
-                        modeSwitcher.classList.add('hidden');
-                        mapCenterControls.classList.remove('hidden');
-                    }
-                };
-                permissionStatus.onchange = handlePermissionChange;
+            // Инициализация LocationManager
+            tg.LocationManager.init(() => {
                 handlePermissionChange();
-            } catch (e) {
-                console.warn("API разрешений не поддерживается, используем старый метод.", e);
+            });
+        }
+
+        function handlePermissionChange() {
+            if (tg.LocationManager.isAccessGranted) {
+                startGeoTracking();
+            } else {
+                AppState.lastKnownLocation = null;
+                mapActionContainer.classList.add('hidden');
+                modeSwitcher.classList.add('hidden');
                 mapCenterControls.classList.remove('hidden');
             }
         }
@@ -1369,37 +1366,58 @@
             geoText.textContent = 'Ждем ответа...';
             geoLoader.classList.remove('hidden');
             requestGeoBtn.disabled = true;
-            startGeoTracking();
+            tg.LocationManager.getLocation((locationData) => {
+                if (locationData) {
+                    const latLng = [locationData.latitude, locationData.longitude];
+                    handleGeoSuccess(latLng);
+                } else {
+                    handleGeoError();
+                }
+            });
+        }
+
+        function handleGeoSuccess(latLng) {
+            tg.HapticFeedback.notificationOccurred('success');
+            if (!AppState.lastKnownLocation) {
+                map.panTo(latLng, {flying: true, duration: 1500}).then(() => map.setZoom(16));
+            }
+            AppState.lastKnownLocation = latLng;
+            
+            updateCurrentUserMarker(latLng);
+            mapCenterControls.classList.add('hidden');
+            recenterBtn.classList.remove('hidden');
+            modeSwitcher.classList.remove('hidden');
+            mapActionContainer.classList.remove('hidden');
+            
+            updateMapActionButton();
+            startWatchingLocation();
+        }
+
+        function handleGeoError() {
+            tg.HapticFeedback.notificationOccurred('error');
+            showCustomAlert("Не удалось получить геолокацию. Проверьте разрешения в настройках вашего устройства или откройте настройки бота для доступа к локации.");
+            const geoText = document.getElementById('request-geo-text');
+            const geoLoader = document.getElementById('request-geo-loader');
+            geoText.textContent = 'Дать доступ к гео';
+            geoLoader.classList.add('hidden');
+            requestGeoBtn.disabled = false;
+            // Добавить кнопку для открытия настроек
+            if (!tg.LocationManager.isAccessGranted) {
+                tg.showConfirm("Разрешить доступ к геолокации в настройках?", (confirmed) => {
+                    if (confirmed) {
+                        tg.LocationManager.openSettings();
+                    }
+                });
+            }
         }
 
         function startGeoTracking() {
              navigator.geolocation.getCurrentPosition(
                 (position) => {
-                    tg.HapticFeedback.notificationOccurred('success');
-                    const latLng = [position.coords.latitude, position.coords.longitude];
-                    if (!AppState.lastKnownLocation) {
-                        map.panTo(latLng, {flying: true, duration: 1500}).then(() => map.setZoom(16));
-                    }
-                    AppState.lastKnownLocation = latLng;
-                    
-                    updateCurrentUserMarker(latLng);
-                    mapCenterControls.classList.add('hidden');
-                    recenterBtn.classList.remove('hidden');
-                    modeSwitcher.classList.remove('hidden');
-                    mapActionContainer.classList.remove('hidden');
-                    
-                    updateMapActionButton();
-                    startWatchingLocation();
+                    handleGeoSuccess([position.coords.latitude, position.coords.longitude]);
                 },
                 (error) => {
-                    tg.HapticFeedback.notificationOccurred('error');
-                    console.error("Geolocation error:", error);
-                    showCustomAlert("Не удалось получить геолокацию. Проверьте разрешения в настройках вашего устройства.");
-                    const geoText = document.getElementById('request-geo-text');
-                    const geoLoader = document.getElementById('request-geo-loader');
-                    geoText.textContent = 'Дать доступ к гео';
-                    geoLoader.classList.add('hidden');
-                    requestGeoBtn.disabled = false;
+                    handleGeoError();
                 },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
